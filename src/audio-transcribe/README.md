@@ -121,6 +121,12 @@ uv run audio-transcribe.py \
 
 The TUI edits the same transcription config used by CLI mode, then passes it to the same service layer.
 
+In TUI mode, the `Model File` field is a dropdown populated from:
+
+```text
+~/whisper/models/
+```
+
 ## Project Structure
 
 ```text

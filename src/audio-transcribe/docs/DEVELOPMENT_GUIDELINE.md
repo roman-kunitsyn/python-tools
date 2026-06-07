@@ -59,6 +59,8 @@ uv run audio-transcribe.py \
 
 Reusable UI components belong under `src/app/ui/widgets/`. Screens belong under `src/app/ui/screens/`. Forms belong under `src/app/ui/forms/`.
 
+The TUI model selector should list available model files from `DEFAULT_MODEL_DIR`, currently `~/whisper/models/`. Keep model discovery in a service/helper module, not inline inside widgets.
+
 Keep future UI concepts screen-oriented:
 
 - `TranscribeScreen`
