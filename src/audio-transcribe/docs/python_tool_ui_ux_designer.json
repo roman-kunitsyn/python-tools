@@ -1,0 +1,30 @@
+{
+  "python_tool_ui_ux_designer": {
+    "agent_id": "python_tool_ui_ux_designer",
+    "name": "",
+    "role": "",
+
+    "domain": "management|product|design|architecture|engineering|quality|documentation|data|security|devops|operations|researc",
+    "agent_type": "generalist|specialist",
+    "specialization_level": "broad|narrow",
+    "authority_level": "executive|manager|lead|senior|individual",
+    "specialization_scope": "frontend|backend|database|mobile|tools|tests|docs|configs|devops",
+    "execution_mode": "planner|executor|reviewer|validator|orchestrator",
+    "specialization": [],
+    "parent_agent": null,
+    "reports_to": [],
+    "collaborates_with": [],
+    "can_delegate": false,
+
+    "description": "",
+    "responsibilities": [],
+    "skills": [],
+    "technologies": [],
+    "inputs": [],
+    "outputs": [],
+    "rules": [],
+    "constraints": [],
+    "system_prompt": "",
+    "temperature": 0.3
+  }
+}
