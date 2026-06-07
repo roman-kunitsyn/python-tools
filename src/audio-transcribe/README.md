@@ -155,11 +155,11 @@ Project-local docs:
 
 Shared Python tool docs:
 
-- [Architecture Guideline](../../docs/ARCHITECTURE_GUIDELINE.md): reusable architecture for Python CLI/TUI tool wrappers.
-- [Implementation Plan](../../docs/IMPLEMENTATION_PLAN.md): production growth plan with review checkpoints.
-- [Testing Guideline](../../docs/TESTING_GUIDELINE.md): shared testing guidance.
-- [UX/UI Design Guideline](../../docs/UX_UI_DESIGN_GUIDELINE.md): shared TUI and interface design guidance.
-- [Developer Role](../../docs/DEVELOPER_ROLE.md): Python tool developer role description.
+- [Architecture Guideline](../../docs/guidelines/ARCHITECTURE_GUIDELINE.md): reusable architecture for Python CLI/TUI tool wrappers.
+- [Implementation Guideline](../../docs/guidelines/IMPLEMENTATION_GUIDELINE.md): production growth plan with review checkpoints.
+- [Testing Guideline](../../docs/guidelines/TESTING_GUIDELINE.md): shared testing guidance.
+- [UX/UI Design Guideline](../../docs/guidelines/UX_UI_DESIGN_GUIDELINE.md): shared TUI and interface design guidance.
+- [Tool Engineer](../../docs/roles/TOOL_ENGINEER.md): Python tool engineer role description.
 - [Python Tool Engineer Profile](../../docs/roles/profiles/python_tool_engineer.json): machine-readable role profile.
 
 ## Exit Codes
