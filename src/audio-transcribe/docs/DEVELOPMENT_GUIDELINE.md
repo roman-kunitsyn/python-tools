@@ -12,10 +12,11 @@ Meeting metadata, timestamps, recording paths, and scheduling belong in caller t
 
 ## CLI Shape
 
-Expose CLI arguments through `build_parser()` and keep argument parsing inside `main()`.
+Expose CLI arguments through `src.app.cli.parser.build_parser()` and keep argument parsing inside `main()`.
 
 Supported CLI options:
 
+- `--mode`: `cli` or `tui`, default `cli`
 - `--audio-file`: required source audio path
 - `--format`: output format, default `txt`
 - `--output-file`: optional output path or base name
@@ -25,24 +26,77 @@ Supported CLI options:
 
 Avoid positional arguments for required inputs when the meaning is domain-specific. Prefer explicit flags.
 
+In CLI mode, `--audio-file` is required. In TUI mode, the user may start without an audio file and fill it in the form.
+
+CLI arguments should build a `TranscribeConfig` through `build_config_from_args()`. Do not pass raw `argparse` namespaces into services or UI code.
+
+## TUI Shape
+
+Textual is a presentation layer only.
+
+Widgets and screens may read and edit a `TranscribeConfig`, but they must not call `whisper-cli`, inspect files directly beyond UI concerns, or own transcription behavior.
+
+Use this flow:
+
+```text
+TranscribeApp
+TranscribeScreen
+TranscribeForm
+TranscribeConfig
+ProgressScreen
+TranscribeService
+WhisperWrapper
+```
+
+The TUI should support pre-filled values from CLI arguments:
+
+```bash
+uv run audio-transcribe.py \
+  --mode tui \
+  --audio-file meeting.wav \
+  --format json
+```
+
+Reusable UI components belong under `src/app/ui/widgets/`. Screens belong under `src/app/ui/screens/`. Forms belong under `src/app/ui/forms/`.
+
+Keep future UI concepts screen-oriented:
+
+- `TranscribeScreen`
+- `ProgressScreen`
+- `SettingsScreen`
+
+Do not put long-running work directly in form or input widgets. Use a screen or service boundary so the UI can show progress and results.
+
 ## Function Boundaries
 
-Keep module-level code limited to constants, function definitions, and:
+Keep `audio-transcribe.py` limited to importing and running the application entry point:
 
 ```python
 if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-Use this call path:
+Use this CLI call path:
 
 ```text
 main()
-transcribe_audio()
-run_whisper()
+build_config_from_args()
+TranscribeService.transcribe()
+WhisperWrapper.run()
 ```
 
-Validation and path construction should stay in small functions:
+Use this TUI call path:
+
+```text
+main()
+build_config_from_args()
+TranscribeApp.run()
+TranscribeForm.build_config()
+TranscribeService.transcribe()
+WhisperWrapper.run()
+```
+
+Validation and path construction should stay in `src.app.services.transcriber`:
 
 - `validate_audio_file()`
 - `validate_model_file()`
@@ -50,6 +104,22 @@ Validation and path construction should stay in small functions:
 - `get_whisper_flag()`
 
 This keeps the CLI usable today and makes the code importable by another Python tool later.
+
+## Config Model
+
+Everything should revolve around `TranscribeConfig`:
+
+```python
+@dataclass
+class TranscribeConfig:
+    audio_file: Path | None
+    output_file: Path | None
+    output_format: str
+    model_file: Path
+    language: str = "auto"
+```
+
+The CLI fills this model from `argparse`. The TUI fills the same model from form fields. Services receive this model and do not depend on either interface.
 
 ## Formats
 
@@ -79,7 +149,7 @@ Apply the selected extension in `build_output_file()` so the rest of the applica
 
 ## Subprocesses
 
-Call `subprocess.run(command, check=True)` for `whisper-cli`.
+Call `subprocess.run(command, check=True)` for `whisper-cli` inside `WhisperWrapper`.
 
 Do not capture subprocess output unless the application needs to parse or display it differently. Let `whisper-cli` stream output normally.
 
@@ -98,5 +168,6 @@ Keep return codes stable:
 - Use `Path` for filesystem paths.
 - Keep constants at the top of the file.
 - Keep validation errors clear and specific.
-- Use `log(message, verbose)` for optional CLI logging.
 - Avoid hardcoded user-specific paths in implementation code.
+- Keep UI code declarative and thin.
+- Prefer small reusable Textual widgets over repeated raw inputs.

@@ -1,6 +1,6 @@
 # Audio Transcribe
 
-Transcribe an audio file with `whisper-cli`.
+Transcribe an audio file with `whisper-cli` from either a CLI or a Textual TUI.
 
 ## Requirements
 
@@ -8,6 +8,7 @@ Transcribe an audio file with `whisper-cli`.
 - `uv`
 - `whisper-cli` available on `PATH`
 - A Whisper model file
+- `textual`, already listed in the parent Python project dependencies
 
 By default, the CLI uses:
 
@@ -17,7 +18,7 @@ By default, the CLI uses:
 
 Override it with `--model-file` when needed.
 
-## Usage
+## CLI Usage
 
 Create a text transcript next to the source audio file:
 
@@ -98,6 +99,44 @@ uv run audio-transcribe.py \
   --audio-file meeting.wav \
   --verbose
 ```
+
+## TUI Usage
+
+Start the Textual interface:
+
+```bash
+uv run audio-transcribe.py \
+  --mode tui
+```
+
+Start the TUI with fields pre-filled from CLI arguments:
+
+```bash
+uv run audio-transcribe.py \
+  --mode tui \
+  --audio-file meeting.wav \
+  --format json \
+  --language en
+```
+
+The TUI edits the same transcription config used by CLI mode, then passes it to the same service layer.
+
+## Project Structure
+
+```text
+audio-transcribe/
+├── audio-transcribe.py
+├── src/
+│   └── app/
+│       ├── cli/
+│       ├── models/
+│       ├── services/
+│       └── ui/
+├── docs/
+└── README.md
+```
+
+`audio-transcribe.py` is only the script entry point. Application behavior lives in `src/app`.
 
 ## Exit Codes
 
