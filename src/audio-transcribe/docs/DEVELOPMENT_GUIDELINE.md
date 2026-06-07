@@ -4,11 +4,11 @@ This file contains audio-transcribe-specific conventions.
 
 Shared workspace guidance lives in `../../docs/` from this project root:
 
-- `../../docs/ARCHITECTURE_GUIDELINE.md`
-- `../../docs/IMPLEMENTATION_PLAN.md`
-- `../../docs/TESTING_GUIDELINE.md`
-- `../../docs/UX_UI_DESIGN_GUIDELINE.md`
-- `../../docs/DEVELOPER_ROLE.md`
+- `../../docs/guideline/ARCHITECTURE_GUIDELINE.md`
+- `../../docs/guideline/IMPLEMENTATION_GUIDELINE.md`
+- `../../docs/guideline/TESTING_GUIDELINE.md`
+- `../../docs/guideline/UX_UI_DESIGN_GUIDELINE.md`
+- `../../docs/roles/TOOL_ENGINEER.md`
 - `../../docs/roles/profiles/python_tool_engineer.json`
 
 ## Scope

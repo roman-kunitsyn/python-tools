@@ -88,7 +88,7 @@ Acceptance criteria:
 - service can be imported without launching CLI or TUI
 - existing CLI behavior still works
 
-For this project, the config model is `TranscribeConfig`, the service is `TranscribeService`, and the external wrapper is `WhisperWrapper`.
+[For this project](./../../src/audio-transcribe/README.md), the config model is `TranscribeConfig`, the service is `TranscribeService`, and the external wrapper is `WhisperWrapper`.
 
 ## Task 3: Add Textual TUI Layer
 
@@ -104,6 +104,7 @@ Deliverables:
 - progress/result screen
 - reusable widgets
 - `--mode tui`
+- `--mode`: `cli` or `tui`, default `cli`
 
 Acceptance criteria:
 
