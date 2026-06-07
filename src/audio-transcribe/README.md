@@ -139,6 +139,8 @@ audio-transcribe/
 │       ├── services/
 │       └── ui/
 ├── docs/
+│   ├── DEVELOPMENT_GUIDELINE.md
+│   └── reports/
 └── README.md
 ```
 
@@ -146,11 +148,19 @@ audio-transcribe/
 
 ## Documentation
 
-- [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md): coding conventions for this project.
-- [Architecture Guideline](docs/ARCHITECTURE_GUIDELINE.md): reusable architecture for Python CLI/TUI tool wrappers.
-- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md): production growth plan with review checkpoints.
-- [Developer Role](docs/DEVELOPER_ROLE.md): short role description for a Python tool engineer.
-- [Python Tool Engineer Profile](docs/python_tool_engineer.json): machine-readable role profile.
+Project-local docs:
+
+- [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md): audio-transcribe-specific conventions.
+- [Task Reports](docs/reports/): reports for completed implementation tasks in this project.
+
+Shared Python tool docs:
+
+- [Architecture Guideline](../../docs/ARCHITECTURE_GUIDELINE.md): reusable architecture for Python CLI/TUI tool wrappers.
+- [Implementation Plan](../../docs/IMPLEMENTATION_PLAN.md): production growth plan with review checkpoints.
+- [Testing Guideline](../../docs/TESTING_GUIDELINE.md): shared testing guidance.
+- [UX/UI Design Guideline](../../docs/UX_UI_DESIGN_GUIDELINE.md): shared TUI and interface design guidance.
+- [Developer Role](../../docs/DEVELOPER_ROLE.md): Python tool developer role description.
+- [Python Tool Engineer Profile](../../docs/roles/profiles/python_tool_engineer.json): machine-readable role profile.
 
 ## Exit Codes
 

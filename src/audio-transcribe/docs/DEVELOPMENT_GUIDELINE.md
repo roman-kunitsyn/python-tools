@@ -1,5 +1,16 @@
 # Development Guideline
 
+This file contains audio-transcribe-specific conventions.
+
+Shared workspace guidance lives in `../../docs/` from this project root:
+
+- `../../docs/ARCHITECTURE_GUIDELINE.md`
+- `../../docs/IMPLEMENTATION_PLAN.md`
+- `../../docs/TESTING_GUIDELINE.md`
+- `../../docs/UX_UI_DESIGN_GUIDELINE.md`
+- `../../docs/DEVELOPER_ROLE.md`
+- `../../docs/roles/profiles/python_tool_engineer.json`
+
 ## Scope
 
 Keep this project focused on one responsibility:
@@ -182,7 +193,7 @@ Before handing off changes, run checks that match the touched layer:
 - Service changes: run focused unit tests when present, or exercise the service with a test double for `WhisperWrapper`.
 - TUI changes: run a Textual mounted smoke test with `App.run_test()`.
 - Syntax check: run `uv run python -m py_compile` for edited Python files.
-- JSON docs: run `uv run python -m json.tool docs/python_tool_engineer.json`.
+- Shared JSON role docs: run `uv run python -m json.tool ../../docs/roles/profiles/python_tool_engineer.json` when that profile changes.
 
 Do not leave generated `__pycache__` files in the working tree.
 
