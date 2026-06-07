@@ -39,11 +39,8 @@ tool-name/
 ├── tool-name.py
 ├── README.md
 ├── docs/
-│   ├── ARCHITECTURE_GUIDELINE.md
-│   ├── DEVELOPER_ROLE.md
 │   ├── DEVELOPMENT_GUIDELINE.md
 │   ├── IMPLEMENTATION_PLAN.md
-│   ├── python_tool_engineer.json
 │   └── reports/
 └── src/
     ├── __init__.py

@@ -1,4 +1,4 @@
-# Implementation Plan
+# Implementation Guideline
 
 This plan guides an agent from a draft script to a production-grade Python CLI/TUI tool. Each task should leave a working product, not a half-finished layer.
 
