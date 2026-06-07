@@ -13,6 +13,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Record a meeting audio session with ffmpeg."
     )
     parser.add_argument(
+        "--mode",
+        choices=("cli", "tui"),
+        default="cli",
+        help="Run in command-line mode or Textual TUI mode.",
+    )
+    parser.add_argument(
         "--stamp",
         default="",
         help="Optional meeting label written to metadata.json.",

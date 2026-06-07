@@ -3,7 +3,7 @@
 ## Project Overview
 
 Record a meeting audio session with `ffmpeg` on macOS using the `avfoundation`
-input.
+input from either CLI mode or Textual TUI mode.
 
 The tool finds an audio input device by name, creates a timestamped meeting
 folder, records the core meeting audio file, and writes metadata for the
@@ -15,6 +15,7 @@ session.
   `microphone input -> recorded audio file`.
 - Keep the root script thin.
 - Keep CLI parsing separate from recording behavior.
+- Let CLI and TUI use the same recording config model.
 - Keep `ffmpeg` subprocess calls behind a wrapper.
 - Store output in a predictable meeting folder.
 - Preserve meeting metadata next to the recording.
@@ -27,6 +28,7 @@ session.
 - `dataclasses`
 - `pathlib`
 - `subprocess`
+- Textual
 - `ffmpeg`
 
 ## Getting Started
@@ -41,6 +43,13 @@ Record with defaults:
 
 ```bash
 uv run python src/meeting-record/meeting-record.py
+```
+
+Start the Textual TUI:
+
+```bash
+uv run python src/meeting-record/meeting-record.py \
+  --mode tui
 ```
 
 By default, the tool looks for an audio input device containing:
@@ -92,6 +101,18 @@ uv run python src/meeting-record/meeting-record.py \
   --verbose
 ```
 
+Start the TUI with fields pre-filled:
+
+```bash
+uv run python src/meeting-record/meeting-record.py \
+  --mode tui \
+  --stamp team-sync \
+  --device-name "Aggregate Device"
+```
+
+In TUI mode, use the form to edit the recording config, Start to begin
+recording, and Stop to finish the active `ffmpeg` recording.
+
 ## Folder Structure
 
 ```text
@@ -105,7 +126,8 @@ meeting-record/
 └── src/app/
     ├── cli/
     ├── models/
-    └── services/
+    ├── services/
+    └── ui/
 ```
 
 ## Examples
@@ -125,6 +147,13 @@ Metadata example:
   "stamp": "team-sync",
   "timestamp": "2026_06_08-14_30_00"
 }
+```
+
+Start interactive recording:
+
+```bash
+uv run python src/meeting-record/meeting-record.py \
+  --mode tui
 ```
 
 ## References

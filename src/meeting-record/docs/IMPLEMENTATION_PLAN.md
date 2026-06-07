@@ -8,9 +8,10 @@ module. Shared process guidance belongs in
 
 `meeting-record` records one meeting audio session with `ffmpeg`.
 
-Supported interface:
+Supported interfaces:
 
 - CLI mode for starting a recording.
+- Textual TUI mode for configuring, starting, and stopping a recording.
 
 The module should remain focused on this flow:
 
@@ -34,7 +35,8 @@ src/meeting-record/
 └── src/app/
     ├── cli/
     ├── models/
-    └── services/
+    ├── services/
+    └── ui/
 ```
 
 Current layer ownership:
@@ -48,6 +50,7 @@ Current layer ownership:
 - `src/app/services/ffmpeg.py`: `ffmpeg` device discovery and recording
   subprocess wrapper.
 - `src/app/services/models.py`: service result model.
+- `src/app/ui/`: Textual app, form, screens, and reusable widgets.
 
 ## Implemented
 
@@ -60,6 +63,10 @@ Current layer ownership:
 - `FfmpegWrapper` owns `ffmpeg` subprocess calls.
 - CLI return codes are mapped for validation errors, existing output folders,
   external `ffmpeg` failures, and interruption.
+- TUI mode edits the shared `RecordConfig` and starts recording through the
+  service layer.
+- TUI active recording runs through a Textual worker and can request stop
+  through the service boundary.
 - README documents setup, CLI usage, output structure, and references.
 
 ## Known Gaps
@@ -68,9 +75,8 @@ Current layer ownership:
 - Core behavior needs test doubles for `FfmpegWrapper`.
 - `ffmpeg` availability is only discovered when a subprocess is invoked.
 - Device discovery is macOS `avfoundation` specific.
-- There is no TUI mode.
-- Interruption behavior is basic and should be tested with real `ffmpeg`
-  recording.
+- TUI smoke tests with Textual `run_test()` are not present.
+- Interruption and stop behavior should be tested with real `ffmpeg` recording.
 - Output overwrite behavior is currently conservative because existing meeting
   directories fail with `FileExistsError`.
 
@@ -81,6 +87,7 @@ Completed:
 - Part 1: Convert draft script into a focused CLI tool.
 - Part 2: Split entry point, CLI parser, config model, service logic, and
   external tool wrapper.
+- Part 3: Add Textual TUI layer.
 
 Partial:
 
@@ -92,7 +99,6 @@ Partial:
 
 Not started:
 
-- Part 3: Add Textual TUI layer.
 - Part 4: Add tests and test doubles.
 - Part 7: Package and distribution readiness.
 - Part 8: Production hardening.
@@ -137,25 +143,6 @@ Acceptance criteria:
 - missing `ffmpeg` is reported clearly
 - missing device name is reported clearly
 - service logic remains independent of CLI formatting concerns
-
-### Part 3: TUI Layer
-
-Goal:
-
-Add a Textual UI for configuring and starting a recording.
-
-Deliverables:
-
-- screen for recording config
-- fields for stamp, meetings directory, and device name
-- progress screen for active recording
-- non-blocking worker boundary for `ffmpeg`
-
-Acceptance criteria:
-
-- TUI does not call `ffmpeg` directly from widgets
-- TUI builds the same `RecordConfig` used by CLI mode
-- active recording does not block the UI thread
 
 ### Part 8: Production Hardening
 

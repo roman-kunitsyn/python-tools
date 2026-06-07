@@ -21,6 +21,7 @@ generation to this module.
 - `src/app/models/config.py` owns config fields and defaults.
 - `src/app/services/recorder.py` owns output paths, metadata, and orchestration.
 - `src/app/services/ffmpeg.py` owns `ffmpeg` subprocess details.
+- `src/app/ui/` owns Textual screens, forms, and widgets.
 
 ## CLI Rules
 
@@ -38,6 +39,14 @@ generation to this module.
   to capture it.
 - Treat existing meeting output directories as validation failures instead of
   overwriting them.
+
+## TUI Rules
+
+- TUI forms build the same `RecordConfig` used by CLI mode.
+- TUI screens call services, not `ffmpeg` wrappers directly.
+- Active recording must run through a Textual worker.
+- Stop actions should go through `MeetingRecordService`, not subprocess APIs in
+  widgets.
 
 ## Documentation Rules
 

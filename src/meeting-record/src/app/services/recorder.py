@@ -49,6 +49,8 @@ class MeetingRecordService:
         self.verbose = verbose
 
     def record(self, config: RecordConfig) -> RecordingResult:
+        self.ffmpeg.clear_stop_request()
+
         timestamp = config.timestamp or build_timestamp()
         validate_timestamp(timestamp)
 
@@ -76,3 +78,6 @@ class MeetingRecordService:
             metadata_file=metadata_file,
             timestamp=timestamp,
         )
+
+    def stop_recording(self) -> None:
+        self.ffmpeg.stop_recording()
