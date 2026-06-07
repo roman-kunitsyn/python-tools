@@ -23,3 +23,8 @@ I need list of tasks for reaching result step by step to final warcing productio
 Implementation plan shouldn't be a list of small tiny tasks.
 Task should be full functionality, after each task I want to have working product.
 Each task add some complete functionality implements logical and functional layer.
+
+After Implementation need to update documentation files
+
+on folder tools/python/src/audio-transcribe/docs/reports
+after each task need to create file with breaf summery about what was done. report file should have timestamp in (like report\_{timestamp}).
