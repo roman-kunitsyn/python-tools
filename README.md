@@ -6,11 +6,15 @@ This repository is a workspace for small Python tools. Each production-ready
 tool should wrap one focused capability, expose a clear CLI or TUI, and keep
 implementation state documented in its own module docs.
 
-The current modular tool is [audio-transcribe](src/audio-transcribe/README.md),
-which transcribes audio files with `whisper-cli`.
+The current modular tools are:
 
-The root `src/meeting-*.py` files are draft scripts. They are useful source
-material for future tools, but they do not yet follow the full modular
+- [audio-transcribe](src/audio-transcribe/README.md): transcribes audio files
+  with `whisper-cli`.
+- [meeting-record](src/meeting-record/README.md): records meeting audio with
+  `ffmpeg`.
+
+The remaining root `src/meeting-*.py` files are draft scripts. They are useful
+source material for future tools, but they do not yet follow the full modular
 CLI/TUI/service structure.
 
 ## Goals
@@ -46,11 +50,16 @@ Verify the current modular tool starts:
 
 ```bash
 uv run python src/audio-transcribe/audio-transcribe.py --help
+uv run python src/meeting-record/meeting-record.py --help
 ```
 
 For audio transcription runtime requirements, see the
 [audio-transcribe README](src/audio-transcribe/README.md). That tool requires
 `whisper-cli` and a Whisper model file.
+
+For meeting recording runtime requirements, see the
+[meeting-record README](src/meeting-record/README.md). That tool requires
+`ffmpeg` and a macOS audio input device visible to `avfoundation`.
 
 ## CLI Usage
 
@@ -58,6 +67,7 @@ Show help for the current modular tool:
 
 ```bash
 uv run python src/audio-transcribe/audio-transcribe.py --help
+uv run python src/meeting-record/meeting-record.py --help
 ```
 
 Run audio transcription:
@@ -74,10 +84,16 @@ uv run python src/audio-transcribe/audio-transcribe.py \
   --mode tui
 ```
 
+Record a meeting:
+
+```bash
+uv run python src/meeting-record/meeting-record.py \
+  --stamp team-sync
+```
+
 Older draft scripts live directly under `src/`:
 
 ```text
-src/meeting-record.py
 src/meeting-split.py
 src/meeting-transcribe.py
 src/meeting-combine.py
@@ -102,8 +118,12 @@ tools/python/
     │   ├── audio-transcribe.py
     │   ├── docs/
     │   └── src/app/
+    ├── meeting-record/
+    │   ├── README.md
+    │   ├── meeting-record.py
+    │   ├── docs/
+    │   └── src/app/
     ├── meeting-combine.py
-    ├── meeting-record.py
     ├── meeting-split.py
     ├── meeting-summary.py
     └── meeting-transcribe.py
@@ -147,6 +167,13 @@ uv run python src/audio-transcribe/audio-transcribe.py \
   --model-file ~/whisper/models/ggml-medium.bin
 ```
 
+Record a meeting to `~/workspace/meetings`:
+
+```bash
+uv run python src/meeting-record/meeting-record.py \
+  --stamp team-sync
+```
+
 ## References
 
 Shared guidelines:
@@ -176,6 +203,10 @@ Module documentation:
 - [audio-transcribe Development Guideline](src/audio-transcribe/docs/DEVELOPMENT_GUIDELINE.md)
 - [audio-transcribe Task Reports](src/audio-transcribe/docs/reports/)
 - [audio-transcribe Tasks](src/audio-transcribe/docs/tasks/)
+- [meeting-record README](src/meeting-record/README.md)
+- [meeting-record Implementation Plan](src/meeting-record/docs/IMPLEMENTATION_PLAN.md)
+- [meeting-record Development Guideline](src/meeting-record/docs/DEVELOPMENT_GUIDELINE.md)
+- [meeting-record Task Reports](src/meeting-record/docs/reports/)
 
 Documentation responsibilities:
 
