@@ -171,3 +171,37 @@ Keep return codes stable:
 - Avoid hardcoded user-specific paths in implementation code.
 - Keep UI code declarative and thin.
 - Prefer small reusable Textual widgets over repeated raw inputs.
+
+## Verification
+
+Before handing off changes, run checks that match the touched layer:
+
+- CLI/parser changes: run `uv run python audio-transcribe.py --help` and at least one validation-error command.
+- Service changes: run focused unit tests when present, or exercise the service with a test double for `WhisperWrapper`.
+- TUI changes: run a Textual mounted smoke test with `App.run_test()`.
+- Syntax check: run `uv run python -m py_compile` for edited Python files.
+- JSON docs: run `uv run python -m json.tool docs/python_tool_engineer.json`.
+
+Do not leave generated `__pycache__` files in the working tree.
+
+## Task Reports
+
+After each completed implementation task, create a short report in:
+
+```text
+docs/reports/report_{timestamp}.md
+```
+
+Use a sortable timestamp such as:
+
+```text
+report_2026-06-08_14-30-00.md
+```
+
+Each report should include:
+
+- task summary
+- files changed
+- behavior added or changed
+- checks run
+- remaining risks or follow-up work

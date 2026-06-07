@@ -138,6 +138,14 @@ audio-transcribe/
 
 `audio-transcribe.py` is only the script entry point. Application behavior lives in `src/app`.
 
+## Documentation
+
+- [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md): coding conventions for this project.
+- [Architecture Guideline](docs/ARCHITECTURE_GUIDELINE.md): reusable architecture for Python CLI/TUI tool wrappers.
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md): production growth plan with review checkpoints.
+- [Developer Role](docs/DEVELOPER_ROLE.md): short role description for a Python tool engineer.
+- [Python Tool Engineer Profile](docs/python_tool_engineer.json): machine-readable role profile.
+
 ## Exit Codes
 
 - `0`: success

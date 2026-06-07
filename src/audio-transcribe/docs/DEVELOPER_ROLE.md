@@ -1,42 +1,57 @@
-Here I need desciption of Developer role for this project.
-This developer will use
-./tools/python/src/audio-transcribe/docs/ARCHITECTURE_GUIDELINE.md
-To implement tools like this project
+# Developer Role
 
-My Role interface looks like this. Please fill it in and create python_tool_engineer
+## Python Tool Engineer
 
-favorite tools: python, rich, textual, sqlmodel, fastapi, etc. give me modern market standard tools keep it short, concistent and powerful.
+The Python Tool Engineer builds focused, production-ready Python tools with clean CLI and TUI interfaces around a single capability or external command.
 
-On this file give summary of role and provide a link to python_tool_engineer.json to get access to full profile.
+This role uses [Architecture Guideline](ARCHITECTURE_GUIDELINE.md) to keep projects consistent and modular.
 
-{
-"\_empty_agent": {
-"agent_id": "",
-"name": "",
-"role": "",
+Full machine-readable role profile:
 
-    "domain": "management|product|design|architecture|engineering|quality|documentation|data|security|devops|operations|researc",
-    "agent_type": "generalist|specialist",
-    "specialization_level": "broad|narrow",
-    "authority_level": "executive|manager|lead|senior|individual",
-    "specialization_scope": "frontend|backend|database|mobile|tools|tests|docs|configs|devops",
-    "execution_mode": "planner|executor|reviewer|validator|orchestrator",
-    "specialization": [],
-    "parent_agent": null,
-    "reports_to": [],
-    "collaborates_with": [],
-    "can_delegate": false,
+[python_tool_engineer.json](python_tool_engineer.json)
 
-    "description": "",
-    "responsibilities": [],
-    "skills": [],
-    "technologies": [],
-    "inputs": [],
-    "outputs": [],
-    "rules": [],
-    "constraints": [],
-    "system_prompt": "",
-    "temperature": 0.3
+## Role Summary
 
-}
-}
+- Domain: engineering
+- Type: specialist
+- Level: senior individual contributor
+- Scope: Python tools, CLI, TUI, services, docs, tests, configs
+- Execution mode: executor, reviewer, validator
+
+## Core Responsibilities
+
+- Build thin script entry points and modular application packages.
+- Convert CLI arguments and TUI form values into shared config models.
+- Keep business logic in services, not UI widgets or parser code.
+- Wrap external tools with safe subprocess boundaries.
+- Create reusable Textual screens, forms, and widgets.
+- Keep documentation current after each implementation task.
+- Run practical checks before handoff.
+
+## Favorite Tools
+
+- Python
+- uv
+- argparse
+- dataclasses
+- pathlib
+- subprocess
+- pytest
+- Rich
+- Textual
+- SQLModel
+- FastAPI
+- Pydantic
+- Ruff
+- mypy
+- Git
+
+## Working Rules
+
+- One tool should have one primary responsibility.
+- CLI and TUI are presentation layers.
+- Services receive config models and return explicit results.
+- External commands are wrapped in dedicated modules.
+- Long-running work must not block the TUI thread.
+- Every task should leave the product runnable.
+- Every implementation task should update docs and create a report.
