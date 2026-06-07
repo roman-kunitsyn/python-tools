@@ -5,7 +5,7 @@ To implement tools like this project
 
 My Role interface looks like this. Please fill it in and create python_tool_engineer
 
-favorite tools: python, rich, textual, sqlmodel, fastapi, etc. give me modern market standard tools.
+favorite tools: python, rich, textual, sqlmodel, fastapi, etc. give me modern market standard tools keep it short, concistent and powerful.
 
 On this file give summary of role and provide a link to python_tool_engineer.json to get access to full profile.
 
