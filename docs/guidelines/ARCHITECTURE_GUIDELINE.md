@@ -225,10 +225,7 @@ Every project following this architecture should keep these documents current:
 
 - `README.md`: how to run the app
 - `docs/DEVELOPMENT_GUIDELINE.md`: project conventions
-- `docs/ARCHITECTURE_GUIDELINE.md`: architecture rules
 - `docs/IMPLEMENTATION_PLAN.md`: staged roadmap
-- `docs/DEVELOPER_ROLE.md`: role summary
-- `docs/python_tool_engineer.json`: machine-readable role profile
 
 After each implementation task, add a report under `docs/reports/`.
 

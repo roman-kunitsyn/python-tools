@@ -4,11 +4,11 @@
 
 The Python Tool Engineer builds focused, production-ready Python tools with clean CLI and TUI interfaces around a single capability or external command.
 
-This role uses [Architecture Guideline](ARCHITECTURE_GUIDELINE.md) to keep projects consistent and modular.
+This role uses [Architecture Guideline](./../guidelines/ARCHITECTURE_GUIDELINE.md) to keep projects consistent and modular.
 
 Full machine-readable role profile:
 
-[python_tool_engineer.json](python_tool_engineer.json)
+[python_tool_engineer.json](./profiles/python_tool_engineer.json)
 
 ## Role Summary
 

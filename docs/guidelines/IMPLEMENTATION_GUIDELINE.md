@@ -6,7 +6,7 @@ The agent should use:
 
 - [Architecture Guideline](ARCHITECTURE_GUIDELINE.md)
 - [Development Guideline](DEVELOPMENT_GUIDELINE.md)
-- [Developer Role](DEVELOPER_ROLE.md)
+- [Tool Engineer](./../roles/TOOL_ENGINEER.md)
 - [python_tool_engineer.json](python_tool_engineer.json)
 
 ## Operating Rules
@@ -64,7 +64,7 @@ Acceptance criteria:
 - no hardcoded user-specific runtime paths except documented defaults
 - root script contains no business logic
 
-For this project, this task produced a CLI around `whisper-cli`.
+[For this project](./../../src/audio-transcribe/README.md), this task produced a CLI around `whisper-cli`.
 
 ## Task 2: Split Into Application Layers
 
@@ -113,7 +113,7 @@ Acceptance criteria:
 - long-running work runs through a worker or equivalent non-blocking boundary
 - completion state shows status and navigation
 
-For this project, `TranscribeScreen` gathers transcription config and `ProgressScreen` runs transcription through `TranscribeService`.
+[For this project](./../../src/audio-transcribe/README.md), `TranscribeScreen` gathers transcription config and `ProgressScreen` runs transcription through `TranscribeService`.
 
 ## Task 4: Add Tests and Test Doubles
 
@@ -245,3 +245,8 @@ Implemented:
 Next recommended task:
 
 Task 4, add tests and test doubles.
+
+<!-- TODO -->
+
+add more information about testing in file
+tools/python/docs/guidelines/TESTING_GUIDELINE.md
