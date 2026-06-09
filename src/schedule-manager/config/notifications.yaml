@@ -1,0 +1,13 @@
+notifications:
+  default:
+    before_minutes: 10
+    methods:
+      - sound
+
+  important:
+    before_minutes: 30
+    methods:
+      - sound
+      - telegram
+      - email
+      - popup

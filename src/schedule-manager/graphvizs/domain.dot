@@ -1,0 +1,33 @@
+digraph {
+  graph [splines = ortho;];
+  node [shape = box;];
+  edge [color = red;];
+  Application;
+  subgraph cluster_domains {
+    style = "filled";
+    fillcolor = "black";
+    node [style = "filled"; fillcolor = "lightgrey";];
+    Tasks;
+    Goals;
+    Wishes;
+    Asistent;
+    Reminders;
+    Projects;
+    Notes;
+    User_State_Snapshot [label = "User State Snapshot";];
+    Events;
+    Schedule;
+    Dashboard [label = "Dashboard";];
+  }
+  Application -> Dashboard;
+  Application -> Schedule;
+  Application -> User_State_Snapshot;
+  Application -> Events;
+  Application -> Reminders;
+  Application -> Projects;
+  Application -> Tasks;
+  Application -> Goals;
+  Application -> Wishes;
+  Application -> Notes;
+  Application -> Asistent;
+}
