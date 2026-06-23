@@ -14,6 +14,8 @@ The current modular tools are:
   `ffmpeg`.
 - [audio-record](src/audio-record/README.md): records raw audio files with
   `ffmpeg` for reuse by higher-level tools.
+- [voice-note](src/voice-note/README.md): captures push-to-talk voice notes,
+  transcribes them, and writes text to stdout or a notes file.
 
 The remaining root `src/meeting-*.py` files are draft scripts. They are useful
 source material for future tools, but they do not yet follow the full modular
@@ -54,6 +56,8 @@ Verify the current modular tool starts:
 uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
 uv run python src/audio-record/audio-record.py --help
+uv run python src/voice-note/voice-note.py --help
+uv run voice-note --help
 ```
 
 For audio transcription runtime requirements, see the
@@ -67,6 +71,10 @@ For meeting recording runtime requirements, see the
 For reusable raw audio recording, see the
 [audio-record README](src/audio-record/README.md). That tool requires `ffmpeg`.
 
+For push-to-talk voice notes, see the
+[voice-note README](src/voice-note/README.md). That tool requires `ffmpeg`,
+`whisper-cli`, and a Whisper model file.
+
 ## CLI Usage
 
 Show help for the current modular tool:
@@ -75,6 +83,8 @@ Show help for the current modular tool:
 uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
 uv run python src/audio-record/audio-record.py --help
+uv run python src/voice-note/voice-note.py --help
+uv run voice-note --help
 ```
 
 Run audio transcription:
@@ -102,6 +112,18 @@ Record a raw audio file:
 
 ```bash
 uv run python src/audio-record/audio-record.py output.wav --duration 30
+```
+
+Capture voice notes:
+
+```bash
+uv run python src/voice-note/voice-note.py --text-output-file notes.md
+```
+
+After `uv sync`, the installed project script can also be used:
+
+```bash
+uv run voice-note --text-output-file notes.md
 ```
 
 Older draft scripts live directly under `src/`:
@@ -140,6 +162,12 @@ tools/python/
     │   ├── README.md
     │   ├── audio-record.py
     │   ├── audio_record/
+    │   └── docs/
+    ├── voice-note/
+    │   ├── README.md
+    │   ├── voice-note.py
+    │   ├── voice_note/
+    │   ├── tests/
     │   └── docs/
     ├── meeting-combine.py
     ├── meeting-split.py
@@ -229,6 +257,10 @@ Module documentation:
 - [audio-record Implementation Plan](src/audio-record/docs/IMPLEMENTATION_PLAN.md)
 - [audio-record Development Guideline](src/audio-record/docs/DEVELOPMENT_GUIDELINE.md)
 - [audio-record Task Reports](src/audio-record/docs/reports/)
+- [voice-note README](src/voice-note/README.md)
+- [voice-note Implementation Plan](src/voice-note/docs/IMPLEMENTATION_PLAN.md)
+- [voice-note Development Guideline](src/voice-note/docs/DEVELOPMENT_GUIDELINE.md)
+- [voice-note Task Reports](src/voice-note/docs/reports/)
 
 Documentation responsibilities:
 

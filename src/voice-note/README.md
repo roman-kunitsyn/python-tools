@@ -11,6 +11,9 @@ The tool should work as both:
 
 The primary use case is rapid voice note taking while working in a terminal or editor.
 
+Implementation status: initial CLI, TUI, service layer, output layer, and unit
+tests are implemented in this directory.
+
 ---
 
 # Technology Stack
@@ -32,7 +35,13 @@ The primary use case is rapid voice note taking while working in a terminal or e
 ## Executable
 
 ```bash
-voice-note
+uv run python src/voice-note/voice-note.py
+```
+
+After `uv sync`, the project script is also available:
+
+```bash
+uv run voice-note
 ```
 
 ---
@@ -40,7 +49,7 @@ voice-note
 ## Help
 
 ```bash
-voice-note --help
+uv run python src/voice-note/voice-note.py --help
 ```
 
 ---
@@ -177,15 +186,18 @@ large
 ### Startup
 
 ```bash
-voice-note --mode cli
+uv run python src/voice-note/voice-note.py --mode cli
 ```
 
 Display:
 
 ```text
-SPACE = hold to talk
+SPACE = start/stop recording
 ESC   = exit
 ```
+
+Portable terminal input does not reliably expose key release events, so CLI
+mode uses SPACE as a start/stop toggle.
 
 ---
 
@@ -248,7 +260,7 @@ Create task for frontend developer
 ### Startup
 
 ```bash
-voice-note --mode tui
+uv run python src/voice-note/voice-note.py --mode tui
 ```
 
 Launch Textual application.
@@ -482,3 +494,30 @@ uv run voice-note
 - Unit tests for core services
 
 This design keeps the tool Unix-like: `audio-record` and `audio-transcribe` remain independent tools, while `voice-note` becomes a composition/orchestration layer built on top of them.
+
+---
+
+# Implemented Files
+
+```text
+voice_note/
+├── main.py
+├── cli/
+├── tui/
+├── audio/
+├── transcription/
+├── output/
+├── services/
+└── models/
+```
+
+---
+
+# Checks
+
+```bash
+PYTHONPATH=src/voice-note uv run python -m compileall src/voice-note
+PYTHONPATH=src/voice-note uv run python src/voice-note/voice-note.py --help
+PYTHONPATH=src/voice-note uv run python -m unittest discover -s src/voice-note/tests
+uv run voice-note --help
+```
