@@ -38,6 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="File where transcriptions are appended. Default: logs/voice_notes/<session>/transcribe.txt.",
     )
     parser.add_argument(
+        "--editor",
+        choices=("code", "nvim"),
+        default=None,
+        help="Editor used to open transcribe.txt from TUI. Default: code.",
+    )
+    parser.add_argument(
         "--append-timestamp",
         action="store_true",
         help="Write a timestamp before each transcription.",
@@ -63,5 +69,6 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "audio_file": settings.audio_file,
         "log_file": settings.log_file,
         "audio_device": args.audio_device or settings.audio_device,
+        "editor": args.editor or settings.editor,
     }
     return VoiceNoteSettings(**updates)

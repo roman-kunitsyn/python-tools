@@ -3,6 +3,7 @@ from pathlib import Path
 
 class TextWriter:
     writes_to_file = False
+    output_file: Path | None = None
 
     def write(self, text: str) -> None:
         raise NotImplementedError

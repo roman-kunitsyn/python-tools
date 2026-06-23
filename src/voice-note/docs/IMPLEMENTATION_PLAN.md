@@ -7,6 +7,10 @@ Implemented:
 - CLI entry point at `voice-note.py`.
 - Project script entry point for `uv run voice-note`.
 - Textual TUI mode with previous notes and status states.
+- TUI status is displayed in the footer with state-specific background colors.
+- TUI content header shows the session folder name and transcript file path.
+- TUI transcript link supports VS Code URLs and an `o` binding for opening the
+  transcript in the configured editor.
 - SPACE start/stop recording flow.
 - Recorder adapter over the sibling `audio-record` package.
 - Whisper transcriber wrapper that returns transcript text.

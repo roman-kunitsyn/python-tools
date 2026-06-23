@@ -40,6 +40,10 @@ class VoiceNoteService:
     def writes_to_file(self) -> bool:
         return self.writer.writes_to_file
 
+    @property
+    def output_file(self) -> Path | None:
+        return self.writer.output_file
+
     def start_recording(self) -> Path:
         if self._current_audio_file is not None:
             raise RuntimeError("recording is already running")

@@ -43,7 +43,7 @@ def main() -> int:
         service = build_service(settings)
 
         if settings.mode == "tui":
-            VoiceNoteApp(service=service).run()
+            VoiceNoteApp(service=service, editor=settings.editor).run()
             return 0
 
         return VoiceNoteCliApp(service=service).run()

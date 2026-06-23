@@ -8,6 +8,15 @@ from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.writer import FileWriter
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
+from voice_note.tui.app import (
+    _format_status,
+    _normalize_editor,
+    _session_name,
+    _status_class,
+    _transcript_link,
+    _transcript_url,
+    _vscode_url,
+)
 
 
 class FakeRecorder:
@@ -56,6 +65,21 @@ class VoiceNoteServiceTest(unittest.TestCase):
         self.assertEqual(writer.values, ["hello world"])
         self.assertEqual(recorder.cleaned, [Path("note.wav")])
 
+    def test_output_file_returns_writer_output_file(self) -> None:
+        writer = FileWriter(
+            Path("logs")
+            / "voice_notes"
+            / "voice_note_2026_06_23-22_15_00"
+            / "transcribe.txt"
+        )
+        service = VoiceNoteService(
+            recorder=FakeRecorder(),
+            transcriber=FakeTranscriber(),
+            writer=writer,
+        )
+
+        self.assertEqual(service.output_file, writer.output_file)
+
     def test_format_note_with_timestamp(self) -> None:
         note = VoiceNote(
             text="Need to investigate RLS.",
@@ -91,6 +115,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.text_output_file, settings.session_dir / "transcribe.txt")
         self.assertEqual(settings.log_file, settings.session_dir / "log.txt")
         self.assertEqual(settings.audio_device, "built-in microphone")
+        self.assertEqual(settings.editor, "code")
         self.assertTrue(settings.keep_audio)
 
     def test_loads_json_config(self) -> None:
@@ -112,6 +137,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.audio_output_folder, Path("./audio"))
         self.assertEqual(settings.text_output_file, Path("./notes.md"))
         self.assertEqual(settings.audio_device, "built-in microphone")
+        self.assertEqual(settings.editor, "code")
 
 
 class FileWriterTest(unittest.TestCase):
@@ -159,6 +185,40 @@ class PushToTalkRecorderTest(unittest.TestCase):
                 recorder._build_output_file(),
                 audio_dir / "audio_2026_06_23-21_00_01.wav",
             )
+
+
+class TuiStatusTest(unittest.TestCase):
+    def test_status_format_and_classes(self) -> None:
+        self.assertEqual(_format_status("Idle"), "Status: Idle")
+        self.assertEqual(_format_status("Status: Error"), "Status: Error")
+        self.assertEqual(_status_class("Status: Idle"), "status-idle")
+        self.assertEqual(_status_class("Status: Recording..."), "status-recording")
+        self.assertEqual(_status_class("Status: Transcribing..."), "status-transcribing")
+        self.assertEqual(_status_class("Status: Saved"), "status-saved")
+        self.assertEqual(_status_class("Status: Error"), "status-error")
+
+    def test_session_name_and_transcript_link(self) -> None:
+        transcript_file = (
+            Path("logs")
+            / "voice_notes"
+            / "voice_note_2026_06_23-22_15_00"
+            / "transcribe.txt"
+        )
+
+        self.assertEqual(_session_name(transcript_file), "voice_note_2026_06_23-22_15_00")
+        self.assertEqual(_transcript_link(transcript_file), f"Transcript: {transcript_file}")
+        self.assertEqual(_transcript_url(transcript_file, "code"), _vscode_url(transcript_file))
+        self.assertEqual(_transcript_url(transcript_file, "nvim"), transcript_file.resolve().as_uri())
+        self.assertEqual(_session_name(None), "Voice Note Session")
+        self.assertEqual(_transcript_link(None), "Transcript: stdout")
+        self.assertIsNone(_transcript_url(None))
+
+    def test_editor_normalization(self) -> None:
+        self.assertEqual(_normalize_editor("vscode"), "code")
+        self.assertEqual(_normalize_editor("neovim"), "nvim")
+
+        with self.assertRaises(ValueError):
+            _normalize_editor("vim")
 
 
 if __name__ == "__main__":

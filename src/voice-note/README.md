@@ -158,6 +158,29 @@ Default:
 ---
 
 ```bash
+--editor code
+```
+
+Supported:
+
+```text
+code
+nvim
+```
+
+Default:
+
+```text
+code
+```
+
+In TUI mode, the transcript link uses `vscode://file/...` for VS Code. Press
+`o` to open `transcribe.txt` with the configured editor; for `nvim`, the TUI is
+suspended while `nvim transcribe.txt` runs.
+
+---
+
+```bash
 --append-timestamp
 ```
 
@@ -299,7 +322,8 @@ Launch Textual application.
 │ Voice Note                            │
 ├───────────────────────────────────────┤
 │                                       │
-│ Previous Notes                        │
+│ voice_note_2026_06_23-14_35_10        │
+│ Transcript: logs/.../transcribe.txt   │
 │                                       │
 │ • First note                          │
 │ • Second note                         │
@@ -316,26 +340,31 @@ Launch Textual application.
 #### Idle
 
 ```text
-Status: Idle
+Footer status: Idle
 ```
 
 #### Recording
 
 ```text
-Status: Recording...
+Footer status: Recording...
 ```
 
 #### Transcribing
 
 ```text
-Status: Transcribing...
+Footer status: Transcribing...
 ```
 
 #### Error
 
 ```text
-Status: Error
+Footer status: Error
 ```
+
+The footer status bar changes background color for idle, recording,
+transcribing, saved, and error states.
+The transcript path is rendered as an editor-aware terminal link to
+`transcribe.txt`.
 
 ---
 
@@ -345,6 +374,7 @@ Status: Error
 SPACE   Start/Stop Recording
 CTRL+S  Save Notes
 CTRL+L  Insert Timestamp
+O       Open Transcript
 CTRL+C  Exit
 ESC     Exit
 ```
