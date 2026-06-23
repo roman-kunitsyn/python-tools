@@ -20,6 +20,7 @@ class PushToTalkRecorder:
         audio_output_folder: Path | None = None,
         audio_file: Path | None = None,
         audio_device: str | None = None,
+        max_recording_seconds: int | None = None,
         keep_audio: bool = False,
         verbose: bool = False,
         timestamp_provider=None,
@@ -30,6 +31,7 @@ class PushToTalkRecorder:
         self.audio_output_folder = audio_output_folder
         self.audio_file = audio_file
         self.audio_device = audio_device
+        self.max_recording_seconds = max_recording_seconds
         self.keep_audio = keep_audio
         self.verbose = verbose
         self.timestamp_provider = timestamp_provider or build_timestamp
@@ -43,6 +45,7 @@ class PushToTalkRecorder:
         settings = self._settings_type(
             output_file=output_file,
             device=self.audio_device,
+            duration=self.max_recording_seconds,
         )
         self._recorder = self._audio_recorder_type(settings=settings, verbose=self.verbose)
         self._current_file = self._recorder.start()

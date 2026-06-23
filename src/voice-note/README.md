@@ -128,6 +128,33 @@ On macOS this resolves to devices such as `MacBook Pro Microphone`,
 ---
 
 ```bash
+--max-recording-seconds 300
+```
+
+Maximum duration for one SPACE recording.
+
+Default:
+
+```text
+300
+```
+
+Maximum:
+
+```text
+300
+```
+
+The UI shows a countdown while recording. When the limit is reached, recording
+stops automatically and shows:
+
+```text
+Record Stop by time overflow
+```
+
+---
+
+```bash
 --keep-audio
 ```
 
@@ -158,6 +185,34 @@ Default:
 ---
 
 ```bash
+--json-output-file ./transcribe.json
+```
+
+Append structured transcription entries to a JSON file.
+
+Default:
+
+```text
+./logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/transcribe.json
+```
+
+Schema:
+
+```json
+{
+  "session": "voice_note_2026_06_23-14_35_10",
+  "data": [
+    {
+      "audio": "logs/voice_notes/voice_note_2026_06_23-14_35_10/audio/audio_2026_06_23-14_35_10.wav",
+      "text": "Transcribed text in English."
+    }
+  ]
+}
+```
+
+---
+
+```bash
 --editor code
 ```
 
@@ -174,9 +229,9 @@ Default:
 code
 ```
 
-In TUI mode, the transcript link uses `vscode://file/...` for VS Code. Press
-`o` to open `transcribe.txt` with the configured editor; for `nvim`, the TUI is
-suspended while `nvim transcribe.txt` runs.
+In TUI mode, click the transcript link or press `o` to open `transcribe.txt`
+with the configured editor. VS Code uses `code -g transcribe.txt`; for `nvim`,
+the TUI is suspended while `nvim transcribe.txt` runs.
 
 ---
 
@@ -197,6 +252,8 @@ Need to investigate Supabase RLS.
 ---
 
 ### Whisper
+
+Transcription output is always translated to English with `whisper-cli -tr`.
 
 ```bash
 --language auto
@@ -255,6 +312,7 @@ When user presses SPACE:
 
 ```text
 start recording
+show countdown
 ```
 
 When user releases SPACE:
@@ -267,6 +325,12 @@ Then:
 
 ```text
 transcribe audio
+```
+
+If the countdown reaches zero before SPACE is pressed again:
+
+```text
+Record Stop by time overflow
 ```
 
 Then:
@@ -362,9 +426,9 @@ Footer status: Error
 ```
 
 The footer status bar changes background color for idle, recording,
-transcribing, saved, and error states.
+transcribing, saved, overflow, and error states.
 The transcript path is rendered as an editor-aware terminal link to
-`transcribe.txt`.
+`transcribe.txt`; clicking it opens the configured editor, not the browser.
 
 ---
 
@@ -578,6 +642,7 @@ logs/voice_notes/
     ├── audio/
     │   └── audio_2026_06_23-14_35_10.wav
     ├── log.txt
+    ├── transcribe.json
     └── transcribe.txt
 ```
 

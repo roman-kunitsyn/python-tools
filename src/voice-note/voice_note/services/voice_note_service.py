@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Protocol
 
 from voice_note.models.note import VoiceNote
-from voice_note.output.writer import TextWriter
+from voice_note.output.writer import TextWriter, TranscriptJsonWriter
 
 
 class Recorder(Protocol):
@@ -28,11 +28,13 @@ class VoiceNoteService:
         recorder: Recorder,
         transcriber: Transcriber,
         writer: TextWriter,
+        json_writer: TranscriptJsonWriter | None = None,
         append_timestamp: bool = False,
     ) -> None:
         self.recorder = recorder
         self.transcriber = transcriber
         self.writer = writer
+        self.json_writer = json_writer
         self.append_timestamp = append_timestamp
         self._current_audio_file: Path | None = None
 
@@ -57,6 +59,8 @@ class VoiceNoteService:
         text = self.transcriber.transcribe(audio_file).strip()
         note = VoiceNote(text=text, created_at=datetime.now(), audio_file=audio_file)
         self.writer.write(format_note(note, self.append_timestamp))
+        if self.json_writer is not None:
+            self.json_writer.write_note(note)
         self.recorder.cleanup(audio_file)
         return note
 

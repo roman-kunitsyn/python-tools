@@ -13,11 +13,13 @@ class WhisperTranscriber:
         language: str = "auto",
         verbose: bool = False,
         log_file: Path | None = None,
+        translate_to_english: bool = True,
     ) -> None:
         self.model = model
         self.language = language
         self.verbose = verbose
         self.log_file = log_file
+        self.translate_to_english = translate_to_english
 
     def transcribe(self, audio_file: Path) -> str:
         model_file = resolve_model_file(self.model)
@@ -39,6 +41,9 @@ class WhisperTranscriber:
 
             if self.language != "auto":
                 command.extend(["-l", self.language])
+
+            if self.translate_to_english:
+                command.append("-tr")
 
             try:
                 self._run(command)

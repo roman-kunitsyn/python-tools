@@ -1,9 +1,13 @@
+import math
 import subprocess
+import time
 from pathlib import Path
 from urllib.parse import quote
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
+from textual import events
+from textual.timer import Timer
 from textual.widgets import Footer, Header, Link, Static
 
 from voice_note.services.voice_note_service import VoiceNoteService
@@ -14,6 +18,7 @@ STATUS_CLASSES = (
     "status-recording",
     "status-transcribing",
     "status-saved",
+    "status-overflow",
     "status-error",
 )
 
@@ -72,6 +77,11 @@ class VoiceNoteApp(App):
         background: $success;
     }
 
+    #status.status-overflow {
+        background: $warning;
+        color: black;
+    }
+
     #status.status-error {
         background: $error;
     }
@@ -86,18 +96,28 @@ class VoiceNoteApp(App):
         ("ctrl+c", "quit", "Exit"),
     ]
 
-    def __init__(self, service: VoiceNoteService, editor: str = "code") -> None:
+    def __init__(
+        self,
+        service: VoiceNoteService,
+        editor: str = "code",
+        max_recording_seconds: int = 300,
+    ) -> None:
         super().__init__()
         self.service = service
         self.editor = editor
+        self.max_recording_seconds = max_recording_seconds
         self.recording = False
         self.notes: list[str] = []
+        self.recording_started_at: float | None = None
+        self.countdown_timer: Timer | None = None
+        self.overflow_timer: Timer | None = None
+        self.stopping = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
             Static(self.session_name, id="session-name"),
-            Link(
+            TranscriptLink(
                 self.transcript_link,
                 url=self.transcript_url,
                 id="transcript-link",
@@ -123,7 +143,10 @@ class VoiceNoteApp(App):
             return
 
         self.recording = True
-        self._set_status("Status: Recording...")
+        self.stopping = False
+        self.recording_started_at = time.monotonic()
+        self._start_countdown_timers()
+        self._set_recording_status()
 
     def action_save_notes(self) -> None:
         self._set_status("Status: Saved")
@@ -148,9 +171,18 @@ class VoiceNoteApp(App):
         self.notes.append(datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"))
         self._render_notes()
 
-    def _stop_recording(self) -> None:
+    def _stop_recording(self, time_overflow: bool = False) -> None:
+        if self.stopping:
+            return
+
+        self.stopping = True
         self.recording = False
-        self._set_status("Status: Transcribing...")
+        self._stop_countdown_timers()
+
+        if time_overflow:
+            self._set_status("Status: Record Stop by time overflow")
+        else:
+            self._set_status("Status: Transcribing...")
 
         def work() -> None:
             try:
@@ -163,9 +195,42 @@ class VoiceNoteApp(App):
 
         self.run_worker(work, thread=True)
 
+    def _start_countdown_timers(self) -> None:
+        self._stop_countdown_timers()
+        self.countdown_timer = self.set_interval(1, self._set_recording_status)
+        self.overflow_timer = self.set_timer(
+            self.max_recording_seconds,
+            self._handle_time_overflow,
+        )
+
+    def _stop_countdown_timers(self) -> None:
+        for timer in (self.countdown_timer, self.overflow_timer):
+            if timer is not None:
+                timer.stop()
+        self.countdown_timer = None
+        self.overflow_timer = None
+
+    def _handle_time_overflow(self) -> None:
+        if self.recording:
+            self._stop_recording(time_overflow=True)
+
+    def _set_recording_status(self) -> None:
+        self._set_status(
+            f"Status: Recording... {_format_countdown(self._remaining_seconds())}"
+        )
+
+    def _remaining_seconds(self) -> int:
+        if self.recording_started_at is None:
+            return self.max_recording_seconds
+
+        elapsed = time.monotonic() - self.recording_started_at
+        return max(0, math.ceil(self.max_recording_seconds - elapsed))
+
     def _add_note(self, text: str) -> None:
         self.notes.append(text)
         self._render_notes()
+        self.recording_started_at = None
+        self.stopping = False
         self._set_status("Status: Idle")
 
     def _render_notes(self) -> None:
@@ -211,10 +276,18 @@ def _status_class(status: str) -> str:
     if "saved" in normalized:
         return "status-saved"
 
+    if "overflow" in normalized:
+        return "status-overflow"
+
     if "error" in normalized:
         return "status-error"
 
     return "status-idle"
+
+
+def _format_countdown(seconds: int) -> str:
+    minutes, remaining_seconds = divmod(max(0, seconds), 60)
+    return f"{minutes:02d}:{remaining_seconds:02d}"
 
 
 def _session_name(transcript_file) -> str:
@@ -247,11 +320,11 @@ def open_transcript_file(transcript_file: Path, editor: str, app: App) -> None:
     transcript_file.touch(exist_ok=True)
 
     if normalized_editor == "code":
-        app.open_url(_vscode_url(transcript_file))
+        subprocess.run(_editor_command(transcript_file, normalized_editor), check=True)
         return
 
     with app.suspend():
-        subprocess.run([normalized_editor, str(transcript_file)], check=True)
+        subprocess.run(_editor_command(transcript_file, normalized_editor), check=True)
 
 
 def _normalize_editor(editor: str) -> str:
@@ -265,3 +338,22 @@ def _normalize_editor(editor: str) -> str:
 
 def _vscode_url(transcript_file: Path) -> str:
     return f"vscode://file{quote(str(transcript_file.resolve()))}"
+
+
+def _editor_command(transcript_file: Path, editor: str) -> list[str]:
+    normalized_editor = _normalize_editor(editor)
+    if normalized_editor == "code":
+        return ["code", "-g", str(transcript_file)]
+
+    return [normalized_editor, str(transcript_file)]
+
+
+class TranscriptLink(Link):
+    async def _on_click(self, event: events.Click) -> None:
+        await super()._on_click(event)
+        if event.widget is self:
+            self.app.action_open_transcript()
+            event.stop()
+
+    def action_open_link(self) -> None:
+        self.app.action_open_transcript()
