@@ -8,7 +8,7 @@ DEFAULT_VOICE_NOTES_DIR = Path("logs") / "voice_notes"
 TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
 DEFAULT_AUDIO_DEVICE = "built-in microphone"
 DEFAULT_EDITOR = "code"
-DEFAULT_MAX_RECORDING_SECONDS = 300
+DEFAULT_MAX_RECORDING_SECONDS = 90
 
 
 @dataclass(frozen=True)
