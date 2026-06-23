@@ -14,6 +14,9 @@ The tool acts as a Python wrapper around FFmpeg and provides a stable interface 
 
 The tool should hide FFmpeg complexity and expose a simple, cross-platform Python API and CLI.
 
+Implementation status: initial CLI and Python API are implemented in this
+directory.
+
 ---
 
 # Technology Stack
@@ -54,7 +57,7 @@ Those responsibilities belong to other tools.
 ## Executable
 
 ```bash
-audio-record
+uv run python src/audio-record/audio-record.py
 ```
 
 ---
@@ -62,7 +65,7 @@ audio-record
 # Help
 
 ```bash
-audio-record --help
+uv run python src/audio-record/audio-record.py --help
 ```
 
 ---
@@ -72,7 +75,7 @@ audio-record --help
 ## Record until CTRL+C
 
 ```bash
-audio-record output.wav
+uv run python src/audio-record/audio-record.py output.wav
 ```
 
 ---
@@ -80,7 +83,7 @@ audio-record output.wav
 ## Record from specific device
 
 ```bash
-audio-record output.wav \
+uv run python src/audio-record/audio-record.py output.wav \
   --device "Built-in Microphone"
 ```
 
@@ -89,7 +92,7 @@ audio-record output.wav \
 ## Record for 30 seconds
 
 ```bash
-audio-record output.wav \
+uv run python src/audio-record/audio-record.py output.wav \
   --duration 30
 ```
 
@@ -98,7 +101,7 @@ audio-record output.wav \
 ## Record to temp file
 
 ```bash
-audio-record
+uv run python src/audio-record/audio-record.py
 ```
 
 Output:
@@ -114,7 +117,7 @@ Output:
 ## Output
 
 ```bash
-audio-record output.wav
+uv run python src/audio-record/audio-record.py output.wav
 ```
 
 Positional argument.
@@ -224,7 +227,7 @@ wav
 ## List Devices
 
 ```bash
-audio-record --list-devices
+uv run python src/audio-record/audio-record.py --list-devices
 ```
 
 Displays available audio input devices.
@@ -247,13 +250,10 @@ Displays FFmpeg command and logs.
 
 ```python
 from pathlib import Path
+from audio_record import AudioRecorder
 
-class AudioRecorder:
-    def record(
-        self,
-        output_file: Path,
-    ) -> Path:
-        ...
+recorder = AudioRecorder()
+path = recorder.record(Path("output.wav"))
 ```
 
 ---
@@ -263,7 +263,7 @@ class AudioRecorder:
 ```python
 recorder = AudioRecorder()
 
-recorder.start()
+path = recorder.start()
 
 ...
 
@@ -517,6 +517,22 @@ Must be usable from:
 
 ```python
 from audio_record import AudioRecorder
+```
+
+When running directly from this workspace, add the tool directory to
+`PYTHONPATH` for ad hoc imports:
+
+```bash
+PYTHONPATH=src/audio-record uv run python -c "from audio_record import AudioRecorder"
+```
+
+---
+
+# Checks
+
+```bash
+uv run python -m compileall src/audio-record
+uv run python src/audio-record/audio-record.py --help
 ```
 
 Example:

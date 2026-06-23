@@ -12,6 +12,8 @@ The current modular tools are:
   with `whisper-cli`.
 - [meeting-record](src/meeting-record/README.md): records meeting audio with
   `ffmpeg`.
+- [audio-record](src/audio-record/README.md): records raw audio files with
+  `ffmpeg` for reuse by higher-level tools.
 
 The remaining root `src/meeting-*.py` files are draft scripts. They are useful
 source material for future tools, but they do not yet follow the full modular
@@ -51,6 +53,7 @@ Verify the current modular tool starts:
 ```bash
 uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
+uv run python src/audio-record/audio-record.py --help
 ```
 
 For audio transcription runtime requirements, see the
@@ -61,6 +64,9 @@ For meeting recording runtime requirements, see the
 [meeting-record README](src/meeting-record/README.md). That tool requires
 `ffmpeg` and a macOS audio input device visible to `avfoundation`.
 
+For reusable raw audio recording, see the
+[audio-record README](src/audio-record/README.md). That tool requires `ffmpeg`.
+
 ## CLI Usage
 
 Show help for the current modular tool:
@@ -68,6 +74,7 @@ Show help for the current modular tool:
 ```bash
 uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
+uv run python src/audio-record/audio-record.py --help
 ```
 
 Run audio transcription:
@@ -89,6 +96,12 @@ Record a meeting:
 ```bash
 uv run python src/meeting-record/meeting-record.py \
   --stamp team-sync
+```
+
+Record a raw audio file:
+
+```bash
+uv run python src/audio-record/audio-record.py output.wav --duration 30
 ```
 
 Older draft scripts live directly under `src/`:
@@ -123,6 +136,11 @@ tools/python/
     │   ├── meeting-record.py
     │   ├── docs/
     │   └── src/app/
+    ├── audio-record/
+    │   ├── README.md
+    │   ├── audio-record.py
+    │   ├── audio_record/
+    │   └── docs/
     ├── meeting-combine.py
     ├── meeting-split.py
     ├── meeting-summary.py
@@ -207,6 +225,10 @@ Module documentation:
 - [meeting-record Implementation Plan](src/meeting-record/docs/IMPLEMENTATION_PLAN.md)
 - [meeting-record Development Guideline](src/meeting-record/docs/DEVELOPMENT_GUIDELINE.md)
 - [meeting-record Task Reports](src/meeting-record/docs/reports/)
+- [audio-record README](src/audio-record/README.md)
+- [audio-record Implementation Plan](src/audio-record/docs/IMPLEMENTATION_PLAN.md)
+- [audio-record Development Guideline](src/audio-record/docs/DEVELOPMENT_GUIDELINE.md)
+- [audio-record Task Reports](src/audio-record/docs/reports/)
 
 Documentation responsibilities:
 
