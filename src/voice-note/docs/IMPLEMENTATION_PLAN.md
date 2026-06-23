@@ -13,6 +13,8 @@ Implemented:
 - Stdout and append-to-file output writers.
 - Default per-run storage under `logs/voice_notes/voice_note_{timestamp}` with
   audio in `audio/audio_{timestamp}.wav` and text in `transcribe.txt`.
+- Each recording within a session writes a new timestamped audio file.
+- Technical `ffmpeg` and `whisper-cli` output is routed to session `log.txt`.
 - Optional timestamps.
 - JSON config loading.
 - Unit tests for service, timestamp formatting, config loading, and file output.

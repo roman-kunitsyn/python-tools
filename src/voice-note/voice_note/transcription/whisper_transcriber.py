@@ -12,10 +12,12 @@ class WhisperTranscriber:
         model: str = "base",
         language: str = "auto",
         verbose: bool = False,
+        log_file: Path | None = None,
     ) -> None:
         self.model = model
         self.language = language
         self.verbose = verbose
+        self.log_file = log_file
 
     def transcribe(self, audio_file: Path) -> str:
         model_file = resolve_model_file(self.model)
@@ -38,16 +40,30 @@ class WhisperTranscriber:
             if self.language != "auto":
                 command.extend(["-l", self.language])
 
-            if self.verbose:
-                print(f"Running: {' '.join(command)}")
-
             try:
-                subprocess.run(command, check=True)
+                self._run(command)
             except FileNotFoundError as error:
                 raise FileNotFoundError("whisper-cli executable not found") from error
 
             transcript_file = output_base.with_suffix(".txt")
             return transcript_file.read_text().strip()
+
+    def _run(self, command: list[str]) -> None:
+        if self.log_file is None:
+            subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return
+
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        with self.log_file.open("a") as log:
+            log.write(f"$ {' '.join(command)}\n")
+            log.flush()
+            subprocess.run(command, check=True, stdout=log, stderr=subprocess.STDOUT)
+            log.write("\n")
 
 
 def resolve_model_file(model: str) -> Path:

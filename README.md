@@ -124,7 +124,8 @@ By default, voice-note stores a run under:
 
 ```text
 logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/
-├── audio/audio_{YYYY_MM_DD-HH_MM_SS}.wav
+├── audio/audio_{recording_timestamp}.wav
+├── log.txt
 └── transcribe.txt
 ```
 

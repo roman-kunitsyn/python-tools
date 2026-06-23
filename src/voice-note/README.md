@@ -103,8 +103,10 @@ Default:
 Default audio file:
 
 ```text
-./logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/audio/audio_{YYYY_MM_DD-HH_MM_SS}.wav
+./logs/voice_notes/voice_note_{session_timestamp}/audio/audio_{recording_timestamp}.wav
 ```
+
+Each SPACE start creates a new audio file in the same session `audio/` folder.
 
 ---
 
@@ -528,10 +530,13 @@ logs/voice_notes/
 └── voice_note_2026_06_23-14_35_10/
     ├── audio/
     │   └── audio_2026_06_23-14_35_10.wav
+    ├── log.txt
     └── transcribe.txt
 ```
 
 Use `--audio-output-folder` or `--text-output-file` to override those paths.
+Technical `ffmpeg` and `whisper-cli` output is written to `log.txt`; stdout
+shows only status lines and the transcription text.
 
 ---
 

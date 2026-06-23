@@ -44,9 +44,10 @@ class VoiceNoteCliApp:
 
     def _stop_recording(self) -> None:
         self.recording = False
+        print("Transcribing...")
         note = self.service.stop_recording_and_transcribe()
         if self.service.writes_to_file:
-            print(f"> {note.text}")
+            print(note.text)
 
 
 def read_key() -> str:

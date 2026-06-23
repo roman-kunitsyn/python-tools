@@ -86,9 +86,10 @@ class SettingsTest(unittest.TestCase):
         )
         self.assertEqual(
             settings.audio_file,
-            settings.session_dir / "audio" / "audio_2026_06_23-14_35_10.wav",
+            None,
         )
         self.assertEqual(settings.text_output_file, settings.session_dir / "transcribe.txt")
+        self.assertEqual(settings.log_file, settings.session_dir / "log.txt")
         self.assertTrue(settings.keep_audio)
 
     def test_loads_json_config(self) -> None:
@@ -131,6 +132,26 @@ class PushToTalkRecorderTest(unittest.TestCase):
 
             self.assertEqual(recorder._build_output_file(), audio_file)
             self.assertTrue(audio_file.parent.exists())
+
+    def test_build_output_file_creates_timestamped_audio_files(self) -> None:
+        timestamps = iter(("2026_06_23-20_59_14", "2026_06_23-21_00_01"))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_dir = Path(temp_dir) / "voice_note" / "audio"
+            recorder = PushToTalkRecorder(
+                audio_output_folder=audio_dir,
+                keep_audio=True,
+                timestamp_provider=lambda: next(timestamps),
+            )
+
+            self.assertEqual(
+                recorder._build_output_file(),
+                audio_dir / "audio_2026_06_23-20_59_14.wav",
+            )
+            self.assertEqual(
+                recorder._build_output_file(),
+                audio_dir / "audio_2026_06_23-21_00_01.wav",
+            )
 
 
 if __name__ == "__main__":

@@ -15,12 +15,13 @@ def build_service(settings) -> VoiceNoteService:
         audio_output_folder=settings.audio_output_folder,
         audio_file=settings.audio_file,
         keep_audio=settings.keep_audio,
-        verbose=settings.verbose,
+        verbose=False,
     )
     transcriber = WhisperTranscriber(
         model=settings.model,
         language=settings.language,
         verbose=settings.verbose,
+        log_file=settings.log_file,
     )
     writer = build_writer(settings.text_output_file)
     return VoiceNoteService(

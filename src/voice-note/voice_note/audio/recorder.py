@@ -1,5 +1,9 @@
 import sys
+from datetime import datetime
 from pathlib import Path
+
+
+TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
 
 
 def _ensure_audio_record_path() -> None:
@@ -17,6 +21,7 @@ class PushToTalkRecorder:
         audio_file: Path | None = None,
         keep_audio: bool = False,
         verbose: bool = False,
+        timestamp_provider=None,
     ) -> None:
         _ensure_audio_record_path()
         from audio_record import AudioRecorder, RecordingSettings
@@ -25,6 +30,7 @@ class PushToTalkRecorder:
         self.audio_file = audio_file
         self.keep_audio = keep_audio
         self.verbose = verbose
+        self.timestamp_provider = timestamp_provider or build_timestamp
         self._audio_recorder_type = AudioRecorder
         self._settings_type = RecordingSettings
         self._recorder = None
@@ -60,4 +66,9 @@ class PushToTalkRecorder:
             return None
 
         self.audio_output_folder.mkdir(parents=True, exist_ok=True)
-        return self.audio_output_folder / "audio.wav"
+        timestamp = self.timestamp_provider()
+        return self.audio_output_folder / f"audio_{timestamp}.wav"
+
+
+def build_timestamp() -> str:
+    return datetime.now().strftime(TIMESTAMP_FORMAT)

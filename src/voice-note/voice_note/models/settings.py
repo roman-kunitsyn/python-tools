@@ -20,6 +20,7 @@ class VoiceNoteSettings:
     verbose: bool = False
     session_dir: Path | None = None
     audio_file: Path | None = None
+    log_file: Path | None = None
 
     @classmethod
     def from_file(cls, config_file: Path) -> "VoiceNoteSettings":
@@ -35,6 +36,7 @@ class VoiceNoteSettings:
             verbose=bool(payload.get("verbose", False)),
             session_dir=_optional_path(payload.get("session_dir")),
             audio_file=_optional_path(payload.get("audio_file")),
+            log_file=_optional_path(payload.get("log_file")),
         )
 
     def with_default_storage(
@@ -45,8 +47,8 @@ class VoiceNoteSettings:
         timestamp = timestamp or build_timestamp()
         session_dir = self.session_dir or base_dir / f"voice_note_{timestamp}"
         audio_output_folder = self.audio_output_folder or session_dir / "audio"
-        audio_file = self.audio_file or audio_output_folder / f"audio_{timestamp}.wav"
         text_output_file = self.text_output_file or session_dir / "transcribe.txt"
+        log_file = self.log_file or session_dir / "log.txt"
 
         return VoiceNoteSettings(
             mode=self.mode,
@@ -58,7 +60,8 @@ class VoiceNoteSettings:
             model=self.model,
             verbose=self.verbose,
             session_dir=session_dir,
-            audio_file=audio_file,
+            audio_file=self.audio_file,
+            log_file=log_file,
         )
 
 

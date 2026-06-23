@@ -56,5 +56,6 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "model": args.model or settings.model,
         "session_dir": settings.session_dir,
         "audio_file": settings.audio_file,
+        "log_file": settings.log_file,
     }
     return VoiceNoteSettings(**updates)
