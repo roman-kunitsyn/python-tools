@@ -14,6 +14,7 @@ def build_service(settings) -> VoiceNoteService:
     recorder = PushToTalkRecorder(
         audio_output_folder=settings.audio_output_folder,
         audio_file=settings.audio_file,
+        audio_device=settings.audio_device,
         keep_audio=settings.keep_audio,
         verbose=False,
     )

@@ -129,6 +129,9 @@ logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/
 └── transcribe.txt
 ```
 
+The default input is the built-in microphone; override it with
+`--audio-device` if needed.
+
 After `uv sync`, the installed project script can also be used:
 
 ```bash

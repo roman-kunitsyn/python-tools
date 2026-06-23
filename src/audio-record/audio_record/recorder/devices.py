@@ -81,11 +81,29 @@ def _resolve_avfoundation_input(device: str | None) -> str:
     if device.isdigit():
         return f":{device}"
 
+    devices = _get_avfoundation_devices()
     for audio_device in _get_avfoundation_devices():
         if device == audio_device.name:
             return f":{audio_device.id}"
 
+    normalized_device = _normalize_device_name(device)
+    for audio_device in devices:
+        if normalized_device == _normalize_device_name(audio_device.name):
+            return f":{audio_device.id}"
+
+    if normalized_device in {"built in microphone", "builtin microphone", "internal microphone"}:
+        for audio_device in devices:
+            normalized_name = _normalize_device_name(audio_device.name)
+            if "microphone" in normalized_name and (
+                "built in" in normalized_name or "macbook" in normalized_name
+            ):
+                return f":{audio_device.id}"
+
     raise AudioDeviceNotFoundError(f"Audio input device not found: {device}")
+
+
+def _normalize_device_name(device_name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", device_name.lower()).strip()
 
 
 def _get_dshow_devices() -> list[AudioDevice]:

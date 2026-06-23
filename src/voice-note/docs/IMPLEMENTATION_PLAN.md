@@ -15,6 +15,8 @@ Implemented:
   audio in `audio/audio_{timestamp}.wav` and text in `transcribe.txt`.
 - Each recording within a session writes a new timestamped audio file.
 - Technical `ffmpeg` and `whisper-cli` output is routed to session `log.txt`.
+- Default audio input is the built-in microphone; `--audio-device` can override
+  the device name or id.
 - Optional timestamps.
 - JSON config loading.
 - Unit tests for service, timestamp formatting, config loading, and file output.

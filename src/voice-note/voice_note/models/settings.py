@@ -6,6 +6,7 @@ from pathlib import Path
 
 DEFAULT_VOICE_NOTES_DIR = Path("logs") / "voice_notes"
 TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
+DEFAULT_AUDIO_DEVICE = "built-in microphone"
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class VoiceNoteSettings:
     session_dir: Path | None = None
     audio_file: Path | None = None
     log_file: Path | None = None
+    audio_device: str | None = DEFAULT_AUDIO_DEVICE
 
     @classmethod
     def from_file(cls, config_file: Path) -> "VoiceNoteSettings":
@@ -37,6 +39,7 @@ class VoiceNoteSettings:
             session_dir=_optional_path(payload.get("session_dir")),
             audio_file=_optional_path(payload.get("audio_file")),
             log_file=_optional_path(payload.get("log_file")),
+            audio_device=payload.get("audio_device", DEFAULT_AUDIO_DEVICE),
         )
 
     def with_default_storage(
@@ -62,6 +65,7 @@ class VoiceNoteSettings:
             session_dir=session_dir,
             audio_file=self.audio_file,
             log_file=log_file,
+            audio_device=self.audio_device,
         )
 
 

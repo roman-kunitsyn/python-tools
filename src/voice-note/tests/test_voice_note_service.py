@@ -90,6 +90,7 @@ class SettingsTest(unittest.TestCase):
         )
         self.assertEqual(settings.text_output_file, settings.session_dir / "transcribe.txt")
         self.assertEqual(settings.log_file, settings.session_dir / "log.txt")
+        self.assertEqual(settings.audio_device, "built-in microphone")
         self.assertTrue(settings.keep_audio)
 
     def test_loads_json_config(self) -> None:
@@ -110,6 +111,7 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(settings.keep_audio)
         self.assertEqual(settings.audio_output_folder, Path("./audio"))
         self.assertEqual(settings.text_output_file, Path("./notes.md"))
+        self.assertEqual(settings.audio_device, "built-in microphone")
 
 
 class FileWriterTest(unittest.TestCase):
@@ -132,6 +134,11 @@ class PushToTalkRecorderTest(unittest.TestCase):
 
             self.assertEqual(recorder._build_output_file(), audio_file)
             self.assertTrue(audio_file.parent.exists())
+
+    def test_recorder_keeps_audio_device_setting(self) -> None:
+        recorder = PushToTalkRecorder(audio_device="built-in microphone")
+
+        self.assertEqual(recorder.audio_device, "built-in microphone")
 
     def test_build_output_file_creates_timestamped_audio_files(self) -> None:
         timestamps = iter(("2026_06_23-20_59_14", "2026_06_23-21_00_01"))

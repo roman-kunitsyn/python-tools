@@ -111,6 +111,23 @@ Each SPACE start creates a new audio file in the same session `audio/` folder.
 ---
 
 ```bash
+--audio-device "MacBook Pro Microphone"
+```
+
+Optional audio input device name or id.
+
+Default:
+
+```text
+built-in microphone
+```
+
+On macOS this resolves to devices such as `MacBook Pro Microphone`,
+`MacBook Air Microphone`, or `Built-in Microphone`.
+
+---
+
+```bash
 --keep-audio
 ```
 
@@ -537,6 +554,9 @@ logs/voice_notes/
 Use `--audio-output-folder` or `--text-output-file` to override those paths.
 Technical `ffmpeg` and `whisper-cli` output is written to `log.txt`; stdout
 shows only status lines and the transcription text.
+The default recording input is the built-in microphone, so disconnecting
+Bluetooth headphones should not move recording to `BlackHole` or another
+virtual/default input.
 
 ---
 

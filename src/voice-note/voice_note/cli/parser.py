@@ -23,6 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Folder for saved audio. Default: logs/voice_notes/<session>/audio.",
     )
     parser.add_argument(
+        "--audio-device",
+        default=None,
+        help="Audio input device name or id. Default: built-in microphone.",
+    )
+    parser.add_argument(
         "--keep-audio",
         action="store_true",
         help="Preserve recorded audio files after transcription.",
@@ -57,5 +62,6 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "session_dir": settings.session_dir,
         "audio_file": settings.audio_file,
         "log_file": settings.log_file,
+        "audio_device": args.audio_device or settings.audio_device,
     }
     return VoiceNoteSettings(**updates)
