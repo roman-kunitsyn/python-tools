@@ -11,6 +11,8 @@ Implemented:
 - Recorder adapter over the sibling `audio-record` package.
 - Whisper transcriber wrapper that returns transcript text.
 - Stdout and append-to-file output writers.
+- Default per-run storage under `logs/voice_notes/voice_note_{timestamp}` with
+  audio in `audio/audio_{timestamp}.wav` and text in `transcribe.txt`.
 - Optional timestamps.
 - JSON config loading.
 - Unit tests for service, timestamp formatting, config loading, and file output.

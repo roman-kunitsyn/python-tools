@@ -1,5 +1,4 @@
 import sys
-from datetime import datetime
 from pathlib import Path
 
 
@@ -15,6 +14,7 @@ class PushToTalkRecorder:
     def __init__(
         self,
         audio_output_folder: Path | None = None,
+        audio_file: Path | None = None,
         keep_audio: bool = False,
         verbose: bool = False,
     ) -> None:
@@ -22,6 +22,7 @@ class PushToTalkRecorder:
         from audio_record import AudioRecorder, RecordingSettings
 
         self.audio_output_folder = audio_output_folder
+        self.audio_file = audio_file
         self.keep_audio = keep_audio
         self.verbose = verbose
         self._audio_recorder_type = AudioRecorder
@@ -51,9 +52,12 @@ class PushToTalkRecorder:
         audio_file.unlink(missing_ok=True)
 
     def _build_output_file(self) -> Path | None:
+        if self.audio_file is not None:
+            self.audio_file.parent.mkdir(parents=True, exist_ok=True)
+            return self.audio_file
+
         if self.audio_output_folder is None:
             return None
 
         self.audio_output_folder.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-        return self.audio_output_folder / f"voice-note-{timestamp}.wav"
+        return self.audio_output_folder / "audio.wav"

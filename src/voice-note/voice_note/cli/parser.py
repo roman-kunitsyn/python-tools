@@ -20,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--audio-output-folder",
         type=Path,
-        help="Folder for saved audio. Temporary files are used when omitted.",
+        help="Folder for saved audio. Default: logs/voice_notes/<session>/audio.",
     )
     parser.add_argument(
         "--keep-audio",
@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--text-output-file",
         type=Path,
-        help="Markdown file where transcriptions are appended.",
+        help="File where transcriptions are appended. Default: logs/voice_notes/<session>/transcribe.txt.",
     )
     parser.add_argument(
         "--append-timestamp",
@@ -54,5 +54,7 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "append_timestamp": args.append_timestamp or settings.append_timestamp,
         "language": args.language or settings.language,
         "model": args.model or settings.model,
+        "session_dir": settings.session_dir,
+        "audio_file": settings.audio_file,
     }
     return VoiceNoteSettings(**updates)

@@ -120,6 +120,14 @@ Capture voice notes:
 uv run python src/voice-note/voice-note.py --text-output-file notes.md
 ```
 
+By default, voice-note stores a run under:
+
+```text
+logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/
+├── audio/audio_{YYYY_MM_DD-HH_MM_SS}.wav
+└── transcribe.txt
+```
+
 After `uv sync`, the installed project script can also be used:
 
 ```bash

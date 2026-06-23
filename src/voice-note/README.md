@@ -92,12 +92,18 @@ Enable debug logging.
 --audio-output-folder ./audio
 ```
 
-Optional folder for saving recorded audio.
+Optional folder override for saving recorded audio.
 
-If omitted:
+Default:
 
 ```text
-temporary files are used
+./logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/audio
+```
+
+Default audio file:
+
+```text
+./logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/audio/audio_{YYYY_MM_DD-HH_MM_SS}.wav
 ```
 
 ---
@@ -124,10 +130,10 @@ false
 
 Append transcriptions to specified file.
 
-If omitted:
+Default:
 
 ```text
-print to stdout
+./logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}/transcribe.txt
 ```
 
 ---
@@ -478,10 +484,10 @@ voice_note/
 - Supports Textual TUI mode
 - Records audio using push-to-talk
 - Transcribes using existing Whisper implementation
-- Outputs transcription to stdout
+- Outputs transcription to a default session transcript file
 - Optionally appends transcription to file
 - Supports timestamps
-- Uses temporary files when audio saving is disabled
+- Stores audio in the default session folder unless overridden
 - Clean separation between Recorder, Transcriber, UI, and Output layers
 - Runs via:
 
@@ -510,6 +516,22 @@ voice_note/
 ├── services/
 └── models/
 ```
+
+---
+
+# Default Storage
+
+Each run creates one voice-note session folder by default:
+
+```text
+logs/voice_notes/
+└── voice_note_2026_06_23-14_35_10/
+    ├── audio/
+    │   └── audio_2026_06_23-14_35_10.wav
+    └── transcribe.txt
+```
+
+Use `--audio-output-folder` or `--text-output-file` to override those paths.
 
 ---
 

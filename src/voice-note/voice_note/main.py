@@ -13,6 +13,7 @@ from voice_note.tui.app import VoiceNoteApp
 def build_service(settings) -> VoiceNoteService:
     recorder = PushToTalkRecorder(
         audio_output_folder=settings.audio_output_folder,
+        audio_file=settings.audio_file,
         keep_audio=settings.keep_audio,
         verbose=settings.verbose,
     )
@@ -35,7 +36,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        settings = build_settings_from_args(args)
+        settings = build_settings_from_args(args).with_default_storage()
         logging.basicConfig(level=logging.DEBUG if settings.verbose else logging.WARNING)
         service = build_service(settings)
 

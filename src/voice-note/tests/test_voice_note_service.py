@@ -7,6 +7,7 @@ from voice_note.models.note import VoiceNote
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.writer import FileWriter
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
+from voice_note.audio.recorder import PushToTalkRecorder
 
 
 class FakeRecorder:
@@ -69,6 +70,27 @@ class VoiceNoteServiceTest(unittest.TestCase):
 
 
 class SettingsTest(unittest.TestCase):
+    def test_default_storage_paths_use_voice_note_session_folder(self) -> None:
+        settings = VoiceNoteSettings().with_default_storage(
+            timestamp="2026_06_23-14_35_10",
+            base_dir=Path("logs") / "voice_notes",
+        )
+
+        self.assertEqual(
+            settings.session_dir,
+            Path("logs") / "voice_notes" / "voice_note_2026_06_23-14_35_10",
+        )
+        self.assertEqual(
+            settings.audio_output_folder,
+            settings.session_dir / "audio",
+        )
+        self.assertEqual(
+            settings.audio_file,
+            settings.session_dir / "audio" / "audio_2026_06_23-14_35_10.wav",
+        )
+        self.assertEqual(settings.text_output_file, settings.session_dir / "transcribe.txt")
+        self.assertTrue(settings.keep_audio)
+
     def test_loads_json_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "config.json"
@@ -99,6 +121,16 @@ class FileWriterTest(unittest.TestCase):
             writer.write("second\n")
 
             self.assertEqual(output_file.read_text(), "first\nsecond\n")
+
+
+class PushToTalkRecorderTest(unittest.TestCase):
+    def test_build_output_file_uses_explicit_audio_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio_file = Path(temp_dir) / "voice_note" / "audio" / "audio.wav"
+            recorder = PushToTalkRecorder(audio_file=audio_file, keep_audio=True)
+
+            self.assertEqual(recorder._build_output_file(), audio_file)
+            self.assertTrue(audio_file.parent.exists())
 
 
 if __name__ == "__main__":
