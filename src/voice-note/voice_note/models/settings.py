@@ -11,7 +11,7 @@ class VoiceNoteSettings:
     text_output_file: Path | None = None
     append_timestamp: bool = False
     language: str = "auto"
-    model: str = "base"
+    model: str = "small"
     verbose: bool = False
 
     @classmethod
@@ -24,7 +24,7 @@ class VoiceNoteSettings:
             text_output_file=_optional_path(payload.get("text_output_file")),
             append_timestamp=bool(payload.get("append_timestamp", False)),
             language=payload.get("language", "auto"),
-            model=payload.get("model", "base"),
+            model=payload.get("model", "small"),
             verbose=bool(payload.get("verbose", False)),
         )
 

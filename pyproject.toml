@@ -4,21 +4,4 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = [
-    "rich>=15.0.0",
-    "textual[syntax]>=8.2.7",
-    "textual-dev>=1.8.0",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project.scripts]
-voice-note = "voice_note.main:main"
-
-[tool.uv]
-package = true
-
-[tool.hatch.build.targets.wheel]
-packages = ["voice_note"]
+dependencies = ["rich>=15.0.0", "textual[syntax]>=8.2.7", "textual-dev>=1.8.0"]
