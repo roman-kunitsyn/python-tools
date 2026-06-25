@@ -1,278 +1,150 @@
-For your stack, I would keep the FastAPI layer **very small**. It should be an HTTP adapter, not where your business logic lives.
+# API Server
 
-## Core stack
+## Project Overview
 
-```toml
-fastapi
-uvicorn[standard]
-pydantic
-pydantic-settings
-httpx
-```
+This module is a FastAPI-based HTTP adapter for the Python tools workspace.
+Its job is to expose the existing tool capabilities through stable API
+endpoints without moving business logic into the web layer.
 
-These are enough to build a production API.
+The API server should stay thin and delegate real work to tool-specific
+services or shared wrappers.
 
----
+## Goals
 
-## Project structure
+- Keep the API layer focused on HTTP concerns only.
+- Reuse the existing tool implementations instead of duplicating behavior.
+- Keep request and response validation in Pydantic models.
+- Keep subprocess calls and external tool usage in service or wrapper modules.
+- Match the documentation pattern used by the other tool modules in this repo.
 
-```text
-apps/
-    api/
-        main.py
-        config.py
+## Current Workspace Context
 
-        routers/
-            voice.py
-            meeting.py
-            notes.py
+The repository already contains focused tool modules for:
 
-        dependencies.py
+- [audio-transcribe](../audio-transcribe/README.md)
+- [meeting-record](../meeting-record/README.md)
+- [audio-record](../audio-record/README.md)
+- [voice-note](../voice-note/README.md)
 
-        middleware/
+Those tools already define the domain behavior that an API layer can wrap.
+The server should not reimplement transcription, recording, or note handling.
 
-        exceptions/
+## Recommended API Surface
 
-        schemas/
+Start with a small set of endpoints that map to the current tools:
 
-        startup.py
+- `GET /health`
+- `POST /audio-recordings`
+- `POST /transcriptions`
+- `POST /meeting-recordings`
+- `POST /voice-notes`
 
-packages/
-    voice/
-    meeting/
-    transcription/
-    audio/
-```
+Keep each route narrow. A router should translate HTTP input into a config
+model, call a service, and return a response model.
 
-Notice that `routers` should only call services from `packages`.
+## Suggested Project Structure
 
----
-
-## I would use these libraries
-
-### Framework
-
-- **FastAPI** – API framework
-- **Uvicorn** – ASGI server
-
-```bash
-uv add fastapi uvicorn
-```
-
----
-
-### Configuration
-
-```bash
-uv add pydantic-settings
-```
-
-```python
-class Settings(BaseSettings):
-    supabase_url: str
-    telegram_token: str
-```
-
----
-
-### HTTP Client
-
-```bash
-uv add httpx
-```
-
-Useful for:
-
-- Telegram API
-- OpenAI
-- Ollama
-- n8n
-- other REST APIs
-
----
-
-### Validation
-
-Already included.
-
-```python
-from pydantic import BaseModel
-```
-
-Example:
-
-```python
-class VoiceResponse(BaseModel):
-    text: str
-    language: str
-```
-
----
-
-### Background Tasks
-
-Initially, use FastAPI's built-in support.
-
-```python
-from fastapi import BackgroundTasks
-```
-
-Later, if you need distributed jobs:
-
-- Dramatiq
-- Celery
-- Arq
-
-For your current project, I wouldn't add any of them yet.
-
----
-
-### Logging
-
-```bash
-uv add structlog
-```
-
-or simply use
-
-```python
-import logging
-```
-
-You already have a logging system, so the standard library may be enough.
-
----
-
-### Authentication
-
-Since you're already using Supabase:
-
-- JWT validation
-- Supabase Auth
-
-No need to build your own authentication.
-
----
-
-## What I would NOT install initially
-
-I would avoid adding these until you actually need them:
-
-- SQLAlchemy
-- Alembic
-- Celery
-- Redis
-- ORM frameworks
-
-Supabase already gives you PostgreSQL, authentication, and migrations. If you're accessing the database through Supabase (or its REST/RPC interface), you can keep the API layer much simpler.
-
----
-
-## Typical request flow
+The API server should follow the same module shape used by the other tools in
+this repo:
 
 ```text
-Request
-
-    │
-
-Router
-
-    │
-
-Pydantic Request Model
-
-    │
-
-VoiceService
-
-    │
-
-Packages
-
-    │
-
-Pydantic Response Model
-
-    │
-
-JSON
+src/api-server/
+├── api-server.py
+├── README.md
+├── docs/
+│   ├── DEVELOPMENT_GUIDELINE.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   └── reports/
+└── src/app/
+    ├── __init__.py
+    ├── main.py
+    ├── config.py
+    ├── dependencies.py
+    ├── routers/
+    ├── schemas/
+    ├── services/
+    ├── middleware/
+    └── exceptions/
 ```
 
-Notice that the router **never** contains business logic.
+`api-server.py` should remain a thin entry point. All application behavior
+should live under `src/app`.
 
----
+## Layer Responsibilities
 
-## Dependency Injection
+### Routers
 
-FastAPI's built-in dependency system is enough.
+- Define HTTP routes and status codes.
+- Parse request payloads into schema objects.
+- Call services.
+- Return response models.
 
-```python
-@router.post("/transcribe")
-async def transcribe(
-    service: VoiceService = Depends(get_voice_service),
-):
-    ...
-```
+Routers should not contain business logic or subprocess calls.
 
-I would **not** introduce a DI container unless the project becomes significantly larger.
+### Schemas
 
----
+- Define request and response models with Pydantic.
+- Keep the HTTP contract explicit and stable.
+- Convert tool outputs into API-friendly shapes.
 
-## My recommended `pyproject.toml`
+### Services
 
-```toml
-dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "pydantic",
-    "pydantic-settings",
-    "httpx",
-    "python-multipart",
-    "orjson",
-]
-```
+- Orchestrate work for one feature area.
+- Map API inputs to the existing tool configurations.
+- Call lower-level wrappers or module services.
+- Return explicit results such as file paths, text, or metadata.
 
-### Why these two extra packages?
+### Config
 
-- **python-multipart**: required for file uploads (`UploadFile`), which you'll need for audio files.
-- **orjson**: a very fast JSON serializer that FastAPI can use for responses.
+- Load environment settings and shared defaults.
+- Keep API-wide settings in one place.
+- Avoid hardcoding paths or secrets in routers.
 
----
+### Dependencies
 
-### As your platform grows
+- Provide reusable FastAPI dependency factories.
+- Keep wiring code out of route handlers.
 
-I can imagine your FastAPI layer remaining surprisingly small:
+## Tech Stack
+
+- Python 3.14 or newer
+- `uv`
+- `FastAPI`
+- `uvicorn`
+- `pydantic`
+- `pydantic-settings`
+- `httpx`
+
+Optional later additions:
+
+- `orjson` for faster JSON responses
+- `python-multipart` if file uploads are part of the API
+
+## Suggested Runtime Flow
 
 ```text
-apps/api/
-
-~15-20 routers
-~10 request/response models
-~5 middleware components
-
-Everything else lives in reusable packages.
+HTTP request
+  -> router
+  -> request schema
+  -> service
+  -> tool adapter or shared module
+  -> response schema
+  -> JSON response
 ```
 
-That's a good sign—it means FastAPI is doing its job as an interface layer, while the real application logic stays reusable across your CLI, Telegram bot, Textual apps, and web frontend.
+The router should never call the external command directly.
 
-I see it like
+## Development Notes
 
-POST api/voice-note/list
-request {}
-responce {}
+- Keep the server small and composable.
+- Prefer one router per tool domain.
+- Reuse the existing tool module behavior instead of duplicating it here.
+- Add `docs/IMPLEMENTATION_PLAN.md` and `docs/reports/` once implementation
+  begins.
 
-POST api/voice-note/create
-request {}
-responce {}
+## References
 
-POST api/voice-note/delete
-request {}
-responce {}
+- [Architecture Guideline](../../docs/guidelines/ARCHITECTURE_GUIDELINE.md)
+- [Implementation Guideline](../../docs/guidelines/IMPLEMENTATION_GUIDELINE.md)
+- [Tool Engineer](../../docs/roles/TOOL_ENGINEER.md)
 
-POST api/time-manager/start
-request {}
-responce {}
-
-POST api/time-manager/stop
-request {}
-responce {}
