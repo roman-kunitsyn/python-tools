@@ -2,50 +2,149 @@
 
 ## Project Overview
 
-This module is a FastAPI-based HTTP adapter for the Python tools workspace.
-Its job is to expose the existing tool capabilities through stable API
-endpoints without moving business logic into the web layer.
+`api-server` exposes the workspace tools through a small FastAPI HTTP API.
+The server stays thin and delegates real work to service adapters that wrap the
+existing tool behavior.
 
-The API server should stay thin and delegate real work to tool-specific
-services or shared wrappers.
+Supported tool areas:
 
-## Goals
+- audio recording
+- audio transcription
+- meeting recording
+- voice-note capture and transcription
 
-- Keep the API layer focused on HTTP concerns only.
-- Reuse the existing tool implementations instead of duplicating behavior.
-- Keep request and response validation in Pydantic models.
-- Keep subprocess calls and external tool usage in service or wrapper modules.
-- Match the documentation pattern used by the other tool modules in this repo.
+## Requirements
 
-## Current Workspace Context
+- Python 3.14 or newer
+- `uv`
+- `fastapi`
+- `uvicorn`
+- `pydantic`
+- `pydantic-settings`
+- `httpx`
 
-The repository already contains focused tool modules for:
+The workspace already declares these dependencies in the root project.
 
-- [audio-transcribe](../audio-transcribe/README.md)
-- [meeting-record](../meeting-record/README.md)
-- [audio-record](../audio-record/README.md)
-- [voice-note](../voice-note/README.md)
+## Start
 
-Those tools already define the domain behavior that an API layer can wrap.
-The server should not reimplement transcription, recording, or note handling.
+Show the server help:
 
-## Recommended API Surface
+```bash
+uv run python src/api-server/api-server.py --help
+```
 
-Start with a small set of endpoints that map to the current tools:
+Start the API server:
 
-- `GET /health`
-- `POST /audio-recordings`
-- `POST /transcriptions`
-- `POST /meeting-recordings`
-- `POST /voice-notes`
+```bash
+uv run python src/api-server/api-server.py
+```
 
-Keep each route narrow. A router should translate HTTP input into a config
-model, call a service, and return a response model.
+Use a different host or port:
 
-## Suggested Project Structure
+```bash
+uv run python src/api-server/api-server.py \
+  --host 0.0.0.0 \
+  --port 8000
+```
 
-The API server should follow the same module shape used by the other tools in
-this repo:
+Enable Uvicorn reload mode for local development:
+
+```bash
+uv run python src/api-server/api-server.py --reload
+```
+
+## API
+
+### Health
+
+Check server status and available tool areas:
+
+```bash
+GET /health
+```
+
+List tool metadata directly:
+
+```bash
+GET /tools
+```
+
+### Audio Recordings
+
+Start a recording session:
+
+```bash
+POST /audio-recordings
+```
+
+Example body:
+
+```json
+{
+  "device": "Built-in Microphone",
+  "output_format": "wav",
+  "sample_rate": 16000,
+  "channels": 1
+}
+```
+
+Stop a session:
+
+```bash
+POST /audio-recordings/{session_id}/stop
+```
+
+### Transcriptions
+
+Transcribe an audio file with `whisper-cli`:
+
+```bash
+POST /transcriptions
+```
+
+Example body:
+
+```json
+{
+  "audio_file": "meeting.wav",
+  "output_format": "txt",
+  "model_file": "/home/user/whisper/models/ggml-small.bin",
+  "language": "auto"
+}
+```
+
+### Meeting Recordings
+
+Start a meeting recording session:
+
+```bash
+POST /meeting-recordings
+```
+
+Stop a session:
+
+```bash
+POST /meeting-recordings/{session_id}/stop
+```
+
+The server creates the meeting folder and metadata file when the session
+starts.
+
+### Voice Notes
+
+Start a voice-note session:
+
+```bash
+POST /voice-notes
+```
+
+Stop a session, transcribe the recorded audio, and write transcript output:
+
+```bash
+POST /voice-notes/{session_id}/stop
+```
+
+## Project Structure
 
 ```text
 src/api-server/
@@ -56,95 +155,26 @@ src/api-server/
 │   ├── IMPLEMENTATION_PLAN.md
 │   └── reports/
 └── src/app/
-    ├── __init__.py
-    ├── main.py
+    ├── bootstrap.py
     ├── config.py
     ├── dependencies.py
+    ├── main.py
     ├── routers/
     ├── schemas/
-    ├── services/
-    ├── middleware/
-    └── exceptions/
+    └── services/
 ```
 
-`api-server.py` should remain a thin entry point. All application behavior
-should live under `src/app`.
+`api-server.py` is only the script entry point. Application behavior lives in
+`src/app`.
 
-## Layer Responsibilities
+## Documentation
 
-### Routers
+- [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md)
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+- [Reports](docs/reports/)
 
-- Define HTTP routes and status codes.
-- Parse request payloads into schema objects.
-- Call services.
-- Return response models.
-
-Routers should not contain business logic or subprocess calls.
-
-### Schemas
-
-- Define request and response models with Pydantic.
-- Keep the HTTP contract explicit and stable.
-- Convert tool outputs into API-friendly shapes.
-
-### Services
-
-- Orchestrate work for one feature area.
-- Map API inputs to the existing tool configurations.
-- Call lower-level wrappers or module services.
-- Return explicit results such as file paths, text, or metadata.
-
-### Config
-
-- Load environment settings and shared defaults.
-- Keep API-wide settings in one place.
-- Avoid hardcoding paths or secrets in routers.
-
-### Dependencies
-
-- Provide reusable FastAPI dependency factories.
-- Keep wiring code out of route handlers.
-
-## Tech Stack
-
-- Python 3.14 or newer
-- `uv`
-- `FastAPI`
-- `uvicorn`
-- `pydantic`
-- `pydantic-settings`
-- `httpx`
-
-Optional later additions:
-
-- `orjson` for faster JSON responses
-- `python-multipart` if file uploads are part of the API
-
-## Suggested Runtime Flow
-
-```text
-HTTP request
-  -> router
-  -> request schema
-  -> service
-  -> tool adapter or shared module
-  -> response schema
-  -> JSON response
-```
-
-The router should never call the external command directly.
-
-## Development Notes
-
-- Keep the server small and composable.
-- Prefer one router per tool domain.
-- Reuse the existing tool module behavior instead of duplicating it here.
-- Add `docs/IMPLEMENTATION_PLAN.md` and `docs/reports/` once implementation
-  begins.
-
-## References
+Shared workspace docs:
 
 - [Architecture Guideline](../../docs/guidelines/ARCHITECTURE_GUIDELINE.md)
 - [Implementation Guideline](../../docs/guidelines/IMPLEMENTATION_GUIDELINE.md)
 - [Tool Engineer](../../docs/roles/TOOL_ENGINEER.md)
-
