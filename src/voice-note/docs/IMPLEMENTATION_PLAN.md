@@ -18,6 +18,8 @@ Implemented:
 - Recorder adapter over the sibling `audio-record` package.
 - Whisper transcriber wrapper that returns transcript text.
 - Whisper runs in translate-to-English mode for all voice-note output.
+- Whisper transcription now reports a clear runtime error when the output
+  transcript file is missing after `whisper-cli` completes.
 - Stdout and append-to-file output writers.
 - Structured JSON transcript output at `transcribe.json`.
 - Default per-run storage under `logs/voice_notes/voice_note_{timestamp}` with

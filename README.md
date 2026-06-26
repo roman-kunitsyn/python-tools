@@ -16,6 +16,10 @@ The current modular tools are:
   `ffmpeg` for reuse by higher-level tools.
 - [voice-note](src/voice-note/README.md): captures push-to-talk voice notes,
   transcribes them, and writes text to stdout or a notes file.
+- [api-server](src/api-server/README.md): exposes selected tool capabilities
+  through a FastAPI HTTP API.
+- [telegram-bot](src/telegram-bot/README.md): exposes voice-note transcription
+  through a Telegram bot built with `aiogram`.
 
 The remaining root `src/meeting-*.py` files are draft scripts. They are useful
 source material for future tools, but they do not yet follow the full modular
@@ -38,6 +42,8 @@ CLI/TUI/service structure.
 - `argparse` for CLI interfaces
 - `dataclasses` and `pathlib` for config and paths
 - `subprocess` for external tool wrappers
+- FastAPI for HTTP adapters
+- aiogram for Telegram adapters
 - Textual and Rich for TUI and terminal UI work
 
 Project dependencies are declared in [pyproject.toml](pyproject.toml).
@@ -57,6 +63,8 @@ uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
 uv run python src/audio-record/audio-record.py --help
 uv run python src/voice-note/voice-note.py --help
+uv run python src/api-server/api-server.py --help
+uv run python src/telegram-bot/telegram-bot.py --help
 uv run voice-note --help
 ```
 
@@ -75,6 +83,10 @@ For push-to-talk voice notes, see the
 [voice-note README](src/voice-note/README.md). That tool requires `ffmpeg`,
 `whisper-cli`, and a Whisper model file.
 
+For the HTTP API adapter, see the [api-server README](src/api-server/README.md).
+
+For the Telegram adapter, see the [telegram-bot README](src/telegram-bot/README.md).
+
 ## CLI Usage
 
 Show help for the current modular tool:
@@ -84,6 +96,8 @@ uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
 uv run python src/audio-record/audio-record.py --help
 uv run python src/voice-note/voice-note.py --help
+uv run python src/api-server/api-server.py --help
+uv run python src/telegram-bot/telegram-bot.py --help
 uv run voice-note --help
 ```
 
@@ -181,6 +195,18 @@ tools/python/
     │   ├── voice_note/
     │   ├── tests/
     │   └── docs/
+    ├── api-server/
+    │   ├── README.md
+    │   ├── api-server.py
+    │   ├── docs/
+    │   ├── src/app/
+    │   └── tests/
+    ├── telegram-bot/
+    │   ├── README.md
+    │   ├── telegram-bot.py
+    │   ├── telegram_bot/
+    │   ├── tests/
+    │   └── docs/
     ├── meeting-combine.py
     ├── meeting-split.py
     ├── meeting-summary.py
@@ -242,12 +268,14 @@ Shared guidelines:
 - [Testing Guideline](docs/guidelines/TESTING_GUIDELINE.md)
 - [UX/UI Design Guideline](docs/guidelines/UX_UI_DESIGN_GUIDELINE.md)
 - [Investigation, Review, Planning, Prototyping](docs/guidelines/INVESTIGATION_REVIEW_PLANNING_PROTOTYPING.md)
+- [Telegram Bot Guideline](docs/guidelines/TELEGRAM_BOT_GUIDELINE.md)
 
 Roles:
 
 - [Product Owner](docs/roles/PRODUCT_OWNER.md)
 - [Technical Lead](docs/roles/TECHNICAL_LEAD.md)
 - [Tool Engineer](docs/roles/TOOL_ENGINEER.md)
+- [Telegram Engineer](docs/roles/TELEGRAM_ENGINEER.md)
 - [Testing Engineer](docs/roles/TESTING_ENGINEER.md)
 - [UI/UX Designer](docs/roles/UI_UX_DESIGNER.md)
 - [Role Profiles](docs/roles/profiles)
@@ -273,6 +301,11 @@ Module documentation:
 - [voice-note Implementation Plan](src/voice-note/docs/IMPLEMENTATION_PLAN.md)
 - [voice-note Development Guideline](src/voice-note/docs/DEVELOPMENT_GUIDELINE.md)
 - [voice-note Task Reports](src/voice-note/docs/reports/)
+- [api-server README](src/api-server/README.md)
+- [telegram-bot README](src/telegram-bot/README.md)
+- [telegram-bot Implementation Plan](src/telegram-bot/docs/IMPLEMENTATION_PLAN.md)
+- [telegram-bot Development Guideline](src/telegram-bot/docs/DEVELOPMENT_GUIDELINE.md)
+- [telegram-bot Task Reports](src/telegram-bot/docs/reports/)
 
 Documentation responsibilities:
 

@@ -149,7 +149,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.log_file, settings.session_dir / "log.txt")
         self.assertEqual(settings.audio_device, "built-in microphone")
         self.assertEqual(settings.editor, "code")
-        self.assertEqual(settings.max_recording_seconds, 300)
+        self.assertEqual(settings.max_recording_seconds, 90)
         self.assertTrue(settings.keep_audio)
 
     def test_loads_json_config(self) -> None:
@@ -263,6 +263,23 @@ class WhisperTranscriberTest(unittest.TestCase):
             self.assertEqual(transcriber.transcribe(audio_file), "translated text")
 
         self.assertIn("-tr", commands[0])
+
+    def test_transcribe_raises_clear_error_when_output_file_is_missing(self) -> None:
+        class MissingOutputWhisperTranscriber(WhisperTranscriber):
+            def _run(self, command: list[str]) -> None:
+                return None
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model_file = Path(temp_dir) / "ggml-small.bin"
+            model_file.write_text("model")
+            audio_file = Path(temp_dir) / "audio.wav"
+            audio_file.write_text("audio")
+            transcriber = MissingOutputWhisperTranscriber(model=str(model_file))
+
+            with self.assertRaises(RuntimeError) as ctx:
+                transcriber.transcribe(audio_file)
+
+        self.assertIn("did not create the transcript file", str(ctx.exception))
 
 
 class PushToTalkRecorderTest(unittest.TestCase):

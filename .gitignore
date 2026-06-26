@@ -10,6 +10,5 @@ wheels/
 .venv
 .DS_Store
 logs/
-
-# Local Claude Code agent configuration
 .claude/
+.env
