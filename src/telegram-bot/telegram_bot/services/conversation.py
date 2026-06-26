@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+from telegram_bot.models import VoiceNoteSession
+
 
 class ConversationStore:
     def __init__(self) -> None:
-        self._active_voice_note_chats: set[int] = set()
+        self._active_voice_note_sessions: dict[int, VoiceNoteSession] = {}
 
-    def start_voice_note(self, chat_id: int) -> None:
-        self._active_voice_note_chats.add(chat_id)
+    def start_voice_note(self, session: VoiceNoteSession) -> None:
+        self._active_voice_note_sessions[session.chat_id] = session
 
-    def consume_voice_note(self, chat_id: int) -> bool:
-        if chat_id in self._active_voice_note_chats:
-            self._active_voice_note_chats.remove(chat_id)
-            return True
+    def get(self, chat_id: int) -> VoiceNoteSession | None:
+        return self._active_voice_note_sessions.get(chat_id)
 
-        return False
+    def remove(self, chat_id: int) -> VoiceNoteSession | None:
+        return self._active_voice_note_sessions.pop(chat_id, None)
 
     def is_voice_note_active(self, chat_id: int) -> bool:
-        return chat_id in self._active_voice_note_chats
+        return chat_id in self._active_voice_note_sessions

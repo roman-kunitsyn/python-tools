@@ -1,30 +1,29 @@
 # Telegram Bot
 
-## Project Overview
+`telegram-bot` is the Aiogram 3 adapter for the Python tools workspace. It
+implements the voice-note workflow described in the Telegram bot guidelines and
+keeps business logic in services while handlers stay thin.
 
-`telegram-bot` is a Telegram adapter for the Python tools workspace.
-It uses `aiogram` to receive updates, routes them through a thin service layer,
-and reuses the existing `voice-note` transcription pipeline for audio input.
+## What It Does
 
-The bot currently focuses on one workflow:
+- `/start` shows the main menu
+- `/help` shows command help and current session guidance
+- `/voice_note` starts a new voice-note session
+- Users can send multiple voice messages or audio files
+- Each upload is saved locally, converted to `wav`, and transcribed
+- `Add More`, `Finish`, and `Cancel` are exposed as inline actions
+- Finished sessions keep a chronological transcript and metadata file
+- Cancelled sessions remove temporary data
 
-- receive a voice message or audio file
-- download it locally
-- transcribe it with the same Whisper-based logic used by `voice-note`
-- send the transcript back to Telegram
-
-## Requirements
+## Runtime Requirements
 
 - Python 3.14 or newer
 - `uv`
 - `aiogram`
 - `pydantic`
 - `pydantic-settings`
-
-Runtime dependencies:
-
 - `whisper-cli` on `PATH`
-- a Whisper model file, by default `small`
+- `ffmpeg` on `PATH`
 - a Telegram bot token
 
 ## Start
@@ -35,13 +34,13 @@ Show help:
 uv run python src/telegram-bot/telegram-bot.py --help
 ```
 
-Start the bot with an environment token:
+Start the bot:
 
 ```bash
 TELEGRAM_BOT_TOKEN=123456:token uv run python src/telegram-bot/telegram-bot.py
 ```
 
-Override the token and Whisper settings on the command line:
+Override Whisper settings:
 
 ```bash
 uv run python src/telegram-bot/telegram-bot.py \
@@ -50,7 +49,7 @@ uv run python src/telegram-bot/telegram-bot.py \
   --language auto
 ```
 
-Enable command logging from `whisper-cli`:
+Enable Whisper command logging:
 
 ```bash
 uv run python src/telegram-bot/telegram-bot.py \
@@ -58,35 +57,35 @@ uv run python src/telegram-bot/telegram-bot.py \
   --verbose
 ```
 
-## Bot Commands
+## Voice Note Flow
 
-### `/start`
+1. User sends `/voice_note`
+2. Bot creates a session under `logs/voice_notes`
+3. User sends one or more voice messages or audio files
+4. Each upload is stored under the session folder and converted to `wav`
+5. Whisper transcription runs automatically
+6. Bot returns the transcript and shows `Add More`, `Finish`, `Cancel`
+7. `Finish` finalizes the session and keeps the transcript
+8. `Cancel` removes the session directory and clears temporary state
 
-Shows the basic usage message and explains that the bot transcribes voice and
-audio messages.
+## Session Layout
 
-### `/voice-note`
+Each session is stored locally in its own folder:
 
-Marks the next interaction as a voice-note workflow and prompts the user to
-send a voice message or audio file.
+```text
+logs/voice_notes/
+└── voice_note_YYYY_MM_DD-HH_MM_SS_<session_id>/
+    ├── audio/
+    │   ├── voice_001.ogg
+    │   ├── voice_001.wav
+    │   ├── voice_002.ogg
+    │   └── voice_002.wav
+    ├── metadata.json
+    └── transcript.md
+```
 
-## Message Handling
-
-The bot accepts:
-
-- Telegram voice messages
-- Telegram audio files
-
-For each message it:
-
-1. creates a session folder under `logs/voice_notes`
-2. downloads the file into that session's `audio/` folder
-3. converts the downloaded audio to `wav`
-4. runs Whisper transcription through the shared `voice-note` transcription
-   wrapper and writes `transcribe.txt`
-5. replies with the transcript
-
-If the transcript is long, the reply is split into smaller chunks.
+`metadata.json` tracks session metadata and per-voice details. `transcript.md`
+contains the merged transcript in chronological order.
 
 ## Project Structure
 
@@ -95,42 +94,36 @@ src/telegram-bot/
 ├── telegram-bot.py
 ├── README.md
 ├── docs/
-│   ├── DEVELOPMENT_GUIDELINE.md
-│   ├── IMPLEMENTATION_PLAN.md
-│   └── reports/
 ├── tests/
 └── telegram_bot/
     ├── bot.py
     ├── bootstrap.py
     ├── config.py
     ├── handlers/
+    ├── keyboards/
     ├── main.py
     ├── models.py
-    └── services/
+    ├── services/
+    └── states/
 ```
 
-`telegram-bot.py` is only the script entry point. Application behavior lives in
-`telegram_bot`.
+## Key Modules
 
-Each Telegram note is stored in a folder like:
-
-```text
-logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}_{chat_id}_{message_id}/
-├── audio/
-│   ├── voice_{message_id}.ogg
-│   └── voice_{message_id}.wav
-└── transcribe.txt
-```
+- `telegram_bot/main.py` bootstraps the bot process
+- `telegram_bot/bot.py` builds the dispatcher and router tree
+- `telegram_bot/services/voice_note.py` owns session orchestration
+- `telegram_bot/services/storage_service.py` owns local session storage
+- `telegram_bot/services/transcription.py` wraps `whisper-cli`
+- `telegram_bot/handlers/*` keep Telegram handlers thin
 
 ## Documentation
 
-- [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 - [Reports](docs/reports/)
 
 Shared workspace docs:
 
-- [Architecture Guideline](../../docs/guidelines/ARCHITECTURE_GUIDELINE.md)
-- [Implementation Guideline](../../docs/guidelines/IMPLEMENTATION_GUIDELINE.md)
+- [Telegram Bot Guideline](../../docs/guidelines/TELEGRAM_BOT_GUIDELINE.md)
+- [Telegram Engineer](../../docs/roles/TELEGRAM_ENGINEER.md)
 - [Tool Engineer](../../docs/roles/TOOL_ENGINEER.md)
 - [voice-note README](../voice-note/README.md)

@@ -2,14 +2,9 @@
 
 ## Module Purpose
 
-`telegram-bot` provides a Telegram interface around the workspace tools,
-starting with voice-note transcription.
-
-The bot should remain an adapter layer:
-
-- Telegram handlers parse incoming updates.
-- Services manage conversation state and transcription calls.
-- The existing `voice-note` tool performs the Whisper-based transcription.
+`telegram-bot` provides a Telegram interface for the workspace voice-note
+feature. It uses Aiogram 3, a thin handler layer, and service classes that own
+session storage, transcription, and cleanup.
 
 ## Current Structure
 
@@ -26,111 +21,69 @@ src/telegram-bot/
     ├── bootstrap.py
     ├── config.py
     ├── handlers/
+    ├── keyboards/
     ├── main.py
     ├── models.py
-    └── services/
+    ├── services/
+    └── states/
 ```
 
-Current layer ownership:
+## Current Ownership
 
 - `telegram-bot.py`: thin script entry point.
-- `telegram_bot/main.py`: CLI parsing, settings construction, and polling
-  startup.
-- `telegram_bot/config.py`: bot settings.
-- `telegram_bot/models.py`: shared data models.
-- `telegram_bot/services/conversation.py`: in-memory voice-note session state.
-- `telegram_bot/services/transcription.py`: Whisper transcription wrapper.
-- `telegram_bot/services/voice_note.py`: message download, transcription, and
-  response formatting, including conversion to WAV before transcription.
-- `telegram_bot/handlers/`: command and media message handlers.
+- `telegram_bot/main.py`: CLI parsing, settings construction, and polling startup.
+- `telegram_bot/config.py`: bot settings, including `logs/voice_notes`.
+- `telegram_bot/models.py`: session and entry models.
+- `telegram_bot/services/conversation.py`: in-memory active session store.
+- `telegram_bot/services/storage_service.py`: session directory lifecycle, local audio storage, WAV conversion, transcript and metadata persistence.
+- `telegram_bot/services/transcription.py`: async wrapper around `whisper-cli`.
+- `telegram_bot/services/voice_note.py`: session orchestration and structured logging.
+- `telegram_bot/handlers/`: command, callback, and media handlers.
+- `telegram_bot/states/voice_note.py`: FSM for the voice-note flow.
+- `telegram_bot/keyboards/`: inline keyboards for the main menu and voice-note session.
 
-## Implemented
+## Implemented Flow
 
-- Thin launcher script.
-- `aiogram` polling application.
-- `/start` command.
-- `/voice-note` command.
-- voice and audio message transcription.
-- downloaded audio and transcript files saved under `logs/voice_notes`.
-- Telegram media converted to WAV before transcription.
-- in-memory conversation state for voice-note mode.
-- reply formatting and chunking helpers.
-- module-local development guideline and implementation plan.
-- initial unit tests.
+- `/start` shows the menu.
+- `/help` shows command help.
+- `/voice_note` starts a new session.
+- The user can send multiple voice or audio messages.
+- Each upload is stored locally, converted to `wav`, and transcribed.
+- The bot returns the transcript and offers `Add More`, `Finish`, and `Cancel`.
+- `Finish` merges transcript output, finalizes metadata, and clears the FSM state.
+- `Cancel` removes the session directory and clears the FSM state.
 
-## Known Gaps
+## Current Storage Layout
 
-- Bot token is required at runtime and must come from `--token` or
-  `TELEGRAM_BOT_TOKEN`.
-- Conversation state is memory-only.
-- Session files are stored on disk, but session state is still memory-only.
-- No Telegram integration tests against a real bot account.
-- No rate limiting or admin access control.
+```text
+logs/voice_notes/
+└── voice_note_YYYY_MM_DD-HH_MM_SS_<session_id>/
+    ├── audio/
+    │   ├── voice_001.ogg
+    │   ├── voice_001.wav
+    │   ├── voice_002.ogg
+    │   └── voice_002.wav
+    ├── metadata.json
+    └── transcript.md
+```
 
-## Current Acceptance State
+## Verified Guarantees
 
-Completed:
+- handlers remain thin
+- all business logic lives in services
+- transcription runs asynchronously
+- temp files are removed on cancel
+- session transcript order matches arrival order
+- logging includes `chat_id`, `user_id`, and `session_id`
 
-- Runnable bot entry point.
-- Voice-message transcription flow.
-- Handler/service split.
-- Initial tests and documentation.
+## Remaining Risks
 
-Partial:
-
-- Error mapping is intentionally simple and may need refinement.
-- Large transcript delivery may need smarter chunking later.
-
-Not started:
-
-- Persistent session storage.
-- Webhook deployment.
-- Rich command menu or inline keyboard flows.
+- `conversation_store` is still in memory, so active sessions do not survive a restart
+- Telegram delivery limits may still require chunking for long transcripts
+- no live Telegram integration test is present yet
 
 ## Next Small Parts
 
-### Part 2: Add Admin and Status Commands
-
-Goal:
-
-Give the bot a small operational surface for checking status and resetting
-conversation state.
-
-Deliverables:
-
-- `/status`
-- `/cancel`
-- `/help`
-
-### Part 3: Persist Sessions
-
-Goal:
-
-Store active voice-note session state outside process memory.
-
-Deliverables:
-
-- file-backed or database-backed session state
-- restart-safe behavior
-
-### Part 4: Integration Checks
-
-Goal:
-
-Verify the bot startup path and message formatting against the real runtime
-dependencies.
-
-Deliverables:
-
-- startup smoke tests
-- guarded Telegram integration tests
-- voice-note transcription regression checks
-
-## Documentation Rules For This Module
-
-When implementation changes:
-
-1. Update this plan to reflect the real module state.
-2. Update `README.md` if user-facing behavior changed.
-3. Add a report under `docs/reports/`.
-4. Keep handlers thin and route behavior through services.
+1. Add persistent session storage if restart safety becomes required.
+2. Add command tests around the inline-button callbacks if the flow changes again.
+3. Add a live-bot smoke test or webhook deployment path if needed.

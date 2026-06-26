@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from telegram_bot.bootstrap import ensure_voice_note_path
@@ -24,5 +25,11 @@ class WhisperTranscriptionService:
             log_file=log_file,
         )
 
-    def transcribe(self, audio_file: Path, output_file: Path | None = None) -> str:
-        return self.transcriber.transcribe(audio_file, output_file=output_file).strip()
+    async def transcribe(self, audio_file: Path, output_file: Path | None = None) -> str:
+        return (
+            await asyncio.to_thread(
+                self.transcriber.transcribe,
+                audio_file,
+                output_file,
+            )
+        ).strip()

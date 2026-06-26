@@ -1,2 +1,3 @@
 from telegram_bot.handlers.commands import build_command_router
+from telegram_bot.handlers.callbacks import build_callback_router
 from telegram_bot.handlers.media import build_media_router
