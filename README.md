@@ -268,12 +268,14 @@ Shared guidelines:
 - [Testing Guideline](docs/guidelines/TESTING_GUIDELINE.md)
 - [UX/UI Design Guideline](docs/guidelines/UX_UI_DESIGN_GUIDELINE.md)
 - [Investigation, Review, Planning, Prototyping](docs/guidelines/INVESTIGATION_REVIEW_PLANNING_PROTOTYPING.md)
+- [Telegram Bot Guideline](docs/guidelines/TELEGRAM_BOT_GUIDELINE.md)
 
 Roles:
 
 - [Product Owner](docs/roles/PRODUCT_OWNER.md)
 - [Technical Lead](docs/roles/TECHNICAL_LEAD.md)
 - [Tool Engineer](docs/roles/TOOL_ENGINEER.md)
+- [Telegram Engineer](docs/roles/TELEGRAM_ENGINEER.md)
 - [Testing Engineer](docs/roles/TESTING_ENGINEER.md)
 - [UI/UX Designer](docs/roles/UI_UX_DESIGNER.md)
 - [Role Profiles](docs/roles/profiles)
@@ -301,6 +303,9 @@ Module documentation:
 - [voice-note Task Reports](src/voice-note/docs/reports/)
 - [api-server README](src/api-server/README.md)
 - [telegram-bot README](src/telegram-bot/README.md)
+- [telegram-bot Implementation Plan](src/telegram-bot/docs/IMPLEMENTATION_PLAN.md)
+- [telegram-bot Development Guideline](src/telegram-bot/docs/DEVELOPMENT_GUIDELINE.md)
+- [telegram-bot Task Reports](src/telegram-bot/docs/reports/)
 
 Documentation responsibilities:
 
