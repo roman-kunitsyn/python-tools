@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from telegram_bot.config import BotSettings
 from telegram_bot.handlers.utils import split_text
@@ -32,9 +33,14 @@ class FakeBot:
 class FakeTranscriber:
     def __init__(self) -> None:
         self.audio_files: list[Path] = []
+        self.output_files: list[Path | None] = []
 
-    def transcribe(self, audio_file: Path) -> str:
+    def transcribe(self, audio_file: Path, output_file: Path | None = None) -> str:
         self.audio_files.append(audio_file)
+        self.output_files.append(output_file)
+        if output_file is not None:
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            output_file.write_text("hello world")
         return "hello world"
 
 
@@ -126,13 +132,30 @@ class TelegramBotTests(unittest.TestCase):
             audio=None,
         )
 
-        service.start_voice_note(99)
-        result = asyncio.run(service.transcribe_message(bot, message))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_root = Path(temp_dir) / "logs" / "voice_notes"
+            with patch(
+                "telegram_bot.services.voice_note.DEFAULT_VOICE_NOTES_DIR",
+                session_root,
+            ), patch.object(service, "_convert_to_wav") as convert_mock:
+                def fake_convert(input_file: Path, output_file: Path) -> None:
+                    output_file.parent.mkdir(parents=True, exist_ok=True)
+                    output_file.write_text("wav")
 
-        self.assertEqual(result.transcript, "hello world")
-        self.assertEqual(result.source.filename, "voice_12.ogg")
-        self.assertTrue(result.active_voice_note_session)
-        self.assertEqual(len(bot.downloaded), 1)
+                convert_mock.side_effect = fake_convert
+                service.start_voice_note(99)
+                result = asyncio.run(service.transcribe_message(bot, message))
+
+            self.assertEqual(result.transcript, "hello world")
+            self.assertEqual(result.source.filename, "voice_12.ogg")
+            self.assertTrue(result.active_voice_note_session)
+            self.assertEqual(len(bot.downloaded), 1)
+            self.assertTrue(result.local_file.exists())
+            self.assertTrue(result.local_file.parent.is_dir())
+            self.assertTrue(str(result.local_file).startswith(str(session_root)))
+            self.assertEqual(session_root.parent.name, "logs")
+            self.assertEqual(result.local_file.suffix, ".wav")
+            convert_mock.assert_called_once()
 
 
 if __name__ == "__main__":

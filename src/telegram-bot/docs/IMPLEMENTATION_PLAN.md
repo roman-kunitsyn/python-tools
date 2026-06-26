@@ -41,7 +41,7 @@ Current layer ownership:
 - `telegram_bot/services/conversation.py`: in-memory voice-note session state.
 - `telegram_bot/services/transcription.py`: Whisper transcription wrapper.
 - `telegram_bot/services/voice_note.py`: message download, transcription, and
-  response formatting.
+  response formatting, including conversion to WAV before transcription.
 - `telegram_bot/handlers/`: command and media message handlers.
 
 ## Implemented
@@ -51,6 +51,8 @@ Current layer ownership:
 - `/start` command.
 - `/voice-note` command.
 - voice and audio message transcription.
+- downloaded audio and transcript files saved under `logs/voice_notes`.
+- Telegram media converted to WAV before transcription.
 - in-memory conversation state for voice-note mode.
 - reply formatting and chunking helpers.
 - module-local development guideline and implementation plan.
@@ -61,7 +63,7 @@ Current layer ownership:
 - Bot token is required at runtime and must come from `--token` or
   `TELEGRAM_BOT_TOKEN`.
 - Conversation state is memory-only.
-- No persistence for transcripts or downloads.
+- Session files are stored on disk, but session state is still memory-only.
 - No Telegram integration tests against a real bot account.
 - No rate limiting or admin access control.
 

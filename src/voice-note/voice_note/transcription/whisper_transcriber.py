@@ -21,13 +21,15 @@ class WhisperTranscriber:
         self.log_file = log_file
         self.translate_to_english = translate_to_english
 
-    def transcribe(self, audio_file: Path) -> str:
+    def transcribe(self, audio_file: Path, output_file: Path | None = None) -> str:
         model_file = resolve_model_file(self.model)
         if not model_file.exists():
             raise ValueError(f"Model file does not exist: {model_file}")
 
         with tempfile.TemporaryDirectory(prefix="voice-note-") as temp_dir:
-            output_base = Path(temp_dir) / "transcript"
+            output_base = output_file.with_suffix("") if output_file is not None else Path(temp_dir) / "transcript"
+            if output_file is not None:
+                output_file.parent.mkdir(parents=True, exist_ok=True)
             command = [
                 "whisper-cli",
                 "-m",
@@ -51,6 +53,12 @@ class WhisperTranscriber:
                 raise FileNotFoundError("whisper-cli executable not found") from error
 
             transcript_file = output_base.with_suffix(".txt")
+            if not transcript_file.exists():
+                raise RuntimeError(
+                    "whisper-cli completed but did not create the transcript file: "
+                    f"{transcript_file}"
+                )
+
             return transcript_file.read_text().strip()
 
     def _run(self, command: list[str]) -> None:

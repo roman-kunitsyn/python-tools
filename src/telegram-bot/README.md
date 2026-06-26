@@ -79,10 +79,12 @@ The bot accepts:
 
 For each message it:
 
-1. downloads the file to a temporary location
-2. runs Whisper transcription through the shared `voice-note` transcription
-   wrapper
-3. replies with the transcript
+1. creates a session folder under `logs/voice_notes`
+2. downloads the file into that session's `audio/` folder
+3. converts the downloaded audio to `wav`
+4. runs Whisper transcription through the shared `voice-note` transcription
+   wrapper and writes `transcribe.txt`
+5. replies with the transcript
 
 If the transcript is long, the reply is split into smaller chunks.
 
@@ -109,6 +111,16 @@ src/telegram-bot/
 
 `telegram-bot.py` is only the script entry point. Application behavior lives in
 `telegram_bot`.
+
+Each Telegram note is stored in a folder like:
+
+```text
+logs/voice_notes/voice_note_{YYYY_MM_DD-HH_MM_SS}_{chat_id}_{message_id}/
+├── audio/
+│   ├── voice_{message_id}.ogg
+│   └── voice_{message_id}.wav
+└── transcribe.txt
+```
 
 ## Documentation
 

@@ -24,5 +24,5 @@ class WhisperTranscriptionService:
             log_file=log_file,
         )
 
-    def transcribe(self, audio_file: Path) -> str:
-        return self.transcriber.transcribe(audio_file).strip()
+    def transcribe(self, audio_file: Path, output_file: Path | None = None) -> str:
+        return self.transcriber.transcribe(audio_file, output_file=output_file).strip()
