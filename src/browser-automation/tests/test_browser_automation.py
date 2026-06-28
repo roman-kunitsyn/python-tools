@@ -17,8 +17,10 @@ from browser_automation.extractors.images import extract_images_from_page
 from browser_automation.extractors.links import extract_links
 from browser_automation.extractors.markdown import html_to_markdown
 from browser_automation.extractors.text import extract_text
+from browser_automation.extractors.images import ExtractedImage
 from browser_automation.exporter import _image_extension
 from browser_automation.exporter import _strip_google_maps_artifacts
+from browser_automation.models import CrawlPage, CrawlResult
 from browser_automation.utils.paths import default_session_dir, page_path_for_url
 
 
@@ -301,6 +303,55 @@ class BrowserAutomationTests(unittest.TestCase):
             self.assertEqual(len(images_index), 1)
             self.assertEqual(images_index[0]["page_url"], "https://example.com/")
             self.assertEqual(images_index[0]["image_url"], "https://example.com/assets/hero.png")
+
+    def test_crawl_markdown_materializes_background_image_blocks(self) -> None:
+        html = """
+        <html><body>
+          <h2>Food Menu</h2>
+          <div role="img" aria-label="Wonderfull day trip on a private boat in Koh Samui." data-browser-automation-image-src="https://img1.wsimg.com/isteam/ip/example/gallery.jpg" data-browser-automation-image-alt="Wonderfull day trip on a private boat in Koh Samui."></div>
+        </body></html>
+        """
+        result = CrawlResult(
+            root_url="https://example.com/",
+            pages=[
+                CrawlPage(
+                    url="https://example.com/",
+                    depth=0,
+                    title="Example",
+                    html=html,
+                    images=[
+                        ExtractedImage(
+                            url="https://img1.wsimg.com/isteam/ip/example/gallery.jpg",
+                            alt="Wonderfull day trip on a private boat in Koh Samui.",
+                            width=None,
+                            height=None,
+                        )
+                    ],
+                )
+            ],
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+
+            def fake_download(image_url: str, output_path: Path) -> tuple[Path, str]:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text("image-bytes")
+                return output_path, "image/jpeg"
+
+            from browser_automation import exporter as exporter_module
+
+            original_download = exporter_module._download_image
+            exporter_module._download_image = fake_download
+            try:
+                export_crawled_markdown(result, output_dir)
+            finally:
+                exporter_module._download_image = original_download
+
+            markdown = (output_dir / "pages" / "index.md").read_text()
+            self.assertIn("../images/index/image_1.jpg", markdown)
+            self.assertIn("Wonderfull day trip on a private boat in Koh Samui.", markdown)
+            self.assertNotIn("data-browser-automation-image-src", markdown)
 
     def test_crawl_site_collects_live_dom_images(self) -> None:
         html = "<html><body><img src='/fallback.png' alt='Fallback' /></body></html>"

@@ -206,6 +206,32 @@ def _rewrite_markdown_image_references(markdown: str, replacements: dict[tuple[s
     return rewritten
 
 
+def _materialize_background_image_blocks(html: str) -> str:
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:  # pragma: no cover - runtime dependency fallback
+        return html
+
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:  # pragma: no cover - parser backend fallback
+        soup = BeautifulSoup(html, "html.parser")
+
+    for tag in soup.find_all(attrs={"data-browser-automation-image-src": True}):
+        image_url = tag.get("data-browser-automation-image-src")
+        if not isinstance(image_url, str) or not image_url.strip():
+            continue
+
+        alt = tag.get("data-browser-automation-image-alt") or tag.get("aria-label") or tag.get("alt") or ""
+        image_tag = soup.new_tag("img")
+        image_tag["src"] = image_url.strip()
+        if isinstance(alt, str) and alt.strip():
+            image_tag["alt"] = alt.strip()
+        tag.replace_with(image_tag)
+
+    return str(soup)
+
+
 def _strip_google_maps_artifacts(markdown: str) -> str:
     cleaned = markdown
     cleaned = re.sub(
@@ -310,7 +336,8 @@ def export_crawled_markdown(
                 for image in page_images
             )
             image_replacements, downloaded_images = _build_image_replacements(page.url, page_images, page_slug, page_image_dir)
-            rewritten_html = _rewrite_html_image_references(page.html, downloaded_images, page_url=page.url)
+            rewritten_html = _materialize_background_image_blocks(page.html)
+            rewritten_html = _rewrite_html_image_references(rewritten_html, downloaded_images, page_url=page.url)
             markdown = html_to_markdown(rewritten_html, strip_navigation=strip_navigation)
             markdown = _rewrite_markdown_image_references(markdown, image_replacements, page_url=page.url)
             markdown = _strip_google_maps_artifacts(markdown)

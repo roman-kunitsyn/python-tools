@@ -22,6 +22,7 @@ _IMAGE_ATTRS = (
     "data-original",
     "data-bg",
     "data-background",
+    "data-browser-automation-image-src",
 )
 
 
@@ -158,7 +159,7 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
                 return matches;
               };
 
-              document.querySelectorAll('img, [style], [data-src], [data-lazy-src], [data-original], [data-background], [data-bg]').forEach((element) => {
+              document.querySelectorAll('img, [style], [data-src], [data-lazy-src], [data-original], [data-background], [data-bg], [data-browser-automation-image-src]').forEach((element) => {
                 const tagName = element.tagName ? element.tagName.toLowerCase() : '';
                 const alt = element.getAttribute && element.getAttribute('alt');
                 const width = element.getAttribute && element.getAttribute('width');
@@ -171,6 +172,7 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
                   }
                 };
                 const attrs = ['src', 'data-src', 'data-lazy-src', 'data-original', 'data-bg', 'data-background'];
+                attrs.push('data-browser-automation-image-src');
                 attrs.forEach((attr) => {
                   const value = element.getAttribute && element.getAttribute(attr);
                   if (value) safePush(value);
@@ -237,3 +239,44 @@ def collect_rendered_images(page: object, base_url: str) -> list[ExtractedImage]
         pass
 
     return extract_images_from_page(page, base_url)
+
+
+def annotate_background_images(page: object) -> None:
+    try:
+        page.evaluate(
+            """
+            () => {
+              const extractUrl = (value) => {
+                if (!value) return [];
+                const matches = [];
+                const regex = /url\\(['"]?([^'")]+)['"]?\\)/g;
+                let match;
+                while ((match = regex.exec(value)) !== null) {
+                  matches.push(match[1]);
+                }
+                return matches;
+              };
+
+              document.querySelectorAll('[role="img"], [data-ux="Background"]').forEach((element) => {
+                if (element.querySelector && element.querySelector('img')) return;
+                const computed = window.getComputedStyle ? window.getComputedStyle(element) : null;
+                const candidates = [
+                  ...(extractUrl(element.getAttribute && element.getAttribute('style'))),
+                  ...(computed ? extractUrl(computed.backgroundImage || '') : []),
+                ];
+                const source = candidates.find(Boolean);
+                if (!source) return;
+                try {
+                  const resolved = new URL(source, document.baseURI).href;
+                  element.setAttribute('data-browser-automation-image-src', resolved);
+                  const alt = element.getAttribute && (element.getAttribute('aria-label') || element.getAttribute('alt'));
+                  if (alt) element.setAttribute('data-browser-automation-image-alt', alt);
+                } catch (error) {
+                  return;
+                }
+              });
+            }
+            """
+        )
+    except Exception:  # pragma: no cover - best-effort browser annotation
+        pass

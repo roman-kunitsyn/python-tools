@@ -5,7 +5,7 @@ from urllib.parse import urldefrag, urlparse
 
 from browser_automation.browser import BrowserManager
 from browser_automation.extractors.links import extract_links
-from browser_automation.extractors.images import collect_rendered_images, extract_images
+from browser_automation.extractors.images import annotate_background_images, collect_rendered_images, extract_images
 from browser_automation.models import CrawlPage, CrawlResult
 
 
@@ -41,6 +41,7 @@ def crawl_site(browser: BrowserManager, options: CrawlOptions) -> CrawlResult:
             visited.add(url)
             page = session.open_page(url)
             images = collect_rendered_images(page, url)
+            annotate_background_images(page)
             rendered_html = page.content()
             title = page.title()
             if not images:
