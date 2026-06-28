@@ -16,7 +16,7 @@ from browser_automation.extractors.images import extract_images
 from browser_automation.extractors.links import extract_links
 from browser_automation.extractors.markdown import html_to_markdown
 from browser_automation.extractors.text import extract_text
-from browser_automation.models import CrawlResult, ExportArtifact
+from browser_automation.models import CrawlResult, ExportArtifact, PageImageManifest
 from browser_automation.utils.paths import ensure_parent, page_path_for_url, slugify_url_path
 
 
@@ -136,17 +136,48 @@ def export_crawled_markdown(
 ) -> list[ExportArtifact]:
     pages_dir = output_dir / "pages"
     images_dir = output_dir / "images"
+    manifests_dir = output_dir / "manifests"
     artifacts: list[ExportArtifact] = []
 
     for page in result.pages:
         markdown = html_to_markdown(page.html, strip_navigation=strip_navigation)
         page_slug = slugify_url_path(page.url)
         page_output = page_path_for_url(page.url, pages_dir, ".md")
+        manifest_output = page_path_for_url(page.url, manifests_dir, ".json")
         ensure_parent(page_output)
+        ensure_parent(manifest_output)
 
         if download_images:
             page_image_dir = images_dir / page_slug
             page_images = page.images or extract_images(page.html, page.url)
+            manifest = PageImageManifest(
+                page_url=page.url,
+                page_title=page.title,
+                page_depth=page.depth,
+                page_markdown=page_output,
+                images=page_images,
+            )
+            manifest_output.write_text(
+                json.dumps(
+                    {
+                        "page_url": manifest.page_url,
+                        "page_title": manifest.page_title,
+                        "page_depth": manifest.page_depth,
+                        "page_markdown": str(manifest.page_markdown),
+                        "images": [
+                            {
+                                "url": image.url,
+                                "alt": image.alt,
+                                "width": image.width,
+                                "height": image.height,
+                            }
+                            for image in manifest.images
+                        ],
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
             for index, image in enumerate(page_images, start=1):
                 temp_image_output = page_image_dir / f"image_{index}"
                 try:
@@ -165,5 +196,6 @@ def export_crawled_markdown(
 
         page_output.write_text(markdown)
         artifacts.append(ExportArtifact(source_url=page.url, output_path=page_output))
+        artifacts.append(ExportArtifact(source_url=page.url, output_path=manifest_output))
 
     return artifacts

@@ -121,6 +121,7 @@ def run_crawl(args: argparse.Namespace, config: BrowserAutomationConfig) -> int:
         logger.info("Crawled {} pages into {} and {}", len(result.pages), manifest_path, output_dir)
         for artifact in artifacts:
             logger.debug("Wrote markdown page {}", artifact.output_path)
+        logger.debug("Page image manifests are stored under {}/manifests", output_dir)
         return 0
 
     output_path = args.output or (output_dir / "crawl.json")

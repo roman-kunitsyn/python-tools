@@ -36,3 +36,12 @@ class RecorderResult:
     scenario_path: Path
     output_path: Path
     exit_code: int
+
+
+@dataclass(slots=True)
+class PageImageManifest:
+    page_url: str
+    page_title: str | None
+    page_depth: int
+    page_markdown: Path
+    images: list[ExtractedImage] = field(default_factory=list)

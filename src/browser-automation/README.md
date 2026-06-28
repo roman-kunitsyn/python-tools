@@ -73,6 +73,7 @@ Example config:
 - collect images from lazy-loaded tags, `srcset`, background URLs, and external domains
 - capture image URLs from the live browser DOM when available
 - save downloaded images with `.png` or `.jpg` extensions when possible
+- write per-page image manifests alongside the Markdown pages
 - export rendered HTML, Markdown, links, images, screenshots, and PDFs
 - reuse a browser abstraction from other tools or future agents
 

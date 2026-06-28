@@ -243,15 +243,24 @@ class BrowserAutomationTests(unittest.TestCase):
             finally:
                 exporter_module._download_image = original_download
 
-            self.assertEqual(len(artifacts), 2)
+            markdown_artifacts = [artifact for artifact in artifacts if artifact.output_path.suffix == ".md"]
+            manifest_artifacts = [artifact for artifact in artifacts if artifact.output_path.suffix == ".json"]
+            self.assertEqual(len(markdown_artifacts), 2)
+            self.assertEqual(len(manifest_artifacts), 2)
             landing_page = output_dir / "pages" / "index.md"
             about_page = output_dir / "pages" / "about.md"
             image_file = output_dir / "images" / "index" / "image_1.png"
+            manifest_file = output_dir / "manifests" / "index.json"
 
             self.assertTrue(landing_page.exists())
             self.assertTrue(about_page.exists())
             self.assertTrue(image_file.exists())
+            self.assertTrue(manifest_file.exists())
             self.assertIn("../images/index/image_1.png", landing_page.read_text())
+            manifest = json.loads(manifest_file.read_text())
+            self.assertEqual(manifest["page_url"], "https://example.com/")
+            self.assertEqual(len(manifest["images"]), 1)
+            self.assertEqual(manifest["images"][0]["url"], "https://example.com/assets/hero.png")
 
     def test_crawl_site_collects_live_dom_images(self) -> None:
         html = "<html><body><img src='/fallback.png' alt='Fallback' /></body></html>"
