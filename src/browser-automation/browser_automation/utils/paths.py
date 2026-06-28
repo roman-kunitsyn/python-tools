@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -8,6 +9,15 @@ from urllib.parse import urlparse
 def ensure_parent(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def session_timestamp(now: datetime | None = None) -> str:
+    current = now or datetime.now()
+    return current.strftime("%Y_%m_%d-%H_%M_%S")
+
+
+def default_session_dir(base_dir: Path | None = None, *, now: datetime | None = None) -> Path:
+    return base_dir or Path("logs") / "browser-automation" / session_timestamp(now)
 
 
 def slugify_url_path(url: str) -> str:

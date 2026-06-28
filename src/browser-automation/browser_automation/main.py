@@ -12,6 +12,7 @@ from browser_automation.config import BrowserAutomationConfig
 from browser_automation.crawler import CrawlOptions, crawl_site
 from browser_automation.errors import BrowserAutomationError
 from browser_automation.exporter import (
+    export_crawled_markdown,
     export_html,
     export_images,
     export_links,
@@ -22,7 +23,7 @@ from browser_automation.exporter import (
 )
 from browser_automation.recorder import BrowserRecorder, default_recording_path
 from browser_automation.runner import ScenarioRunner
-from browser_automation.utils.paths import page_path_for_url
+from browser_automation.utils.paths import default_session_dir, page_path_for_url
 
 try:
     from loguru import logger
@@ -69,11 +70,12 @@ def _load_variables(path: Path | None) -> dict[str, Any]:
 
 
 def _default_output_dir(config: BrowserAutomationConfig, override: Path | None) -> Path:
-    return override or config.output_dir
+    return default_session_dir(override or config.output_dir)
 
 
 def run_record(args: argparse.Namespace, config: BrowserAutomationConfig) -> int:
-    output_path = args.output or default_recording_path(args.url, config.output_dir)
+    output_dir = _default_output_dir(config, getattr(args, "output_dir", None))
+    output_path = args.output or default_recording_path(args.url, output_dir)
     recorder = BrowserRecorder(browser=config.browser, target=args.target)
     result = recorder.record(args.url, output_path)
     logger.info("Scenario saved to {}", result.output_path)
@@ -98,8 +100,30 @@ def run_crawl(args: argparse.Namespace, config: BrowserAutomationConfig) -> int:
         same_domain_only=not args.follow_external,
     )
     result = crawl_site(browser, options)
-    output_dir = _default_output_dir(config, None)
-    output_path = args.output or (output_dir / "urls.json")
+    output_dir = _default_output_dir(config, getattr(args, "output_dir", None))
+
+    if args.markdown:
+        artifacts = export_crawled_markdown(
+            result,
+            output_dir,
+            strip_navigation=getattr(args, "strip_navigation", False),
+            download_images=True,
+        )
+        manifest_path = args.output or (output_dir / "crawl.json")
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(
+            json.dumps(
+                [{"url": page.url, "depth": page.depth, "title": page.title} for page in result.pages],
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        logger.info("Crawled {} pages into {} and {}", len(result.pages), manifest_path, output_dir)
+        for artifact in artifacts:
+            logger.debug("Wrote markdown page {}", artifact.output_path)
+        return 0
+
+    output_path = args.output or (output_dir / "crawl.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         json.dumps(

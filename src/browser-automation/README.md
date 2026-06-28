@@ -9,6 +9,12 @@ sites, and exporting page content.
 
 Implementation status: initial foundation implemented in this directory.
 
+By default, generated files are written to:
+
+```text
+./logs/browser-automation/{YYYY_MM_DD-HH_MM_SS}/
+```
+
 ## Supported Commands
 
 ```bash
@@ -35,6 +41,15 @@ uv run python src/browser-automation/browser-automation.py \
   markdown https://example.com
 ```
 
+To crawl and save Markdown pages plus downloaded images into the session
+folder:
+
+```bash
+uv run python src/browser-automation/browser-automation.py crawl \
+  "https://example.com/" \
+  --markdown
+```
+
 Example config:
 
 ```json
@@ -54,6 +69,7 @@ Example config:
 - record Playwright scenarios with codegen
 - run Python scenario files with variables
 - crawl internal pages with depth and page limits
+- crawl pages into Markdown and download page images into the session folder
 - export rendered HTML, Markdown, links, images, screenshots, and PDFs
 - reuse a browser abstraction from other tools or future agents
 
@@ -94,4 +110,3 @@ src/browser-automation/
   hard requirements for importing the package.
 - Update this README, the implementation plan, and a report whenever behavior
   changes.
-

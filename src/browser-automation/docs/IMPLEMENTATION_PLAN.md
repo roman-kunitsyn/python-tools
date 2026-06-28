@@ -53,11 +53,15 @@ src/browser-automation/
   - `version`
 - Pydantic configuration model with JSON config loading and command-line
   overrides.
+- Default session output rooted at `./logs/browser-automation/{timestamp}/`
+  when no output directory is supplied.
 - Browser manager abstraction for Playwright sessions and page opening.
 - Scenario runner that loads Python scenario files and injects browser context
   objects.
 - Recorder wrapper around Playwright codegen.
 - Crawl service for recursive internal-page traversal.
+- Crawl-to-Markdown export that writes page files and downloads page images
+  into the session folder.
 - Export helpers for cleaned HTML, Markdown, text, links, images, screenshots,
   and PDFs.
 - Example scenario template.
@@ -69,6 +73,8 @@ src/browser-automation/
 - Failure screenshots for `run` are not yet automatic.
 - Robots.txt and sitemap.xml support are not implemented yet.
 - Remote browser and session persistence support are not implemented yet.
+- Crawl Markdown export currently downloads images into per-page folders within
+  the session root and rewrites image references to local paths.
 
 ## Not Started
 
@@ -81,7 +87,8 @@ src/browser-automation/
 ## Next Small Parts
 
 1. Add explicit error types and richer command failure reporting.
-2. Add tests for the crawler and exporter helpers with browser/page fakes.
+2. Add tests for the crawler, exporter, and crawl-markdown helpers with
+   browser/page fakes.
 3. Add optional robots.txt and sitemap.xml discovery.
 4. Add scenario failure screenshots and structured run results.
 
@@ -93,4 +100,3 @@ When implementation changes:
 2. Update `README.md` if user-facing behavior changed.
 3. Add a report under `docs/reports/`.
 4. Keep the CLI thin and the browser boundary reusable.
-

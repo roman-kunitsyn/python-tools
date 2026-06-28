@@ -17,7 +17,12 @@ def add_shared_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--viewport-width", type=int, default=None, help="Viewport width in pixels.")
     parser.add_argument("--viewport-height", type=int, default=None, help="Viewport height in pixels.")
     parser.add_argument("--slow-mo", type=int, default=None, help="Slow down actions in milliseconds.")
-    parser.add_argument("--output-dir", type=Path, default=None, help="Directory for generated artifacts.")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Directory for generated artifacts. Defaults to logs/browser-automation/{timestamp}.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging.")
 
 
@@ -45,6 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
     crawl.add_argument("--page-limit", type=int, default=50, help="Maximum number of pages to visit.")
     crawl.add_argument("--follow-external", action="store_true", help="Allow links to leave the starting host.")
     crawl.add_argument("--output", type=Path, default=None, help="Output JSON file for the URL list.")
+    crawl.add_argument(
+        "--markdown",
+        action="store_true",
+        help="Save crawled pages as Markdown in the session folder and download images there too.",
+    )
 
     screenshot = subparsers.add_parser("screenshot", help="Capture a page or element screenshot.")
     screenshot.add_argument("url", help="Page URL to capture.")

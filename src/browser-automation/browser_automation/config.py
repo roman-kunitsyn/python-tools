@@ -17,7 +17,7 @@ class BrowserAutomationConfig(BaseModel):
     browser: Literal["chromium", "firefox", "webkit"] = "chromium"
     viewport: Viewport = Field(default_factory=Viewport)
     slow_mo: int | None = None
-    output_dir: Path = Path("browser-output")
+    output_dir: Path | None = None
     config_file: Path | None = None
 
     @classmethod
