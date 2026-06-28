@@ -61,7 +61,9 @@ src/browser-automation/
 - Recorder wrapper around Playwright codegen.
 - Crawl service for recursive internal-page traversal.
 - Crawl-to-Markdown export that writes page files and downloads page images
-  into the session folder.
+  into the session folder with image extensions resolved to `.png` or `.jpg`
+  when possible. Image discovery includes lazy-loaded attributes, `srcset`,
+  background-image URLs, and external image domains.
 - Export helpers for cleaned HTML, Markdown, text, links, images, screenshots,
   and PDFs.
 - Example scenario template.

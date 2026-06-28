@@ -16,6 +16,7 @@ from browser_automation.extractors.images import extract_images
 from browser_automation.extractors.links import extract_links
 from browser_automation.extractors.markdown import html_to_markdown
 from browser_automation.extractors.text import extract_text
+from browser_automation.exporter import _image_extension
 from browser_automation.utils.paths import default_session_dir, page_path_for_url
 
 
@@ -103,6 +104,11 @@ class BrowserAutomationTests(unittest.TestCase):
               <h1>Landing</h1>
               <p>Hello <a href="/about">About</a></p>
               <img src="/hero.png" alt="Hero" width="640" height="480" />
+              <img data-src="https://img1.wsimg.com/example/photo.jpeg" alt="Lazy" />
+              <div style="background-image: url('https://cdn.example.com/banner.jpg')"></div>
+              <picture>
+                <source srcset="/small.png 1x, /large.png 2x" />
+              </picture>
             </main>
           </body>
         </html>
@@ -122,10 +128,14 @@ class BrowserAutomationTests(unittest.TestCase):
         self.assertEqual(links[0].url, "https://example.com/about")
 
         images = extract_images(html, "https://example.com/")
-        self.assertEqual(len(images), 1)
+        self.assertEqual(len(images), 5)
         self.assertEqual(images[0].alt, "Hero")
         self.assertEqual(images[0].width, 640)
         self.assertEqual(images[0].height, 480)
+        self.assertTrue(any(image.url == "https://img1.wsimg.com/example/photo.jpeg" for image in images))
+        self.assertTrue(any(image.url == "https://cdn.example.com/banner.jpg" for image in images))
+        self.assertTrue(any(image.url.endswith("/small.png") for image in images))
+        self.assertTrue(any(image.url.endswith("/large.png") for image in images))
 
         markdown = html_to_markdown(html, strip_navigation=True)
         self.assertIn("Landing", markdown)
@@ -165,6 +175,14 @@ class BrowserAutomationTests(unittest.TestCase):
         self.assertEqual(page_path_for_url("https://example.com/", Path("docs"), ".md"), Path("docs/index.md"))
         self.assertEqual(page_path_for_url("https://example.com/products/item-a", Path("docs"), ".md"), Path("docs/products/item-a.md"))
 
+    def test_image_extension_handles_transformed_jpeg_urls(self) -> None:
+        image_url = (
+            "https://img1.wsimg.com/isteam/ip/8705e31a-681a-4b03-a1ff-b2bbf21bc4d0/"
+            "WhatsApp%20Image%202026-06-02%20at%2012.54.22.jpeg/:/cr=t:17.94%25,l:0%25,w:100%25,h:64.13%25/"
+            "rs=w:720,h:541,cg:true"
+        )
+        self.assertEqual(_image_extension(image_url), ".jpg")
+
     def test_crawl_markdown_writes_pages_and_images(self) -> None:
         html = """
         <html><body>
@@ -179,10 +197,10 @@ class BrowserAutomationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir)
 
-            def fake_download(image_url: str, output_path: Path) -> Path:
+            def fake_download(image_url: str, output_path: Path) -> tuple[Path, str]:
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 output_path.write_text("image-bytes")
-                return output_path
+                return output_path, "image/png"
 
             from browser_automation import exporter as exporter_module
 

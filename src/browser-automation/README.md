@@ -70,6 +70,8 @@ Example config:
 - run Python scenario files with variables
 - crawl internal pages with depth and page limits
 - crawl pages into Markdown and download page images into the session folder
+- collect images from lazy-loaded tags, `srcset`, background URLs, and external domains
+- save downloaded images with `.png` or `.jpg` extensions when possible
 - export rendered HTML, Markdown, links, images, screenshots, and PDFs
 - reuse a browser abstraction from other tools or future agents
 

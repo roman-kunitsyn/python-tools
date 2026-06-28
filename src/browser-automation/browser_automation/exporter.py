@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import re
 import urllib.request
+from urllib.error import URLError
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -93,23 +95,36 @@ def export_pdf(browser: BrowserManager, url: str, output_path: Path) -> ExportAr
     return ExportArtifact(source_url=url, output_path=output_path)
 
 
-def _download_image(image_url: str, output_path: Path) -> Path:
+def _download_image(image_url: str, output_path: Path) -> tuple[Path, str | None]:
     ensure_parent(output_path)
-    with urllib.request.urlopen(image_url, timeout=30) as response:  # nosec: B310
-        output_path.write_bytes(response.read())
-    return output_path
+    parsed = urlparse(image_url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError(f"Unsupported image URL: {image_url!r}")
+
+    try:
+        with urllib.request.urlopen(image_url, timeout=30) as response:  # nosec: B310
+            content_type = response.headers.get_content_type()
+            output_path.write_bytes(response.read())
+        return output_path, content_type
+    except URLError as error:
+        raise RuntimeError(f"Failed to download image {image_url!r}: {error}") from error
 
 
 def _image_extension(image_url: str, content_type: str | None = None) -> str:
     parsed = urlparse(image_url)
-    suffix = Path(parsed.path).suffix
-    if suffix:
+    match = re.search(r"\.(png|jpe?g|gif|webp|avif|bmp|svg)(?=$|[/?#])", parsed.path, flags=re.IGNORECASE)
+    if match:
+        suffix = f".{match.group(1).lower()}"
+        if suffix == ".jpeg":
+            return ".jpg"
         return suffix
     if content_type:
         guessed = mimetypes.guess_extension(content_type.split(";", 1)[0].strip())
         if guessed:
+            if guessed.lower() == ".jpe":
+                return ".jpg"
             return guessed
-    return ".img"
+    return ".png"
 
 
 def export_crawled_markdown(
@@ -132,14 +147,20 @@ def export_crawled_markdown(
         if download_images:
             page_image_dir = images_dir / page_slug
             for index, image in enumerate(extract_images(page.html, page.url), start=1):
-                parsed = urlparse(image.url)
-                image_name = f"image_{index}{_image_extension(image.url)}"
-                image_output = page_image_dir / image_name
-                _download_image(image.url, image_output)
+                temp_image_output = page_image_dir / f"image_{index}"
+                try:
+                    image_output, content_type = _download_image(image.url, temp_image_output)
+                except (ValueError, RuntimeError):
+                    continue
+
+                final_extension = _image_extension(image.url, content_type)
+                if image_output.suffix != final_extension:
+                    final_path = image_output.with_suffix(final_extension)
+                    image_output.replace(final_path)
+                    image_output = final_path
+                image_name = image_output.name
                 relative_image_path = Path("..") / "images" / page_slug / image_name
                 markdown = markdown.replace(image.url, relative_image_path.as_posix())
-                if parsed.scheme:
-                    markdown = markdown.replace(parsed.geturl(), relative_image_path.as_posix())
 
         page_output.write_text(markdown)
         artifacts.append(ExportArtifact(source_url=page.url, output_path=page_output))
