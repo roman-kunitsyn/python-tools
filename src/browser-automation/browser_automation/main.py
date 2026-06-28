@@ -69,12 +69,12 @@ def _load_variables(path: Path | None) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
-def _default_output_dir(config: BrowserAutomationConfig, override: Path | None) -> Path:
-    return default_session_dir(override or config.output_dir)
+def _default_output_dir(config: BrowserAutomationConfig, override: Path | None, *, site_url: str | None = None) -> Path:
+    return default_session_dir(override or config.output_dir, site_url=site_url)
 
 
 def run_record(args: argparse.Namespace, config: BrowserAutomationConfig) -> int:
-    output_dir = _default_output_dir(config, getattr(args, "output_dir", None))
+    output_dir = _default_output_dir(config, getattr(args, "output_dir", None), site_url=args.url)
     output_path = args.output or default_recording_path(args.url, output_dir)
     recorder = BrowserRecorder(browser=config.browser, target=args.target)
     result = recorder.record(args.url, output_path)
@@ -100,7 +100,7 @@ def run_crawl(args: argparse.Namespace, config: BrowserAutomationConfig) -> int:
         same_domain_only=not args.follow_external,
     )
     result = crawl_site(browser, options)
-    output_dir = _default_output_dir(config, getattr(args, "output_dir", None))
+    output_dir = _default_output_dir(config, getattr(args, "output_dir", None), site_url=args.url)
 
     if args.markdown:
         artifacts = export_crawled_markdown(
@@ -138,7 +138,7 @@ def run_crawl(args: argparse.Namespace, config: BrowserAutomationConfig) -> int:
 
 def run_export(args: argparse.Namespace, config: BrowserAutomationConfig, mode: str) -> int:
     browser = BrowserManager(config)
-    output_dir = _default_output_dir(config, getattr(args, "output_dir", None))
+    output_dir = _default_output_dir(config, getattr(args, "output_dir", None), site_url=args.url)
 
     if mode == "markdown":
         artifact = export_markdown(browser, args.url, output_dir, strip_navigation=args.strip_navigation)

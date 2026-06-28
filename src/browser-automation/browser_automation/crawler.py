@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 from urllib.parse import urldefrag, urlparse
 
 from browser_automation.browser import BrowserManager
 from browser_automation.extractors.links import extract_links
+from browser_automation.extractors.images import extract_images, extract_images_from_page
 from browser_automation.models import CrawlPage, CrawlResult
 
 
@@ -42,7 +42,10 @@ def crawl_site(browser: BrowserManager, options: CrawlOptions) -> CrawlResult:
             page = session.open_page(url)
             html = page.content()
             title = page.title()
-            result.pages.append(CrawlPage(url=url, depth=depth, title=title, html=html))
+            images = extract_images_from_page(page, url)
+            if not images:
+                images = extract_images(html, url)
+            result.pages.append(CrawlPage(url=url, depth=depth, title=title, html=html, images=images))
 
             if depth >= options.max_depth:
                 continue

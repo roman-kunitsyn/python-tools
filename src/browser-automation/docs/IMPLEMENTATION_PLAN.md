@@ -53,8 +53,8 @@ src/browser-automation/
   - `version`
 - Pydantic configuration model with JSON config loading and command-line
   overrides.
-- Default session output rooted at `./logs/browser-automation/{timestamp}/`
-  when no output directory is supplied.
+- Default session output rooted at `./logs/browser-automation/{site}-{timestamp}/`
+  for URL-based commands when no output directory is supplied.
 - Browser manager abstraction for Playwright sessions and page opening.
 - Scenario runner that loads Python scenario files and injects browser context
   objects.
@@ -63,7 +63,7 @@ src/browser-automation/
 - Crawl-to-Markdown export that writes page files and downloads page images
   into the session folder with image extensions resolved to `.png` or `.jpg`
   when possible. Image discovery includes lazy-loaded attributes, `srcset`,
-  background-image URLs, and external image domains.
+  background-image URLs, external image domains, and live DOM inspection.
 - Export helpers for cleaned HTML, Markdown, text, links, images, screenshots,
   and PDFs.
 - Example scenario template.

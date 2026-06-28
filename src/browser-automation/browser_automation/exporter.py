@@ -146,7 +146,8 @@ def export_crawled_markdown(
 
         if download_images:
             page_image_dir = images_dir / page_slug
-            for index, image in enumerate(extract_images(page.html, page.url), start=1):
+            page_images = page.images or extract_images(page.html, page.url)
+            for index, image in enumerate(page_images, start=1):
                 temp_image_output = page_image_dir / f"image_{index}"
                 try:
                     image_output, content_type = _download_image(image.url, temp_image_output)

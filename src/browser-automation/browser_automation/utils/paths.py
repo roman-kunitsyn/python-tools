@@ -16,8 +16,25 @@ def session_timestamp(now: datetime | None = None) -> str:
     return current.strftime("%Y_%m_%d-%H_%M_%S")
 
 
-def default_session_dir(base_dir: Path | None = None, *, now: datetime | None = None) -> Path:
-    return base_dir or Path("logs") / "browser-automation" / session_timestamp(now)
+def site_name_from_url(url: str) -> str:
+    parsed = urlparse(url)
+    host = parsed.hostname or "site"
+    stem = host.rsplit(".", 1)[0] if "." in host else host
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", stem).strip("_")
+    return slug or "site"
+
+
+def default_session_dir(
+    base_dir: Path | None = None,
+    *,
+    now: datetime | None = None,
+    site_url: str | None = None,
+) -> Path:
+    session_name = session_timestamp(now)
+    if site_url is not None:
+        session_name = f"{site_name_from_url(site_url)}-{session_name}"
+    root_dir = base_dir or Path("logs") / "browser-automation"
+    return root_dir / session_name
 
 
 def slugify_url_path(url: str) -> str:

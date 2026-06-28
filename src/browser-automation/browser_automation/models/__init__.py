@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from browser_automation.extractors.images import ExtractedImage
+
 
 @dataclass(slots=True)
 class CrawlPage:
@@ -10,6 +12,7 @@ class CrawlPage:
     depth: int
     title: str | None = None
     html: str = ""
+    images: list[ExtractedImage] = field(default_factory=list)
 
 
 @dataclass(slots=True)

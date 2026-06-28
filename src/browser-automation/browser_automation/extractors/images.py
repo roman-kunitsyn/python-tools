@@ -62,6 +62,27 @@ def _collect_image_urls(tag: object, base_url: str) -> list[str]:
     return urls
 
 
+def _normalize_live_image_entry(entry: object, base_url: str) -> ExtractedImage | None:
+    if not isinstance(entry, dict):
+        return None
+
+    url = entry.get("url")
+    if not isinstance(url, str) or not url:
+        return None
+
+    resolved_url = urljoin(base_url, url)
+    alt = entry.get("alt")
+    width = entry.get("width")
+    height = entry.get("height")
+
+    return ExtractedImage(
+        url=resolved_url,
+        alt=alt if isinstance(alt, str) else None,
+        width=int(width) if isinstance(width, int) else None,
+        height=int(height) if isinstance(height, int) else None,
+    )
+
+
 def extract_images(html: str, base_url: str) -> list[ExtractedImage]:
     try:
         from bs4 import BeautifulSoup
@@ -108,5 +129,89 @@ def extract_images(html: str, base_url: str) -> list[ExtractedImage]:
                     height=int(height) if height and str(height).isdigit() else None,
                 )
             )
+
+    return images
+
+
+def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage]:
+    live_entries: list[dict[str, object]] = []
+
+    try:
+        result = page.evaluate(
+            """
+            () => {
+              const urls = [];
+              const seen = new Set();
+              const push = (url, alt = null, width = null, height = null) => {
+                if (!url || seen.has(url)) return;
+                seen.add(url);
+                urls.push({ url, alt, width, height });
+              };
+              const parseSrcset = (value) => {
+                if (!value) return [];
+                return value.split(',').map(part => part.trim().split(/\\s+/, 1)[0]).filter(Boolean);
+              };
+              const extractUrl = (value) => {
+                if (!value) return [];
+                const matches = [];
+                const regex = /url\\(['"]?([^'")]+)['"]?\\)/g;
+                let match;
+                while ((match = regex.exec(value)) !== null) {
+                  matches.push(match[1]);
+                }
+                return matches;
+              };
+
+              document.querySelectorAll('img, source, picture, [style], [data-src], [data-lazy-src], [data-original], [data-srcset], [data-background], [data-bg]').forEach((element) => {
+                const tagName = element.tagName ? element.tagName.toLowerCase() : '';
+                const alt = element.getAttribute && element.getAttribute('alt');
+                const width = element.getAttribute && element.getAttribute('width');
+                const height = element.getAttribute && element.getAttribute('height');
+                const safePush = (value) => {
+                  try {
+                    push(new URL(value, document.baseURI).href, alt, width ? Number(width) : null, height ? Number(height) : null);
+                  } catch (error) {
+                    return;
+                  }
+                };
+                const attrs = ['src', 'data-src', 'data-lazy-src', 'data-original', 'data-bg', 'data-background'];
+                attrs.forEach((attr) => {
+                  const value = element.getAttribute && element.getAttribute(attr);
+                  if (value) safePush(value);
+                });
+                ['srcset', 'data-srcset'].forEach((attr) => {
+                  const value = element.getAttribute && element.getAttribute(attr);
+                  parseSrcset(value).forEach((candidate) => safePush(candidate));
+                });
+                const style = element.getAttribute && element.getAttribute('style');
+                extractUrl(style).forEach((candidate) => safePush(candidate));
+                const computed = window.getComputedStyle ? window.getComputedStyle(element) : null;
+                if (computed) {
+                  extractUrl(computed.backgroundImage || '').forEach((candidate) => safePush(candidate));
+                }
+                if (tagName === 'img') {
+                  const src = element.getAttribute && element.getAttribute('src');
+                  if (src) safePush(src);
+                }
+              });
+
+              return urls;
+            }
+            """
+        )
+    except Exception:  # pragma: no cover - runtime fallback
+        result = []
+
+    if isinstance(result, list):
+        live_entries = [entry for entry in result if isinstance(entry, dict)]
+
+    images: list[ExtractedImage] = []
+    seen: set[str] = set()
+    for entry in live_entries:
+        image = _normalize_live_image_entry(entry, base_url)
+        if image is None or image.url in seen:
+            continue
+        seen.add(image.url)
+        images.append(image)
 
     return images

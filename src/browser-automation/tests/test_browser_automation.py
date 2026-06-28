@@ -13,6 +13,7 @@ from browser_automation.crawler import CrawlOptions, crawl_site
 from browser_automation.exporter import export_crawled_markdown
 from browser_automation.extractors.html import clean_html
 from browser_automation.extractors.images import extract_images
+from browser_automation.extractors.images import extract_images_from_page
 from browser_automation.extractors.links import extract_links
 from browser_automation.extractors.markdown import html_to_markdown
 from browser_automation.extractors.text import extract_text
@@ -21,9 +22,10 @@ from browser_automation.utils.paths import default_session_dir, page_path_for_ur
 
 
 class FakePage:
-    def __init__(self, url: str, html: str) -> None:
+    def __init__(self, url: str, html: str, live_images: list[dict[str, object]] | None = None) -> None:
         self._url = url
         self._html = html
+        self._live_images = live_images or []
 
     def goto(self, url: str, timeout: int | None = None, wait_until: str | None = None) -> None:
         self._url = url
@@ -34,9 +36,12 @@ class FakePage:
     def title(self) -> str:
         return "Example"
 
+    def evaluate(self, script: str):
+        return self._live_images
+
 
 class FakeSession:
-    def __init__(self, pages: dict[str, str]) -> None:
+    def __init__(self, pages: dict[str, str | dict[str, object]]) -> None:
         self._pages = pages
         self.context = self
         self.browser = self
@@ -45,8 +50,14 @@ class FakeSession:
         return FakePage("", "")
 
     def open_page(self, url: str | None = None) -> FakePage:
-        html = self._pages.get(url or "", self._pages.get("default", ""))
-        return FakePage(url or "", html)
+        entry = self._pages.get(url or "", self._pages.get("default", ""))
+        if isinstance(entry, dict):
+            return FakePage(
+                url or "",
+                str(entry.get("html", "")),
+                live_images=list(entry.get("live_images", [])),
+            )
+        return FakePage(url or "", str(entry))
 
 
 class FakeBrowserManager:
@@ -90,9 +101,9 @@ class BrowserAutomationTests(unittest.TestCase):
             self.assertEqual(config.viewport.height, 900)
             self.assertEqual(config.output_dir, Path("exports"))
 
-    def test_default_session_dir_uses_timestamped_browser_automation_root(self) -> None:
-        session_dir = default_session_dir(now=datetime(2026, 6, 28, 10, 57, 24))
-        self.assertEqual(session_dir, Path("logs") / "browser-automation" / "2026_06_28-10_57_24")
+    def test_default_session_dir_uses_site_name_and_timestamp(self) -> None:
+        session_dir = default_session_dir(now=datetime(2026, 6, 28, 10, 57, 24), site_url="https://boat-rental-samui.com/")
+        self.assertEqual(session_dir, Path("logs") / "browser-automation" / "boat_rental_samui-2026_06_28-10_57_24")
 
     def test_extractors_handle_html_without_optional_dependencies(self) -> None:
         html = """
@@ -140,6 +151,24 @@ class BrowserAutomationTests(unittest.TestCase):
         markdown = html_to_markdown(html, strip_navigation=True)
         self.assertIn("Landing", markdown)
         self.assertIn("About", markdown)
+
+    def test_extract_images_from_live_page(self) -> None:
+        page = FakePage(
+            "https://example.com/",
+            "<html><body><img src='/fallback.png' alt='Fallback' /></body></html>",
+            live_images=[
+                {"url": "/live.png", "alt": "Live", "width": 128, "height": 64},
+                {"url": "https://cdn.example.com/banner.jpg", "alt": "Banner", "width": None, "height": None},
+            ],
+        )
+
+        images = extract_images_from_page(page, "https://example.com/")
+
+        self.assertEqual(len(images), 2)
+        self.assertEqual(images[0].url, "https://example.com/live.png")
+        self.assertEqual(images[0].alt, "Live")
+        self.assertEqual(images[0].width, 128)
+        self.assertEqual(images[1].url, "https://cdn.example.com/banner.jpg")
 
     def test_crawl_site_visits_internal_links_once(self) -> None:
         root_html = """
@@ -191,7 +220,10 @@ class BrowserAutomationTests(unittest.TestCase):
           <img src="https://example.com/assets/hero.png" alt="Hero" />
         </body></html>
         """
-        pages = {"https://example.com/": html, "https://example.com/about": "<html><body><p>About</p></body></html>"}
+        pages = {
+            "https://example.com/": {"html": html, "live_images": []},
+            "https://example.com/about": "<html><body><p>About</p></body></html>",
+        }
         result = crawl_site(FakeBrowserManager(pages), CrawlOptions(start_url="https://example.com/", max_depth=1, page_limit=10))
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -220,6 +252,29 @@ class BrowserAutomationTests(unittest.TestCase):
             self.assertTrue(about_page.exists())
             self.assertTrue(image_file.exists())
             self.assertIn("../images/index/image_1.png", landing_page.read_text())
+
+    def test_crawl_site_collects_live_dom_images(self) -> None:
+        html = "<html><body><img src='/fallback.png' alt='Fallback' /></body></html>"
+        pages = {
+            "https://example.com/": {
+                "html": html,
+                "live_images": [
+                    {"url": "/live.png", "alt": "Live", "width": 128, "height": 64},
+                    {"url": "https://img1.wsimg.com/example/photo.jpeg", "alt": "External", "width": None, "height": None},
+                ],
+            }
+        }
+
+        result = crawl_site(
+            FakeBrowserManager(pages),
+            CrawlOptions(start_url="https://example.com/", max_depth=0, page_limit=10),
+        )
+
+        self.assertEqual(len(result.pages), 1)
+        self.assertEqual([image.url for image in result.pages[0].images], [
+            "https://example.com/live.png",
+            "https://img1.wsimg.com/example/photo.jpeg",
+        ])
 
 
 if __name__ == "__main__":
