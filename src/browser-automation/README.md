@@ -74,6 +74,7 @@ Example config:
 - capture image URLs from the live browser DOM when available
 - save downloaded images with `.png` or `.jpg` extensions when possible
 - write per-page image manifests alongside the Markdown pages
+- write a session-level `images.json` index for all discovered images
 - export rendered HTML, Markdown, links, images, screenshots, and PDFs
 - reuse a browser abstraction from other tools or future agents
 

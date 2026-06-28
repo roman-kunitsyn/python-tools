@@ -137,7 +137,9 @@ def export_crawled_markdown(
     pages_dir = output_dir / "pages"
     images_dir = output_dir / "images"
     manifests_dir = output_dir / "manifests"
+    images_index_path = output_dir / "images.json"
     artifacts: list[ExportArtifact] = []
+    images_index: list[dict[str, object]] = []
 
     for page in result.pages:
         markdown = html_to_markdown(page.html, strip_navigation=strip_navigation)
@@ -178,6 +180,19 @@ def export_crawled_markdown(
                     ensure_ascii=False,
                 )
             )
+            images_index.extend(
+                {
+                    "page_url": page.url,
+                    "page_title": page.title,
+                    "page_depth": page.depth,
+                    "page_markdown": str(page_output),
+                    "image_url": image.url,
+                    "image_alt": image.alt,
+                    "image_width": image.width,
+                    "image_height": image.height,
+                }
+                for image in page_images
+            )
             for index, image in enumerate(page_images, start=1):
                 temp_image_output = page_image_dir / f"image_{index}"
                 try:
@@ -197,5 +212,9 @@ def export_crawled_markdown(
         page_output.write_text(markdown)
         artifacts.append(ExportArtifact(source_url=page.url, output_path=page_output))
         artifacts.append(ExportArtifact(source_url=page.url, output_path=manifest_output))
+
+    ensure_parent(images_index_path)
+    images_index_path.write_text(json.dumps(images_index, indent=2, ensure_ascii=False))
+    artifacts.append(ExportArtifact(source_url=result.root_url, output_path=images_index_path))
 
     return artifacts
