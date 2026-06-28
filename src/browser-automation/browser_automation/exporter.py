@@ -206,6 +206,23 @@ def _rewrite_markdown_image_references(markdown: str, replacements: dict[tuple[s
     return rewritten
 
 
+def _strip_google_maps_artifacts(markdown: str) -> str:
+    cleaned = markdown
+    cleaned = re.sub(
+        r"\[(?:[^\[\]]|\[[^\[\]]*\])*\]\((?:https?:)?//(?:www\.)?(?:maps\.google\.com|google\.com/maps)[^)]+\)",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"!\[[^\]]*?\]\(data:image/svg\+xml,[^)]+\)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\[([^\]]*?)\]\(data:image/svg\+xml,[^)]+\)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"!\[[^\]]*?\]\(data:image/gif;base64,[^)]+\)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\[([^\]]*?)\]\(data:image/gif;base64,[^)]+\)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = cleaned.replace("Sorry, we have no imagery here.", "")
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
 def _rewrite_html_image_references(html: str, downloaded_images: list[tuple[str, str]], *, page_url: str) -> str:
     rewritten = html
     for source_url, local_path in downloaded_images:
@@ -296,6 +313,7 @@ def export_crawled_markdown(
             rewritten_html = _rewrite_html_image_references(page.html, downloaded_images, page_url=page.url)
             markdown = html_to_markdown(rewritten_html, strip_navigation=strip_navigation)
             markdown = _rewrite_markdown_image_references(markdown, image_replacements, page_url=page.url)
+            markdown = _strip_google_maps_artifacts(markdown)
 
         page_output.write_text(markdown)
         artifacts.append(ExportArtifact(source_url=page.url, output_path=page_output))

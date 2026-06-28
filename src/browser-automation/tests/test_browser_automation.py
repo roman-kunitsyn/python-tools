@@ -18,6 +18,7 @@ from browser_automation.extractors.links import extract_links
 from browser_automation.extractors.markdown import html_to_markdown
 from browser_automation.extractors.text import extract_text
 from browser_automation.exporter import _image_extension
+from browser_automation.exporter import _strip_google_maps_artifacts
 from browser_automation.utils.paths import default_session_dir, page_path_for_url
 
 
@@ -221,6 +222,26 @@ class BrowserAutomationTests(unittest.TestCase):
             "rs=w:720,h:541,cg:true"
         )
         self.assertEqual(_image_extension(image_url), ".jpg")
+
+    def test_strip_google_maps_artifacts_removes_widget_noise(self) -> None:
+        markdown = """
+        Sorry, we have no imagery here.
+
+        ![](https:../images/sunset-cruise/image_7.png)
+
+        ![](data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%3E%3C/svg%3E)
+        ![](data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=)
+
+        [![Google](data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%3E%3C/svg%3E)](https://maps.google.com/maps?ll=9.56515,100.010795&z=14&t=m)
+        """
+
+        cleaned = _strip_google_maps_artifacts(markdown)
+
+        self.assertNotIn("Sorry, we have no imagery here.", cleaned)
+        self.assertNotIn("maps.google.com", cleaned)
+        self.assertNotIn("data:image/svg+xml", cleaned)
+        self.assertNotIn("data:image/gif;base64", cleaned)
+        self.assertIn("../images/sunset-cruise/image_7.png", cleaned)
 
     def test_crawl_markdown_writes_pages_and_images(self) -> None:
         html = """
