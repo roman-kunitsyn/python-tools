@@ -14,6 +14,8 @@ The current modular tools are:
   `ffmpeg`.
 - [audio-record](src/audio-record/README.md): records raw audio files with
   `ffmpeg` for reuse by higher-level tools.
+- [browser-automation](src/browser-automation/README.md): automates browsers,
+  crawls sites, and exports rendered content with Playwright.
 - [voice-note](src/voice-note/README.md): captures push-to-talk voice notes,
   transcribes them, and writes text to stdout or a notes file.
 - [api-server](src/api-server/README.md): exposes selected tool capabilities
@@ -62,6 +64,7 @@ Verify the current modular tool starts:
 uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
 uv run python src/audio-record/audio-record.py --help
+uv run python src/browser-automation/browser-automation.py --help
 uv run python src/voice-note/voice-note.py --help
 uv run python src/api-server/api-server.py --help
 uv run python src/telegram-bot/telegram-bot.py --help
@@ -95,6 +98,7 @@ Show help for the current modular tool:
 uv run python src/audio-transcribe/audio-transcribe.py --help
 uv run python src/meeting-record/meeting-record.py --help
 uv run python src/audio-record/audio-record.py --help
+uv run python src/browser-automation/browser-automation.py --help
 uv run python src/voice-note/voice-note.py --help
 uv run python src/api-server/api-server.py --help
 uv run python src/telegram-bot/telegram-bot.py --help
@@ -126,6 +130,12 @@ Record a raw audio file:
 
 ```bash
 uv run python src/audio-record/audio-record.py output.wav --duration 30
+```
+
+Run browser automation help:
+
+```bash
+uv run python src/browser-automation/browser-automation.py --help
 ```
 
 Capture voice notes:
@@ -188,6 +198,11 @@ tools/python/
     │   ├── README.md
     │   ├── audio-record.py
     │   ├── audio_record/
+    │   └── docs/
+    ├── browser-automation/
+    │   ├── README.md
+    │   ├── browser-automation.py
+    │   ├── browser_automation/
     │   └── docs/
     ├── voice-note/
     │   ├── README.md
