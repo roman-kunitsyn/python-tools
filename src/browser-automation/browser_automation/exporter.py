@@ -6,7 +6,7 @@ import re
 import urllib.request
 from urllib.error import URLError
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from browser_automation.actions.pdf import pdf as write_pdf
 from browser_automation.actions.screenshot import screenshot as write_screenshot
@@ -127,6 +127,105 @@ def _image_extension(image_url: str, content_type: str | None = None) -> str:
     return ".png"
 
 
+_MARKDOWN_IMAGE_PATTERN = re.compile(r"(!\[[^\]]*?\]\()([^)]+)(\))")
+_HTML_IMAGE_PATTERN = re.compile(r'(<img\b[^>]*?\bsrc=["\'])([^"\']+)(["\'])', flags=re.IGNORECASE)
+_PLACEHOLDER_GIF_PREFIXES = {
+    "data:image/gif;base64,r0lgodlhaqabaad",
+    "data:image/gif;base64,r0lgodlh",
+}
+
+
+def _normalized_image_key(url: str, *, page_url: str | None = None) -> tuple[str, str, str, str] | None:
+    candidate = url.strip().strip("<>")
+    if candidate.startswith("data:"):
+        return None
+    if page_url is not None:
+        candidate = urljoin(page_url, candidate)
+    parsed = urlparse(candidate)
+    if parsed.scheme and parsed.scheme not in {"http", "https"}:
+        return None
+    return (parsed.netloc, parsed.path, parsed.query, parsed.fragment)
+
+
+def _build_image_replacements(page_url: str, page_images: list[object], page_slug: str, page_image_dir: Path) -> tuple[dict[tuple[str, str, str, str], str], list[tuple[str, str]]]:
+    replacements: dict[tuple[str, str, str, str], str] = {}
+    downloaded_images: list[tuple[str, str]] = []
+
+    for index, image in enumerate(page_images, start=1):
+        temp_image_output = page_image_dir / f"image_{index}"
+        try:
+            image_output, content_type = _download_image(image.url, temp_image_output)
+        except (ValueError, RuntimeError):
+            continue
+
+        final_extension = _image_extension(image.url, content_type)
+        if image_output.suffix != final_extension:
+            final_path = image_output.with_suffix(final_extension)
+            image_output.replace(final_path)
+            image_output = final_path
+
+        relative_image_path = Path("..") / "images" / page_slug / image_output.name
+        local_path = relative_image_path.as_posix()
+        downloaded_images.append((image.url, local_path))
+
+        source_keys = {
+            _normalized_image_key(image.url),
+            _normalized_image_key(image.url, page_url=page_url),
+        }
+        for key in source_keys:
+            if key is not None:
+                replacements[key] = local_path
+
+    return replacements, downloaded_images
+
+
+def _rewrite_markdown_image_references(markdown: str, replacements: dict[tuple[str, str, str, str], str], *, page_url: str) -> str:
+    def replace_markdown_image(match: re.Match[str]) -> str:
+        prefix, raw_url, suffix = match.groups()
+        candidate = raw_url.strip()
+        if candidate.lower().startswith(tuple(_PLACEHOLDER_GIF_PREFIXES)):
+            return ""
+
+        normalized = _normalized_image_key(candidate, page_url=page_url)
+        local_path = replacements.get(normalized) if normalized is not None else None
+        if local_path is None:
+            return match.group(0)
+        return f"{prefix}{local_path}{suffix}"
+
+    def replace_html_image(match: re.Match[str]) -> str:
+        prefix, raw_url, suffix = match.groups()
+        candidate = raw_url.strip()
+        normalized = _normalized_image_key(candidate, page_url=page_url)
+        local_path = replacements.get(normalized) if normalized is not None else None
+        if local_path is None:
+            return match.group(0)
+        return f"{prefix}{local_path}{suffix}"
+
+    rewritten = _MARKDOWN_IMAGE_PATTERN.sub(replace_markdown_image, markdown)
+    rewritten = _HTML_IMAGE_PATTERN.sub(replace_html_image, rewritten)
+    return rewritten
+
+
+def _rewrite_html_image_references(html: str, downloaded_images: list[tuple[str, str]], *, page_url: str) -> str:
+    rewritten = html
+    for source_url, local_path in downloaded_images:
+        parsed = urlparse(source_url)
+        candidate_urls = {
+            source_url,
+            f"//{parsed.netloc}{parsed.path}" if parsed.netloc else source_url,
+            urljoin(page_url, source_url),
+        }
+        for candidate in candidate_urls:
+            if candidate:
+                rewritten = rewritten.replace(candidate, local_path)
+    return rewritten
+
+
+def _is_placeholder_image(image_url: str) -> bool:
+    normalized = image_url.strip().lower()
+    return normalized.startswith("data:image/gif;base64,r0lgodlh")
+
+
 def export_crawled_markdown(
     result: CrawlResult,
     output_dir: Path,
@@ -151,7 +250,7 @@ def export_crawled_markdown(
 
         if download_images:
             page_image_dir = images_dir / page_slug
-            page_images = page.images or extract_images(page.html, page.url)
+            page_images = [image for image in (page.images or extract_images(page.html, page.url)) if not _is_placeholder_image(image.url)]
             manifest = PageImageManifest(
                 page_url=page.url,
                 page_title=page.title,
@@ -193,21 +292,10 @@ def export_crawled_markdown(
                 }
                 for image in page_images
             )
-            for index, image in enumerate(page_images, start=1):
-                temp_image_output = page_image_dir / f"image_{index}"
-                try:
-                    image_output, content_type = _download_image(image.url, temp_image_output)
-                except (ValueError, RuntimeError):
-                    continue
-
-                final_extension = _image_extension(image.url, content_type)
-                if image_output.suffix != final_extension:
-                    final_path = image_output.with_suffix(final_extension)
-                    image_output.replace(final_path)
-                    image_output = final_path
-                image_name = image_output.name
-                relative_image_path = Path("..") / "images" / page_slug / image_name
-                markdown = markdown.replace(image.url, relative_image_path.as_posix())
+            image_replacements, downloaded_images = _build_image_replacements(page.url, page_images, page_slug, page_image_dir)
+            rewritten_html = _rewrite_html_image_references(page.html, downloaded_images, page_url=page.url)
+            markdown = html_to_markdown(rewritten_html, strip_navigation=strip_navigation)
+            markdown = _rewrite_markdown_image_references(markdown, image_replacements, page_url=page.url)
 
         page_output.write_text(markdown)
         artifacts.append(ExportArtifact(source_url=page.url, output_path=page_output))

@@ -40,17 +40,17 @@ def crawl_site(browser: BrowserManager, options: CrawlOptions) -> CrawlResult:
 
             visited.add(url)
             page = session.open_page(url)
-            html = page.content()
-            title = page.title()
             images = collect_rendered_images(page, url)
+            rendered_html = page.content()
+            title = page.title()
             if not images:
-                images = extract_images(html, url)
-            result.pages.append(CrawlPage(url=url, depth=depth, title=title, html=html, images=images))
+                images = extract_images(rendered_html, url)
+            result.pages.append(CrawlPage(url=url, depth=depth, title=title, html=rendered_html, images=images))
 
             if depth >= options.max_depth:
                 continue
 
-            for link in extract_links(html, url):
+            for link in extract_links(rendered_html, url):
                 candidate = _normalize_url(link.url)
                 if candidate in visited:
                     continue

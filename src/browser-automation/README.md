@@ -73,7 +73,10 @@ Example config:
 - collect images from lazy-loaded tags, `srcset`, background URLs, and external domains
 - capture image URLs from the live browser DOM when available
 - scroll through the page before image extraction to trigger lazy-loaded media
+- snapshot the rendered DOM after scrolling before Markdown export
 - save downloaded images with `.png` or `.jpg` extensions when possible
+- rewrite Markdown image references to the local `images/` folder
+- handle protocol-relative image URLs and skip 1x1 transparent placeholder images
 - write per-page image manifests alongside the Markdown pages
 - write a session-level `images.json` index for all discovered images
 - export rendered HTML, Markdown, links, images, screenshots, and PDFs

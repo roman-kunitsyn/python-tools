@@ -22,10 +22,17 @@ from browser_automation.utils.paths import default_session_dir, page_path_for_ur
 
 
 class FakePage:
-    def __init__(self, url: str, html: str, live_images: list[dict[str, object]] | None = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        html: str,
+        live_images: list[dict[str, object]] | None = None,
+        rendered_html: str | None = None,
+    ) -> None:
         self._url = url
         self._html = html
         self._live_images = live_images or []
+        self._rendered_html = rendered_html
 
     def goto(self, url: str, timeout: int | None = None, wait_until: str | None = None) -> None:
         self._url = url
@@ -37,6 +44,8 @@ class FakePage:
         return "Example"
 
     def evaluate(self, script: str):
+        if self._rendered_html is not None:
+            self._html = self._rendered_html
         return self._live_images
 
 
@@ -56,6 +65,7 @@ class FakeSession:
                 url or "",
                 str(entry.get("html", "")),
                 live_images=list(entry.get("live_images", [])),
+                rendered_html=str(entry.get("rendered_html")) if entry.get("rendered_html") is not None else None,
             )
         return FakePage(url or "", str(entry))
 
@@ -217,7 +227,8 @@ class BrowserAutomationTests(unittest.TestCase):
         <html><body>
           <h1>Landing</h1>
           <p>Hello <a href="/about">About</a></p>
-          <img src="https://example.com/assets/hero.png" alt="Hero" />
+          <img src="//example.com/assets/hero.png" alt="Hero" />
+          <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" />
         </body></html>
         """
         pages = {
@@ -259,6 +270,8 @@ class BrowserAutomationTests(unittest.TestCase):
             self.assertTrue(manifest_file.exists())
             self.assertTrue(images_index_file.exists())
             self.assertIn("../images/index/image_1.png", landing_page.read_text())
+            self.assertNotIn("//example.com/assets/hero.png", landing_page.read_text())
+            self.assertNotIn("data:image/gif;base64", landing_page.read_text())
             manifest = json.loads(manifest_file.read_text())
             self.assertEqual(manifest["page_url"], "https://example.com/")
             self.assertEqual(len(manifest["images"]), 1)
@@ -290,6 +303,43 @@ class BrowserAutomationTests(unittest.TestCase):
             "https://example.com/live.png",
             "https://img1.wsimg.com/example/photo.jpeg",
         ])
+
+    def test_crawl_site_uses_rendered_html_after_scroll(self) -> None:
+        initial_html = """
+        <html><body>
+          <h2>Food Menu</h2>
+          <h3>Traditionnal Thai Dishes</h3>
+          <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="" />
+        </body></html>
+        """
+        rendered_html = """
+        <html><body>
+          <h2>Food Menu</h2>
+          <h3>Traditionnal Thai Dishes</h3>
+          <figure>
+            <img src="//img1.wsimg.com/isteam/ip/8705e31a-681a-4b03-a1ff-b2bbf21bc4d0/food.png" alt="Grilled Veggie Pesto Pasta" />
+          </figure>
+          <a href="/menu">Menu</a>
+        </body></html>
+        """
+        pages = {
+            "https://example.com/": {
+                "html": initial_html,
+                "rendered_html": rendered_html,
+                "live_images": [
+                    {"url": "//img1.wsimg.com/isteam/ip/8705e31a-681a-4b03-a1ff-b2bbf21bc4d0/food.png", "alt": "Grilled Veggie Pesto Pasta", "width": None, "height": None},
+                ],
+            },
+            "https://example.com/menu": "<html><body><p>Menu</p></body></html>",
+        }
+
+        result = crawl_site(
+            FakeBrowserManager(pages),
+            CrawlOptions(start_url="https://example.com/", max_depth=1, page_limit=10),
+        )
+
+        self.assertIn("food.png", result.pages[0].html)
+        self.assertIn("/menu", result.pages[0].html)
 
 
 if __name__ == "__main__":
