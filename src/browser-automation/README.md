@@ -72,6 +72,7 @@ Example config:
 - crawl pages into Markdown and download page images into the session folder
 - collect images from lazy-loaded tags, `srcset`, background URLs, and external domains
 - capture image URLs from the live browser DOM when available
+- scroll through the page before image extraction to trigger lazy-loaded media
 - save downloaded images with `.png` or `.jpg` extensions when possible
 - write per-page image manifests alongside the Markdown pages
 - write a session-level `images.json` index for all discovered images

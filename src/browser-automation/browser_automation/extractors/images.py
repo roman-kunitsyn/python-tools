@@ -147,10 +147,6 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
                 seen.add(url);
                 urls.push({ url, alt, width, height });
               };
-              const parseSrcset = (value) => {
-                if (!value) return [];
-                return value.split(',').map(part => part.trim().split(/\\s+/, 1)[0]).filter(Boolean);
-              };
               const extractUrl = (value) => {
                 if (!value) return [];
                 const matches = [];
@@ -162,7 +158,7 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
                 return matches;
               };
 
-              document.querySelectorAll('img, source, picture, [style], [data-src], [data-lazy-src], [data-original], [data-srcset], [data-background], [data-bg]').forEach((element) => {
+              document.querySelectorAll('img, [style], [data-src], [data-lazy-src], [data-original], [data-background], [data-bg]').forEach((element) => {
                 const tagName = element.tagName ? element.tagName.toLowerCase() : '';
                 const alt = element.getAttribute && element.getAttribute('alt');
                 const width = element.getAttribute && element.getAttribute('width');
@@ -179,10 +175,6 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
                   const value = element.getAttribute && element.getAttribute(attr);
                   if (value) safePush(value);
                 });
-                ['srcset', 'data-srcset'].forEach((attr) => {
-                  const value = element.getAttribute && element.getAttribute(attr);
-                  parseSrcset(value).forEach((candidate) => safePush(candidate));
-                });
                 const style = element.getAttribute && element.getAttribute('style');
                 extractUrl(style).forEach((candidate) => safePush(candidate));
                 const computed = window.getComputedStyle ? window.getComputedStyle(element) : null;
@@ -190,7 +182,7 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
                   extractUrl(computed.backgroundImage || '').forEach((candidate) => safePush(candidate));
                 }
                 if (tagName === 'img') {
-                  const src = element.getAttribute && element.getAttribute('src');
+                  const src = element.currentSrc || element.getAttribute && element.getAttribute('src');
                   if (src) safePush(src);
                 }
               });
@@ -215,3 +207,33 @@ def extract_images_from_page(page: object, base_url: str) -> list[ExtractedImage
         images.append(image)
 
     return images
+
+
+def collect_rendered_images(page: object, base_url: str) -> list[ExtractedImage]:
+    try:
+        page.evaluate(
+            """
+            async () => {
+              const totalHeight = Math.max(
+                document.body?.scrollHeight || 0,
+                document.documentElement?.scrollHeight || 0
+              );
+              const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 800;
+              const step = Math.max(Math.floor(viewportHeight * 0.8), 400);
+              const positions = [];
+              for (let y = 0; y <= totalHeight; y += step) {
+                positions.push(y);
+              }
+              for (const y of positions) {
+                window.scrollTo(0, y);
+                await new Promise((resolve) => setTimeout(resolve, 250));
+              }
+              window.scrollTo(0, 0);
+              await new Promise((resolve) => setTimeout(resolve, 250));
+            }
+            """
+        )
+    except Exception:  # pragma: no cover - best-effort scrolling
+        pass
+
+    return extract_images_from_page(page, base_url)

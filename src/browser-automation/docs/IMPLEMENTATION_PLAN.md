@@ -63,9 +63,10 @@ src/browser-automation/
 - Crawl-to-Markdown export that writes page files and downloads page images
   into the session folder with image extensions resolved to `.png` or `.jpg`
   when possible. Image discovery includes lazy-loaded attributes, `srcset`,
-  background-image URLs, external image domains, and live DOM inspection. Each
-  page also gets a JSON image manifest in the session tree, and the session
-  root gets an aggregated `images.json` index.
+  background-image URLs, external image domains, live DOM inspection, and an
+  auto-scroll pass to trigger lazy-loaded media. Each page also gets a JSON
+  image manifest in the session tree, and the session root gets an aggregated
+  `images.json` index.
 - Export helpers for cleaned HTML, Markdown, text, links, images, screenshots,
   and PDFs.
 - Example scenario template.

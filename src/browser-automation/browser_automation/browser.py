@@ -23,6 +23,10 @@ class BrowserSession:
         page = self.context.new_page()
         if url is not None:
             page.goto(url, timeout=self.config.timeout, wait_until="domcontentloaded")
+            try:
+                page.wait_for_load_state("networkidle", timeout=min(self.config.timeout, 5_000))
+            except Exception:  # pragma: no cover - best-effort wait
+                pass
         return page
 
 
