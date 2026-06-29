@@ -1,83 +1,105 @@
-# Task: Implement Local Voice SDK
+# Task: Implement `voice-generator` Toolset
 
-## Goal
+## Objective
 
-Implement a production-ready Python toolkit for Text-to-Speech (TTS) that provides a unified interface for multiple speech synthesis engines.
+Implement a production-ready Python toolkit for text-to-speech generation.
 
-The toolkit must support:
+The toolset should provide:
 
-- Local inference
-- Cloud providers
-- CLI usage
-- Python SDK
-- Future TUI integration
-- Batch generation
-- Voice catalogs
-- Streaming architecture
+- a CLI for day-to-day use
+- a Python SDK for other tools in this workspace
+- a provider abstraction for local and cloud engines
+- batch generation
+- voice discovery and validation
+- benchmark and diagnostics commands
+- a clean path for future TUI integration
 
-The implementation must be modular so that adding a new provider requires implementing only a provider interface.
+This repository entry is the project specification. No implementation lives here yet.
 
 ---
 
-# Technology Stack
+## Scope
+
+The toolset is responsible for:
+
+- turning text into audio files
+- selecting a provider and voice
+- validating local dependencies and API credentials
+- reporting generation metadata
+- keeping provider-specific logic isolated
+
+The toolset is not responsible for:
+
+- transcription
+- note taking
+- audio recording
+- speech-to-speech conversion
+- GUI applications
+- Docker packaging
+
+---
+
+## Technology Stack
 
 - Python 3.13+
 - uv
-- Typer
-- Rich
-- Textual (future)
-- Pydantic v2
-- ffmpeg
-- pathlib
-- asyncio
-
-No Docker.
-
-No GUI.
-
-CLI-first architecture.
+- Typer or argparse for CLI entry points
+- Rich for terminal output
+- Pydantic v2 for request and response models
+- pathlib for file handling
+- subprocess for external command wrappers
+- asyncio for streaming and long-running tasks
+- ffmpeg for output conversion when needed
 
 ---
 
-# Project Structure
+## Design Principles
+
+- One tool should have one primary responsibility.
+- CLI code should stay thin.
+- Shared behavior should live in service modules.
+- Provider-specific logic should stay inside provider modules.
+- All public operations should return explicit models or structured errors.
+- Adding a new provider should require only a new provider implementation and registry entry.
+
+---
+
+## Proposed Package Layout
 
 ```text
-voice-sdk/
-
+voice-generator/
 README.md
 pyproject.toml
 
-src/voice/
-
+src/voice_generator/
+    __init__.py
     cli.py
     config.py
 
+    models/
+        request.py
+        response.py
+        voice.py
+
     providers/
         base.py
-
         macos_say.py
         kokoro.py
         piper.py
         orpheus.py
         elevenlabs.py
 
-    models/
-
-        voice.py
-        request.py
-        response.py
-
     services/
-
         generator.py
         registry.py
+        validator.py
+        benchmark.py
         cache.py
 
     utils/
-
         audio.py
-        text.py
         files.py
+        text.py
 
 tests/
 docs/
@@ -85,117 +107,97 @@ docs/
 
 ---
 
-# Provider Interface
+## Provider Interface
 
-Every provider must implement:
+Each provider should implement a common interface.
 
 ```python
 class VoiceProvider:
-
     id: str
     name: str
 
     def list_voices(self)
-
     def supports_streaming(self)
-
     def supports_ssml(self)
-
-    def generate(request)
-
-    def validate()
+    def generate(self, request)
+    def validate(self)
 ```
 
-No provider-specific logic outside provider modules.
+Rules:
+
+- provider selection happens through the registry
+- generation behavior stays inside the provider and service layers
+- no provider-specific branching should leak into the CLI
 
 ---
 
-# Supported Providers
+## Supported Providers
 
-## macOS Say
+### macOS Say
 
 Purpose:
 
-Fast offline synthesis using the native macOS `say` command.
+- fast offline synthesis using the native `say` command
 
-Requirements:
+Expected support:
 
-- enumerate voices
-- generate AIFF
+- voice enumeration
+- AIFF output
 - optional WAV conversion
-- speech rate
-- pitch (if supported)
+- speech rate control
+- pitch control when supported by the platform
 
----
+### Kokoro
 
-## Kokoro
-
-Requirements:
+Expected support:
 
 - local inference
 - voice selection
 - CPU support
-- optional GPU
-- SSML support (if available)
+- optional GPU support
+- SSML support if available
 
----
+### Piper
 
-## Piper
-
-Requirements:
+Expected support:
 
 - local inference
 - model discovery
 - voice management
 
----
+### Orpheus
 
-## Orpheus
+Initial implementation target for the local voice pipeline.
 
-Initial implementation target.
+Expected support:
 
-Requirements:
-
-Support:
-
-- GGUF model
-- llama.cpp backend
+- GGUF model loading
+- llama.cpp backend integration
 - local inference
 - SNAC decoding
 - emotional tags
 - voice selection
 
-Must NOT depend on:
+Constraints:
 
-- LM Studio
-- Docker
+- do not depend on LM Studio
+- do not depend on Docker
+- keep runtime adapters swappable without changing the public API
 
-The implementation should be structured so different runtimes (llama.cpp, future Ollama integration, etc.) can be swapped without changing the public API.
+### ElevenLabs
 
-Research Tasks:
+Cloud provider support.
 
-- investigate official prompt format
-- investigate voice token injection
-- investigate custom token generation
-- integrate SNAC decoder
-- generate WAV
+Expected support:
 
----
-
-## ElevenLabs
-
-Cloud implementation.
-
-Support:
-
-- API key
+- API key handling
 - streaming
-- voice list
+- voice list retrieval
 - emotion settings
 
 ---
 
-# Request Model
+## Request Model
 
 ```python
 VoiceRequest
@@ -213,9 +215,16 @@ stream
 output_path
 ```
 
+Suggested extensions:
+
+- `format`
+- `sample_rate`
+- `normalize_audio`
+- `metadata`
+
 ---
 
-# Response Model
+## Response Model
 
 ```python
 VoiceResponse
@@ -231,49 +240,47 @@ metadata
 
 ---
 
-# CLI
+## CLI
 
-Commands:
+Planned commands:
 
 ```bash
-voice list
-
 voice providers
-
 voice voices
-
 voice generate
-
 voice benchmark
-
 voice validate
 ```
 
-Examples:
+Suggested examples:
 
 ```bash
 voice generate \
-    --provider orpheus \
-    --voice tara \
-    --text "Hello Roman"
+  --provider orpheus \
+  --voice tara \
+  --text "Hello Roman"
+```
 
+```bash
 voice generate \
-    --provider kokoro \
-    --voice af_heart \
-    --input article.md \
-    --output article.wav
+  --provider kokoro \
+  --voice af_heart \
+  --input article.md \
+  --output article.wav
+```
 
+```bash
 voice generate \
-    --provider macos \
-    --voice Samantha \
-    --text "Hello"
+  --provider macos \
+  --voice Samantha \
+  --text "Hello"
 ```
 
 ---
 
-# Configuration
+## Configuration
 
-Support:
+Support a simple config file for defaults.
 
 ```yaml
 default_provider:
@@ -283,46 +290,48 @@ models_directory:
 ffmpeg_path:
 ```
 
+Recommended config behavior:
+
+- CLI flags override config defaults
+- environment variables can override secrets and API keys
+- config loading should be explicit and predictable
+
 ---
 
-# Output Formats
+## Output Formats
 
-Support:
+Planned output formats:
 
 - wav
 - aiff
-- mp3 (ffmpeg)
+- mp3
 - flac
 
----
+Notes:
 
-# Voice Registry
-
-Implement:
-
-```python
-voice list
-```
-
-Returns:
-
-Provider
-
-Voice ID
-
-Language
-
-Gender
-
-Tags
-
-Installed
+- `mp3` and `flac` may require ffmpeg conversion
+- provider-native formats can be converted in a shared utility layer
 
 ---
 
-# Benchmark Command
+## Voice Registry
 
-Measure:
+The `voice list` command should return:
+
+- provider
+- voice ID
+- language
+- gender
+- tags
+- installed status
+
+This output should be usable both for human inspection and future machine parsing.
+
+---
+
+## Benchmark Command
+
+The benchmark command should measure:
 
 - loading time
 - inference speed
@@ -332,39 +341,36 @@ Measure:
 
 ---
 
-# Validation Command
+## Validation Command
 
-Verify:
+The validation command should verify:
 
-- ffmpeg
+- ffmpeg availability
 - provider binaries
-- models
+- model availability
 - API keys
 - writable output directories
 
 ---
 
-# Error Handling
+## Error Handling
 
-Never crash.
+The toolset should never crash on user-facing failures.
 
-Return structured exceptions.
+Use structured exceptions such as:
 
-Examples:
+- `MissingModelError`
+- `ProviderUnavailableError`
+- `VoiceNotFoundError`
+- `AudioGenerationError`
 
-MissingModelError
-
-ProviderUnavailableError
-
-VoiceNotFoundError
-
-AudioGenerationError
+Errors should be surfaced with actionable messages and non-zero exit codes.
 
 ---
 
-# Future Extensions
+## Future Extensions
 
-The architecture must support adding:
+The architecture should allow future support for:
 
 - Suno
 - Udio
@@ -372,29 +378,55 @@ The architecture must support adding:
 - Dia
 - XTTS
 - OpenVoice
-- Voice cloning
-- Speech-to-Speech
-- Singing synthesis
-- Multi-speaker dialogue
+- voice cloning
+- speech-to-speech
+- singing synthesis
+- multi-speaker dialogue
 
-without changing the public API.
+These should be add-on capabilities, not changes to the public API.
 
 ---
 
-# Deliverables
+## Documentation Deliverables
 
-- Fully typed Python package
+Planned documentation for this toolset:
+
+- project README
+- architecture document
+- development guideline
+- example configs
+- example scripts
+- benchmark report
+- developer guide
+- test strategy
+
+---
+
+## Implementation Deliverables
+
+- fully typed Python package
 - CLI
-- Provider abstraction
-- Unit tests
-- Integration tests
-- Documentation
-- Example configurations
-- Example scripts
-- Benchmark report
-- Developer documentation
-- Architecture document
+- provider abstraction
+- unit tests
+- integration tests
+- documentation
+- example configurations
+- example scripts
+- benchmark report
+- developer documentation
+- architecture document
 
-```
+---
 
-```
+## Status
+
+Not implemented yet.
+
+---
+
+## Documentation
+
+- [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md): local rules for building `voice-generator`.
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md): current module state and next parts.
+- [Architecture Guideline](../../docs/guidelines/ARCHITECTURE_GUIDELINE.md): shared Python tool architecture.
+- [Implementation Guideline](../../docs/guidelines/IMPLEMENTATION_GUIDELINE.md): shared implementation process.
