@@ -141,13 +141,13 @@ Purpose:
 
 - fast offline synthesis using the native `say` command
 
-Expected support:
+Implemented support:
 
 - voice enumeration
 - AIFF output
 - optional WAV conversion
 - speech rate control
-- pitch control when supported by the platform
+- pitch control is not supported by `say`
 
 ### Kokoro
 
@@ -171,20 +171,29 @@ Expected support:
 
 Initial implementation target for the local voice pipeline.
 
-Expected support:
+Implemented as a configurable runtime adapter:
 
-- GGUF model loading
-- llama.cpp backend integration
-- local inference
-- SNAC decoding
-- emotional tags
+- local inference through a user-supplied runtime command
+- GGUF model validation
 - voice selection
+- voice catalog loading
+- runtime command templating
 
 Constraints:
 
 - do not depend on LM Studio
 - do not depend on Docker
 - keep runtime adapters swappable without changing the public API
+
+Configuration:
+
+- `orpheus_command`
+- `orpheus_model_path`
+- `orpheus_voice_catalog`
+- `orpheus_command_template`
+
+Runtime-specific details such as the exact prompt format, SNAC decoding, and
+emotion token handling stay inside the configured backend command.
 
 ### ElevenLabs
 
@@ -276,6 +285,12 @@ voice generate \
   --provider macos \
   --voice Samantha \
   --text "Hello"
+
+voice generate \
+  --provider orpheus \
+  --orpheus-command orpheus-runner \
+  --orpheus-model-path ./models/orpheus.gguf \
+  --text "Hello Roman"
 ```
 
 ---
@@ -290,6 +305,10 @@ default_voice:
 cache_directory:
 models_directory:
 ffmpeg_path:
+orpheus_command:
+orpheus_model_path:
+orpheus_voice_catalog:
+orpheus_command_template:
 ```
 
 Recommended config behavior:
@@ -426,12 +445,15 @@ Implemented in the first slice:
 
 - package scaffold under `voice_generator`
 - thin `voice-generator` script entry point
+- macOS Say provider backend
+- Orpheus configurable runtime adapter
 - provider catalog command
-- voice catalog command scaffold
+- voice catalog command
 - environment validation command
+- generation command through provider dispatch
 - shared request, response, voice, and provider metadata models
 - config loader for flat key-value files
-- placeholder generation and benchmark service boundaries
+- generation and benchmark service boundaries
 
 ---
 

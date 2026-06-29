@@ -47,6 +47,9 @@ separate tools in this workspace.
   hard-coded command-line branching.
 - If a provider needs subprocess execution, build commands as `list[str]` and
   keep shell invocation out of the public API.
+- macOS Say should stay a thin wrapper over the native `say` tool.
+- Orpheus should stay a configurable runtime adapter so the backend command
+  and model path can be swapped without changing the CLI or request model.
 
 ## CLI Rules
 
@@ -94,4 +97,3 @@ separate tools in this workspace.
 - Update the local development guideline when architecture boundaries change.
 - Add or refresh module reports after implementation slices, not in the
   guideline itself.
-

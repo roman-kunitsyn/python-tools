@@ -11,17 +11,18 @@ Implemented:
 - Package scaffold under `voice_generator`.
 - Thin script entry point at `src/voice-generator/voice-generator.py`.
 - Shared request, response, provider, and voice metadata models.
-- Provider catalog command that lists the planned provider set.
-- Environment validation command with `ffmpeg` and directory checks.
-- Placeholder generation and benchmark service boundaries.
+- MacOS Say provider backend with real `say` synthesis and voice listing.
+- Orpheus configurable runtime adapter with voice catalog support.
+- Provider catalog command with live backend status.
+- Voice catalog command for implemented providers.
+- Environment validation command with `ffmpeg`, directory, and provider checks.
+- Generation command routed through provider dispatch.
+- Tests for config parsing, registry behavior, validation, and provider backends.
 
 Not implemented yet:
 
-- Provider backends.
-- Voice discovery from real engines.
-- Actual audio generation pipeline.
+- Kokoro, Piper, and ElevenLabs backends.
 - Benchmark execution against real providers.
-- Tests.
 - Packaging metadata.
 
 ## Module Purpose
@@ -69,16 +70,17 @@ src/voice_generator/
 
 - `ffmpeg` for format conversion when provider-native output needs post-
   processing.
+- `say` on macOS for the local provider backend.
+- Orpheus runtime command and GGUF model path for the configurable local
+  adapter.
 - Provider-specific binaries, model files, or API keys depending on the
   selected engine.
 
 ## Remaining Enhancements
 
-- Add the thin CLI entry point and shared request/response models.
-- Implement provider interfaces and registry-driven provider selection.
-- Add generation, validation, and benchmark service flows.
-- Add unit tests around request mapping, registry behavior, and error handling.
-- Add integration coverage for local providers and ffmpeg conversion.
+- Add benchmark execution against real providers.
+- Add integration coverage for ffmpeg conversion and additional runtime
+  adapters.
 - Add packaging metadata once the module shape stabilizes.
 
 ## Next Small Parts

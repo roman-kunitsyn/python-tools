@@ -70,6 +70,29 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser = subparsers.add_parser("benchmark", help="Benchmark a provider.")
     benchmark_parser.add_argument("--provider", default=None)
 
+    parser.add_argument(
+        "--orpheus-command",
+        default=None,
+        help="Override the Orpheus runtime command, for example orpheus-runner or llama-cli.",
+    )
+    parser.add_argument(
+        "--orpheus-model-path",
+        type=Path,
+        default=None,
+        help="Override the Orpheus model path.",
+    )
+    parser.add_argument(
+        "--orpheus-voice-catalog",
+        type=Path,
+        default=None,
+        help="Override the Orpheus voice catalog file.",
+    )
+    parser.add_argument(
+        "--orpheus-command-template",
+        default=None,
+        help="Override the Orpheus command template used to render the runtime command.",
+    )
+
     return parser
 
 
@@ -78,7 +101,12 @@ def run(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        config = _load_config(args.config)
+        config = _load_config(args.config).with_overrides(
+            orpheus_command=args.orpheus_command,
+            orpheus_model_path=args.orpheus_model_path,
+            orpheus_voice_catalog=args.orpheus_voice_catalog,
+            orpheus_command_template=args.orpheus_command_template,
+        )
         if args.verbose:
             console.print("[dim]Verbose mode enabled[/dim]")
 
@@ -94,13 +122,13 @@ def run(argv: list[str] | None = None) -> int:
             return _run_benchmark(args.provider)
         parser.error(f"unknown command: {args.command}")
     except VoiceGeneratorError as error:
-        console.print(f"[red]{error}[/red]", file=sys.stderr)
+        console.print(f"[red]{error}[/red]", stderr=True)
         return error.exit_code
     except FileNotFoundError as error:
-        console.print(f"[red]{error}[/red]", file=sys.stderr)
+        console.print(f"[red]{error}[/red]", stderr=True)
         return 3
     except ValueError as error:
-        console.print(f"[red]{error}[/red]", file=sys.stderr)
+        console.print(f"[red]{error}[/red]", stderr=True)
         return 1
 
 
@@ -125,7 +153,7 @@ def _run_providers() -> int:
 
 
 def _run_voices(provider: str | None, config: VoiceGeneratorConfig) -> int:
-    registry = ProviderRegistry()
+    registry = ProviderRegistry(config)
     provider_id = provider or config.default_provider
     voices = registry.list_voices(provider_id)
     table = Table(title="Voice Catalog")
@@ -156,7 +184,7 @@ def _run_validate(provider: str | None, config: VoiceGeneratorConfig) -> int:
     target_config = config
     if provider is not None:
         target_config = config.with_overrides(default_provider=provider)
-    report = validate_environment(target_config)
+    report = validate_environment(target_config, ProviderRegistry(target_config))
     if report.issues:
         table = Table(title="Validation Issues")
         table.add_column("Check")

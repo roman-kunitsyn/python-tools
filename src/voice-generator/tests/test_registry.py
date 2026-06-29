@@ -13,5 +13,5 @@ class ProviderRegistryTests(TestCase):
 
         self.assertEqual(
             provider_ids,
-            ["macos", "kokoro", "piper", "orpheus", "elevenlabs"],
+            ["macos", "orpheus", "kokoro", "piper", "elevenlabs"],
         )

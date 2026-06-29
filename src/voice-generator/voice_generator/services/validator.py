@@ -39,6 +39,7 @@ def validate_environment(
     issues.extend(_validate_ffmpeg(config))
     issues.extend(_validate_directories(config))
     issues.extend(_validate_default_provider(config, registry))
+    issues.extend(_validate_provider_runtime(config, registry))
     issues.extend(_validate_cloud_credentials(config, registry))
 
     return ValidationReport(issues=issues)
@@ -102,6 +103,35 @@ def _validate_default_provider(
             )
         ]
     return []
+
+
+def _validate_provider_runtime(
+    config: VoiceGeneratorConfig,
+    registry: ProviderRegistry,
+) -> list[ValidationIssue]:
+    if config.default_provider is None:
+        return []
+    issues: list[ValidationIssue] = []
+    try:
+        provider = registry.get_provider(config.default_provider)
+    except Exception as error:
+        issues.append(
+            ValidationIssue(
+                check="provider",
+                message=str(error),
+            )
+        )
+        return issues
+    try:
+        provider.validate()
+    except Exception as error:
+        issues.append(
+            ValidationIssue(
+                check=config.default_provider,
+                message=str(error),
+            )
+        )
+    return issues
 
 
 def _validate_cloud_credentials(
