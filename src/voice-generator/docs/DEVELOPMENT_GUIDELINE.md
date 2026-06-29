@@ -69,7 +69,7 @@ separate tools in this workspace.
 
 ## Output Rules
 
-- Prefer explicit output files for generated audio.
+- Prefer WAV as the default output format for generated audio.
 - Keep conversion logic deterministic.
 - Preserve provider metadata in responses where useful for downstream tools.
 - Treat temporary files as internal implementation details unless the user

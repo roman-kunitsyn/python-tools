@@ -33,10 +33,9 @@ class MacOSSayProviderTests(TestCase):
         self.assertEqual(voices[0].voice_id, "Alice")
         self.assertEqual(voices[0].language, "it_IT")
 
-    def test_generate_writes_aiff_output(self) -> None:
+    def test_generate_writes_wav_output_by_default(self) -> None:
         with TemporaryDirectory() as tmpdir:
-            output_path = Path(tmpdir) / "sample.aiff"
-            temp_aiff = Path(tmpdir) / "temp-output.aiff"
+            output_path = Path(tmpdir) / "sample.wav"
             config = VoiceGeneratorConfig()
             provider = MacOSSayProvider(config)
 
@@ -47,9 +46,15 @@ class MacOSSayProviderTests(TestCase):
                 Path(command[output_index]).write_bytes(b"AIFF")
                 return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
+            def fake_convert_audio_with_ffmpeg(input_path, output_path, format, ffmpeg_path):
+                output_path.write_bytes(b"WAV")
+
             with patch("voice_generator.providers.macos_say.shutil.which", return_value="/usr/bin/say"), patch(
                 "voice_generator.providers.macos_say.subprocess.run",
                 side_effect=fake_run,
+            ), patch(
+                "voice_generator.providers.macos_say.convert_audio_with_ffmpeg",
+                side_effect=fake_convert_audio_with_ffmpeg,
             ):
                 response = provider.generate(
                     VoiceRequest(
@@ -57,10 +62,10 @@ class MacOSSayProviderTests(TestCase):
                         voice="Alice",
                         text="Hello world",
                         output_path=output_path,
-                        format="aiff",
                     )
                 )
 
             self.assertTrue(response.output_file.exists())
             self.assertEqual(response.output_file, output_path)
+            self.assertEqual(response.output_file.suffix, ".wav")
             self.assertEqual(response.metadata["engine"], "say")

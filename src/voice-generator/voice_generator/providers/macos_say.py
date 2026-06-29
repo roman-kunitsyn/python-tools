@@ -112,15 +112,15 @@ class MacOSSayProvider:
                     f"macOS say failed: {error.stderr or error.stdout or error}"
                 ) from error
 
-            if output_format == "aiff":
-                output_path.write_bytes(temp_aiff.read_bytes())
-            else:
+            if output_format == "wav":
                 convert_audio_with_ffmpeg(
                     temp_aiff,
                     output_path,
                     format=output_format,
                     ffmpeg_path=self._config.ffmpeg_path,
                 )
+            else:
+                output_path.write_bytes(temp_aiff.read_bytes())
 
         generation_time = time.perf_counter() - start
         return VoiceResponse(

@@ -144,8 +144,9 @@ Purpose:
 Implemented support:
 
 - voice enumeration
-- AIFF output
-- optional WAV conversion
+- WAV output by default
+- AIFF output when requested
+- optional WAV conversion from the AIFF synthesis output
 - speech rate control
 - pitch control is not supported by `say`
 
@@ -330,6 +331,7 @@ Planned output formats:
 
 Notes:
 
+- WAV is the standard output format.
 - `mp3` and `flac` may require ffmpeg conversion
 - provider-native formats can be converted in a shared utility layer
 

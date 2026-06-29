@@ -12,6 +12,7 @@ Implemented:
 - Thin script entry point at `src/voice-generator/voice-generator.py`.
 - Shared request, response, provider, and voice metadata models.
 - MacOS Say provider backend with real `say` synthesis and voice listing.
+- WAV-first output for the macOS provider, with AIFF preserved as an option.
 - Orpheus configurable runtime adapter with voice catalog support.
 - Provider catalog command with live backend status.
 - Voice catalog command for implemented providers.
