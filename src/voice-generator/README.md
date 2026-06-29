@@ -13,6 +13,7 @@ The toolset should provide:
 - voice discovery and validation
 - benchmark and diagnostics commands
 - a clean path for future TUI integration
+- default timestamped output files under `./logs/voice-generator/`
 
 This repository entry is the project specification. The first implementation
 slice now includes the package scaffold, shared models, provider catalog, and a
@@ -332,6 +333,8 @@ Planned output formats:
 Notes:
 
 - WAV is the standard output format.
+- If `--output` is omitted, the tool writes to
+  `./logs/voice-generator/{YYYY_MM_DD-HH_MM_SS}.wav`.
 - `mp3` and `flac` may require ffmpeg conversion
 - provider-native formats can be converted in a shared utility layer
 

@@ -14,6 +14,7 @@ Implemented:
 - MacOS Say provider backend with real `say` synthesis and voice listing.
 - WAV-first output for the macOS provider, with AIFF preserved as an option.
 - Orpheus configurable runtime adapter with voice catalog support.
+- Timestamped default output files under `./logs/voice-generator/`.
 - Provider catalog command with live backend status.
 - Voice catalog command for implemented providers.
 - Environment validation command with `ffmpeg`, directory, and provider checks.
@@ -82,6 +83,7 @@ src/voice_generator/
 - Add benchmark execution against real providers.
 - Add integration coverage for ffmpeg conversion and additional runtime
   adapters.
+- Add coverage for default output path creation and cleanup.
 - Add packaging metadata once the module shape stabilizes.
 
 ## Next Small Parts

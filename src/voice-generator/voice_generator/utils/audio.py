@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
+
+DEFAULT_OUTPUT_DIR = Path("logs") / "voice-generator"
+TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
 
 
 def normalize_output_format(output_format: str) -> str:
@@ -38,6 +42,10 @@ def sanitize_filename(value: str) -> str:
     return result or "voice"
 
 
+def build_timestamp() -> str:
+    return datetime.now().strftime(TIMESTAMP_FORMAT)
+
+
 def resolve_output_path(
     output_path: Path | None,
     *,
@@ -50,7 +58,7 @@ def resolve_output_path(
         if output_path.suffix:
             return output_path
         return output_path.with_suffix(suffix)
-    return Path.cwd() / f"{sanitize_filename(provider)}_{sanitize_filename(voice)}{suffix}"
+    return Path.cwd() / DEFAULT_OUTPUT_DIR / f"{build_timestamp()}{suffix}"
 
 
 def convert_audio_with_ffmpeg(

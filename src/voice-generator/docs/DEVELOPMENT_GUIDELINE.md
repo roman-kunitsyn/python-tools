@@ -70,6 +70,8 @@ separate tools in this workspace.
 ## Output Rules
 
 - Prefer WAV as the default output format for generated audio.
+- If the user does not supply an output path, write to
+  `./logs/voice-generator/{YYYY_MM_DD-HH_MM_SS}.wav`.
 - Keep conversion logic deterministic.
 - Preserve provider metadata in responses where useful for downstream tools.
 - Treat temporary files as internal implementation details unless the user
