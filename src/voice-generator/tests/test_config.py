@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import patch
 
-from voice_generator.config import VoiceGeneratorConfig
+from voice_generator.config import VoiceGeneratorConfig, apply_environment_overrides
 
 
 class VoiceGeneratorConfigTests(TestCase):
@@ -19,6 +20,8 @@ class VoiceGeneratorConfigTests(TestCase):
                         "cache_directory: /tmp/voice-cache",
                         "models_directory: /tmp/voice-models",
                         "ffmpeg_path: /opt/homebrew/bin/ffmpeg",
+                        "orpheus_text_command_template: text-template",
+                        "orpheus_audio_command: audio-runner",
                     ]
                 ),
                 encoding="utf-8",
@@ -31,3 +34,23 @@ class VoiceGeneratorConfigTests(TestCase):
             self.assertEqual(config.cache_directory, Path("/tmp/voice-cache"))
             self.assertEqual(config.models_directory, Path("/tmp/voice-models"))
             self.assertEqual(config.ffmpeg_path, Path("/opt/homebrew/bin/ffmpeg"))
+            self.assertEqual(config.orpheus_text_command_template, "text-template")
+            self.assertEqual(config.orpheus_audio_command, "audio-runner")
+
+    def test_environment_overrides_apply(self) -> None:
+        config = VoiceGeneratorConfig()
+
+        with patch.dict(
+            "os.environ",
+            {
+                "VOICE_GENERATOR_ORPHEUS_COMMAND": "orpheus-runner",
+                "VOICE_GENERATOR_ORPHEUS_MODEL_PATH": "/tmp/orpheus.gguf",
+                "VOICE_GENERATOR_ORPHEUS_AUDIO_COMMAND": "audio-runner",
+            },
+            clear=False,
+        ):
+            overridden = apply_environment_overrides(config)
+
+        self.assertEqual(overridden.orpheus_command, "orpheus-runner")
+        self.assertEqual(overridden.orpheus_model_path, Path("/tmp/orpheus.gguf"))
+        self.assertEqual(overridden.orpheus_audio_command, "audio-runner")

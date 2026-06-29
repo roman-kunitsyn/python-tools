@@ -58,6 +58,7 @@ separate tools in this workspace.
 - Generate output paths and format decisions in services, not in command
   handlers.
 - Use structured errors and stable exit codes instead of uncaught exceptions.
+- Respect environment overrides for Orpheus runtime configuration.
 
 ## Long-Running Work
 

@@ -61,7 +61,11 @@ class ProviderRegistry:
             return "missing-model"
         if not self._config.orpheus_model_path.exists():
             return "missing-model"
-        command = self._config.orpheus_command
+        command = str(self._config.orpheus_command)
         if shutil.which(command) is None and not Path(command).exists():
             return "missing-runtime"
+        if self._config.orpheus_audio_command is not None:
+            audio_command = str(self._config.orpheus_audio_command)
+            if shutil.which(audio_command) is None and not Path(audio_command).exists():
+                return "missing-audio-runtime"
         return "ready"

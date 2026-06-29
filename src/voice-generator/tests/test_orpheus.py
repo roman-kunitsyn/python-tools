@@ -83,3 +83,59 @@ class OrpheusProviderTests(TestCase):
             self.assertTrue(response.output_file.exists())
             self.assertEqual(response.output_file, output_path)
             self.assertEqual(response.metadata["engine"], "orpheus")
+
+    def test_generate_supports_text_then_audio_pipeline(self) -> None:
+        with TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            model_path = tmpdir_path / "model.gguf"
+            model_path.write_text("model", encoding="utf-8")
+            output_path = tmpdir_path / "result.wav"
+            text_command = tmpdir_path / "llama-cli"
+            text_command.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            text_command.chmod(0o755)
+            audio_command = tmpdir_path / "audio-runner"
+            audio_command.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            audio_command.chmod(0o755)
+            config = VoiceGeneratorConfig(
+                orpheus_command=text_command,
+                orpheus_model_path=model_path,
+                orpheus_audio_command=audio_command,
+                orpheus_text_command_template=(
+                    "{command} --model {model} --prompt {text} --simple-io --single-turn "
+                    "--no-display-prompt --log-disable"
+                ),
+                orpheus_audio_command_template=(
+                    "{command} --voice {voice} --text {generated_text} --output {output}"
+                ),
+            )
+            provider = OrpheusProvider(config)
+            calls: list[list[str]] = []
+
+            def fake_run(command, check, capture_output, text):
+                calls.append(command)
+                if len(calls) == 1:
+                    self.assertIn("--prompt", command)
+                    self.assertNotIn("--voice", command)
+                    return subprocess.CompletedProcess(command, 0, stdout="Hello Roman", stderr="")
+                output_index = command.index("--output") + 1
+                Path(command[output_index]).write_bytes(b"WAV")
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+            with patch("voice_generator.providers.orpheus.subprocess.run", side_effect=fake_run), patch(
+                "voice_generator.providers.orpheus.shutil.which",
+                side_effect=lambda value: str(value) if value in {str(text_command), str(audio_command)} else None,
+            ):
+                response = provider.generate(
+                    VoiceRequest(
+                        provider="orpheus",
+                        voice="tara",
+                        text="Hello from Orpheus",
+                        output_path=output_path,
+                        format="wav",
+                    )
+                )
+
+            self.assertEqual(len(calls), 2)
+            self.assertTrue(response.output_file.exists())
+            self.assertEqual(response.metadata["mode"], "text-audio")
+            self.assertEqual(response.output_file, output_path)

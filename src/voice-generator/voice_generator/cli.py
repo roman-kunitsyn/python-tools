@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
 
 from voice_generator.config import VoiceGeneratorConfig
-from voice_generator.errors import FeatureNotImplementedError, VoiceGeneratorError
+from voice_generator.config import apply_environment_overrides
+from voice_generator.errors import VoiceGeneratorError
 from voice_generator.models.request import VoiceRequest
 from voice_generator.services.benchmark import run_benchmark
 from voice_generator.services.generator import generate_voice
@@ -16,6 +16,7 @@ from voice_generator.services.registry import ProviderRegistry
 from voice_generator.services.validator import validate_environment
 
 console = Console()
+error_console = Console(stderr=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -92,6 +93,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Override the Orpheus command template used to render the runtime command.",
     )
+    parser.add_argument(
+        "--orpheus-text-command-template",
+        default=None,
+        help="Override the Orpheus text-stage template for text-only backends.",
+    )
+    parser.add_argument(
+        "--orpheus-audio-command",
+        default=None,
+        help="Override the Orpheus audio-stage command for text-to-audio pipelines.",
+    )
+    parser.add_argument(
+        "--orpheus-audio-command-template",
+        default=None,
+        help="Override the Orpheus audio-stage template for text-to-audio pipelines.",
+    )
 
     return parser
 
@@ -106,12 +122,16 @@ def run(argv: list[str] | None = None) -> int:
             orpheus_model_path=args.orpheus_model_path,
             orpheus_voice_catalog=args.orpheus_voice_catalog,
             orpheus_command_template=args.orpheus_command_template,
+            orpheus_text_command_template=args.orpheus_text_command_template,
+            orpheus_audio_command=args.orpheus_audio_command,
+            orpheus_audio_command_template=args.orpheus_audio_command_template,
         )
+        config.validate()
         if args.verbose:
             console.print("[dim]Verbose mode enabled[/dim]")
 
         if args.command == "providers":
-            return _run_providers()
+            return _run_providers(config)
         if args.command == "voices":
             return _run_voices(args.provider, config)
         if args.command == "validate":
@@ -122,18 +142,18 @@ def run(argv: list[str] | None = None) -> int:
             return _run_benchmark(args.provider)
         parser.error(f"unknown command: {args.command}")
     except VoiceGeneratorError as error:
-        console.print(f"[red]{error}[/red]", stderr=True)
+        error_console.print(f"[red]{error}[/red]")
         return error.exit_code
     except FileNotFoundError as error:
-        console.print(f"[red]{error}[/red]", stderr=True)
+        error_console.print(f"[red]{error}[/red]")
         return 3
     except ValueError as error:
-        console.print(f"[red]{error}[/red]", stderr=True)
+        error_console.print(f"[red]{error}[/red]")
         return 1
 
 
-def _run_providers() -> int:
-    registry = ProviderRegistry()
+def _run_providers(config: VoiceGeneratorConfig) -> int:
+    registry = ProviderRegistry(config)
     table = Table(title="Voice Providers")
     table.add_column("Provider")
     table.add_column("Name")
@@ -227,5 +247,5 @@ def _run_benchmark(provider: str | None) -> int:
 
 def _load_config(config_file: Path | None) -> VoiceGeneratorConfig:
     if config_file is None:
-        return VoiceGeneratorConfig()
-    return VoiceGeneratorConfig.from_file(config_file)
+        return apply_environment_overrides(VoiceGeneratorConfig())
+    return apply_environment_overrides(VoiceGeneratorConfig.from_file(config_file))

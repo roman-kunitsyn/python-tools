@@ -176,6 +176,7 @@ Initial implementation target for the local voice pipeline.
 Implemented as a configurable runtime adapter:
 
 - local inference through a user-supplied runtime command
+- optional two-stage text-to-audio pipeline for text-only runtimes
 - GGUF model validation
 - voice selection
 - voice catalog loading
@@ -193,9 +194,27 @@ Configuration:
 - `orpheus_model_path`
 - `orpheus_voice_catalog`
 - `orpheus_command_template`
+- `orpheus_text_command_template`
+- `orpheus_audio_command`
+- `orpheus_audio_command_template`
+
+Environment overrides:
+
+- `VOICE_GENERATOR_ORPHEUS_COMMAND`
+- `VOICE_GENERATOR_ORPHEUS_MODEL_PATH`
+- `VOICE_GENERATOR_ORPHEUS_VOICE_CATALOG`
+- `VOICE_GENERATOR_ORPHEUS_COMMAND_TEMPLATE`
+- `VOICE_GENERATOR_ORPHEUS_TEXT_COMMAND_TEMPLATE`
+- `VOICE_GENERATOR_ORPHEUS_AUDIO_COMMAND`
+- `VOICE_GENERATOR_ORPHEUS_AUDIO_COMMAND_TEMPLATE`
 
 Runtime-specific details such as the exact prompt format, SNAC decoding, and
 emotion token handling stay inside the configured backend command.
+
+When the backend is text-only, configure a text-stage template that writes to
+stdout and a separate audio-stage command that consumes the generated text.
+When `orpheus_audio_command` is set, provider status also validates that the
+audio-stage executable is available.
 
 ### ElevenLabs
 
@@ -265,6 +284,9 @@ voice benchmark
 voice validate
 ```
 
+`voice providers` reflects the loaded config and environment, so Orpheus shows
+`ready` once its runtime command and model path are configured.
+
 Suggested examples:
 
 ```bash
@@ -290,8 +312,11 @@ voice generate \
 
 voice generate \
   --provider orpheus \
-  --orpheus-command orpheus-runner \
+  --orpheus-command llama-cli \
   --orpheus-model-path ./models/orpheus.gguf \
+  --orpheus-text-command-template '{command} --model {model} --prompt {text} --simple-io --single-turn --no-display-prompt --log-disable' \
+  --orpheus-audio-command your-tts-binary \
+  --orpheus-audio-command-template '{command} --voice {voice} --output {output} --text {generated_text}' \
   --text "Hello Roman"
 ```
 
@@ -311,11 +336,15 @@ orpheus_command:
 orpheus_model_path:
 orpheus_voice_catalog:
 orpheus_command_template:
+orpheus_text_command_template:
+orpheus_audio_command:
+orpheus_audio_command_template:
 ```
 
 Recommended config behavior:
 
 - CLI flags override config defaults
+- environment variables override file defaults
 - environment variables can override secrets and API keys
 - config loading should be explicit and predictable
 

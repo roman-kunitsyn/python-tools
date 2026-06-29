@@ -79,6 +79,16 @@ class OrpheusProvider:
             raise ValidationError(
                 f"orpheus voice catalog not found: {self._config.orpheus_voice_catalog}"
             )
+        if self._uses_audio_pipeline():
+            audio_command = self._resolve_audio_command()
+            if audio_command is None:
+                raise ProviderUnavailableError(
+                    "orpheus audio command is not configured; set orpheus_audio_command"
+                )
+            if self._resolve_command_path(audio_command) is None:
+                raise ProviderUnavailableError(
+                    f"orpheus audio command not found: {audio_command}"
+                )
 
     def generate(self, request: VoiceRequest) -> VoiceResponse:
         self.validate()
@@ -97,19 +107,27 @@ class OrpheusProvider:
 
         start = time.perf_counter()
         with tempfile.TemporaryDirectory(prefix="voice-generator-orpheus-") as tempdir:
-            temp_output = Path(tempdir) / "output.wav"
-            command = self._build_command(
-                text=text,
-                voice=voice,
-                output_path=temp_output,
-                request=request,
-            )
-            try:
-                subprocess.run(command, check=True, capture_output=True, text=True)
-            except subprocess.CalledProcessError as error:
-                raise AudioGenerationError(
-                    f"orpheus runtime failed: {error.stderr or error.stdout or error}"
-                ) from error
+            tempdir_path = Path(tempdir)
+            temp_output = tempdir_path / "output.wav"
+            if self._uses_audio_pipeline():
+                generated_text = self._run_text_stage(
+                    text=text,
+                    voice=voice,
+                    request=request,
+                )
+                self._run_audio_stage(
+                    generated_text=generated_text,
+                    voice=voice,
+                    output_path=temp_output,
+                    request=request,
+                )
+            else:
+                self._run_direct_stage(
+                    text=text,
+                    voice=voice,
+                    output_path=temp_output,
+                    request=request,
+                )
 
             if not temp_output.exists():
                 raise AudioGenerationError(
@@ -134,7 +152,7 @@ class OrpheusProvider:
             sample_rate=None,
             output_file=output_path,
             generation_time=generation_time,
-            metadata={"engine": "orpheus"},
+            metadata={"engine": "orpheus", "mode": "text-audio" if self._uses_audio_pipeline() else "direct"},
         )
 
     def _load_voice_catalog(self) -> list[VoiceInfo] | None:
@@ -164,7 +182,68 @@ class OrpheusProvider:
             )
         return voices
 
-    def _build_command(
+    def _run_direct_stage(
+        self,
+        *,
+        text: str,
+        voice: str,
+        output_path: Path,
+        request: VoiceRequest,
+    ) -> None:
+        command = self._build_direct_command(
+            text=text,
+            voice=voice,
+            output_path=output_path,
+            request=request,
+        )
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            raise AudioGenerationError(
+                f"orpheus runtime failed: {error.stderr or error.stdout or error}"
+            ) from error
+
+    def _run_text_stage(
+        self,
+        *,
+        text: str,
+        voice: str,
+        request: VoiceRequest,
+    ) -> str:
+        command = self._build_text_command(text=text, voice=voice, request=request)
+        try:
+            completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            raise AudioGenerationError(
+                f"orpheus text stage failed: {error.stderr or error.stdout or error}"
+            ) from error
+        generated_text = normalize_whitespace(completed.stdout)
+        if not generated_text:
+            raise AudioGenerationError("orpheus text stage completed without generating text")
+        return generated_text
+
+    def _run_audio_stage(
+        self,
+        *,
+        generated_text: str,
+        voice: str,
+        output_path: Path,
+        request: VoiceRequest,
+    ) -> None:
+        command = self._build_audio_command(
+            generated_text=generated_text,
+            voice=voice,
+            output_path=output_path,
+            request=request,
+        )
+        try:
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            raise AudioGenerationError(
+                f"orpheus audio stage failed: {error.stderr or error.stdout or error}"
+            ) from error
+
+    def _build_direct_command(
         self,
         *,
         text: str,
@@ -175,11 +254,12 @@ class OrpheusProvider:
         command = self._resolve_command()
         if command is None:
             raise ProviderUnavailableError("orpheus runtime command is not configured")
+        command_value = str(command)
         template = self._config.orpheus_command_template or (
             "{command} --model {model} --voice {voice} --text {text} --output {output}"
         )
         rendered = template.format(
-            command=shlex.quote(command),
+            command=shlex.quote(command_value),
             model=shlex.quote(str(self._config.orpheus_model_path)),
             voice=shlex.quote(voice),
             text=shlex.quote(text),
@@ -195,13 +275,84 @@ class OrpheusProvider:
         )
         return shlex.split(rendered)
 
+    def _build_text_command(
+        self,
+        *,
+        text: str,
+        voice: str,
+        request: VoiceRequest,
+    ) -> list[str]:
+        command = self._resolve_command()
+        if command is None:
+            raise ProviderUnavailableError("orpheus runtime command is not configured")
+        command_value = str(command)
+        template = self._config.orpheus_text_command_template or self._config.orpheus_command_template or (
+            "{command} --model {model} --prompt {text} --simple-io --single-turn --no-display-prompt --log-disable"
+        )
+        rendered = template.format(
+            command=shlex.quote(command_value),
+            model=shlex.quote(str(self._config.orpheus_model_path)),
+            voice=shlex.quote(voice),
+            text=shlex.quote(text),
+            output="",
+            generated_text="",
+            format=shlex.quote(normalize_output_format(request.format)),
+            emotion=shlex.quote(request.emotion or ""),
+            speed=shlex.quote(str(request.speed if request.speed is not None else "")),
+            pitch=shlex.quote(str(request.pitch if request.pitch is not None else "")),
+            temperature=shlex.quote(
+                str(request.temperature if request.temperature is not None else "")
+            ),
+            seed=shlex.quote(str(request.seed if request.seed is not None else "")),
+        )
+        return shlex.split(rendered)
+
+    def _build_audio_command(
+        self,
+        *,
+        generated_text: str,
+        voice: str,
+        output_path: Path,
+        request: VoiceRequest,
+    ) -> list[str]:
+        command = self._resolve_audio_command()
+        if command is None:
+            raise ProviderUnavailableError("orpheus audio command is not configured")
+        command_value = str(command)
+        template = self._config.orpheus_audio_command_template or (
+            "{command} --voice {voice} --text {generated_text} --output {output}"
+        )
+        rendered = template.format(
+            command=shlex.quote(command_value),
+            model=shlex.quote(str(self._config.orpheus_model_path)),
+            voice=shlex.quote(voice),
+            text=shlex.quote(generated_text),
+            generated_text=shlex.quote(generated_text),
+            output=shlex.quote(str(output_path)),
+            format=shlex.quote(normalize_output_format(request.format)),
+            emotion=shlex.quote(request.emotion or ""),
+            speed=shlex.quote(str(request.speed if request.speed is not None else "")),
+            pitch=shlex.quote(str(request.pitch if request.pitch is not None else "")),
+            temperature=shlex.quote(
+                str(request.temperature if request.temperature is not None else "")
+            ),
+            seed=shlex.quote(str(request.seed if request.seed is not None else "")),
+        )
+        return shlex.split(rendered)
+
     def _resolve_command(self) -> str | None:
         return self._config.orpheus_command or "llama-cli"
+
+    def _resolve_audio_command(self) -> str | None:
+        return self._config.orpheus_audio_command
 
     def _resolve_command_path(self, command: str) -> str | None:
         if Path(command).exists():
             return command
         return shutil.which(command)
+
+    def _uses_audio_pipeline(self) -> bool:
+        return self._config.orpheus_audio_command is not None
 
 
 def _voice_from_json(payload: object) -> VoiceInfo:

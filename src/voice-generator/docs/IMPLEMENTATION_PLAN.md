@@ -15,6 +15,10 @@ Implemented:
 - WAV-first output for the macOS provider, with AIFF preserved as an option.
 - Orpheus configurable runtime adapter with voice catalog support.
 - Timestamped default output files under `./logs/voice-generator/`.
+- Environment overrides for the Orpheus runtime command, model path, and
+  voice catalog.
+- Config-aware `voice providers` output that marks Orpheus as ready once its
+  runtime command and model path are configured.
 - Provider catalog command with live backend status.
 - Voice catalog command for implemented providers.
 - Environment validation command with `ffmpeg`, directory, and provider checks.
@@ -84,6 +88,7 @@ src/voice_generator/
 - Add integration coverage for ffmpeg conversion and additional runtime
   adapters.
 - Add coverage for default output path creation and cleanup.
+- Add coverage for config-aware provider status output.
 - Add packaging metadata once the module shape stabilizes.
 
 ## Next Small Parts
