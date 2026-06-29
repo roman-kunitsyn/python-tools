@@ -6,14 +6,21 @@ Implemented:
 
 - README task specification for the `voice-generator` toolset.
 - Local development guideline describing module boundaries and return codes.
+- Implementation plan for the module.
 - Documentation links from the README to the shared workspace guidelines.
+- Package scaffold under `voice_generator`.
+- Thin script entry point at `src/voice-generator/voice-generator.py`.
+- Shared request, response, provider, and voice metadata models.
+- Provider catalog command that lists the planned provider set.
+- Environment validation command with `ffmpeg` and directory checks.
+- Placeholder generation and benchmark service boundaries.
 
 Not implemented yet:
 
-- CLI entry point.
-- Package modules for config, models, providers, services, and utilities.
-- Provider registry and generation pipeline.
-- Validation and benchmark commands.
+- Provider backends.
+- Voice discovery from real engines.
+- Actual audio generation pipeline.
+- Benchmark execution against real providers.
 - Tests.
 - Packaging metadata.
 
@@ -91,4 +98,3 @@ When implementation changes:
 2. Update `README.md` if user-facing behavior changed.
 3. Add a report under `docs/reports/`.
 4. Keep the provider boundary isolated from CLI presentation code.
-

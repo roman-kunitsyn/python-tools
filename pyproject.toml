@@ -29,9 +29,10 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 voice-note = "voice_note.main:main"
+voice-generator = "voice_generator.main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["voice_note"]
+packages = ["voice_note", "voice_generator"]
 
 [tool.uv]
 package = true

@@ -14,7 +14,9 @@ The toolset should provide:
 - benchmark and diagnostics commands
 - a clean path for future TUI integration
 
-This repository entry is the project specification. No implementation lives here yet.
+This repository entry is the project specification. The first implementation
+slice now includes the package scaffold, shared models, provider catalog, and a
+thin CLI boundary.
 
 ---
 
@@ -420,7 +422,16 @@ Planned documentation for this toolset:
 
 ## Status
 
-Not implemented yet.
+Implemented in the first slice:
+
+- package scaffold under `voice_generator`
+- thin `voice-generator` script entry point
+- provider catalog command
+- voice catalog command scaffold
+- environment validation command
+- shared request, response, voice, and provider metadata models
+- config loader for flat key-value files
+- placeholder generation and benchmark service boundaries
 
 ---
 
