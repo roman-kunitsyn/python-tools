@@ -24,6 +24,8 @@ separate tools in this workspace.
 - `voice_generator.models` contains request, response, and voice metadata
   models.
 - `voice_generator.providers` owns provider-specific implementations.
+- `voice_generator.runtimes` owns internal Orpheus runtime implementations.
+- `voice_generator.decoders` owns internal audio-token decoding helpers.
 - `voice_generator.services` owns generation, registry, validation, caching,
   and benchmarking logic.
 - `voice_generator.utils` owns reusable file, audio, and text helpers.
@@ -31,8 +33,8 @@ separate tools in this workspace.
 ## Boundary Rules
 
 - Keep provider-specific branching out of the CLI.
-- Keep runtime adapters and external command wrappers inside provider or
-  service modules.
+- Keep runtime adapters, decoders, and external command wrappers inside
+  provider or service modules.
 - Do not let UI state leak into services.
 - Do not pass raw argparse or widget objects into the provider layer.
 - Keep audio conversion rules in shared utilities unless a provider needs a
@@ -48,8 +50,9 @@ separate tools in this workspace.
 - If a provider needs subprocess execution, build commands as `list[str]` and
   keep shell invocation out of the public API.
 - macOS Say should stay a thin wrapper over the native `say` tool.
-- Orpheus should stay a configurable runtime adapter so the backend command
-  and model path can be swapped without changing the CLI or request model.
+- Orpheus should stay a configurable runtime adapter so the runtime, model,
+  executable, and decoder can be swapped without changing the CLI or request
+  model.
 
 ## CLI Rules
 

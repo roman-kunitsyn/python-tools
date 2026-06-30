@@ -55,17 +55,17 @@ class ProviderRegistry:
         return self.get_provider(provider_id).list_voices()
 
     def _orpheus_status(self) -> str:
-        if self._config.orpheus_command is None:
+        if self._config.orpheus_runtime is None:
             return "needs-config"
-        if self._config.orpheus_model_path is None:
+        if self._config.orpheus_model is None:
             return "missing-model"
-        if not self._config.orpheus_model_path.exists():
+        if not self._config.orpheus_model.exists():
             return "missing-model"
-        command = str(self._config.orpheus_command)
-        if shutil.which(command) is None and not Path(command).exists():
+        if self._config.orpheus_runtime not in {"llama-cpp", "official-python"}:
             return "missing-runtime"
-        if self._config.orpheus_audio_command is not None:
-            audio_command = str(self._config.orpheus_audio_command)
-            if shutil.which(audio_command) is None and not Path(audio_command).exists():
-                return "missing-audio-runtime"
+        executable = self._config.orpheus_executable or "llama-cli"
+        if shutil.which(executable) is None and not Path(executable).exists():
+            return "missing-executable"
+        if self._config.orpheus_decoder not in {None, "snac"}:
+            return "missing-decoder"
         return "ready"

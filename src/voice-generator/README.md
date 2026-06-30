@@ -92,6 +92,16 @@ src/voice_generator/
         orpheus.py
         elevenlabs.py
 
+    runtimes/
+        base.py
+        llama_cpp.py
+        official_python.py
+        registry.py
+
+    decoders/
+        base.py
+        snac.py
+
     services/
         generator.py
         registry.py
@@ -122,7 +132,7 @@ class VoiceProvider:
     def list_voices(self)
     def supports_streaming(self)
     def supports_ssml(self)
-    def generate(self, request)
+    def synthesize(self, request)
     def validate(self)
 ```
 
@@ -175,12 +185,13 @@ Initial implementation target for the local voice pipeline.
 
 Implemented as a configurable runtime adapter:
 
-- local inference through a user-supplied runtime command
-- optional two-stage text-to-audio pipeline for text-only runtimes
-- GGUF model validation
+- local inference through a selected runtime implementation
+- official-style prompt construction
+- internal audio-token decoding
+- model validation
 - voice selection
 - voice catalog loading
-- runtime command templating
+- runtime selection
 
 Constraints:
 
@@ -190,31 +201,28 @@ Constraints:
 
 Configuration:
 
-- `orpheus_command`
-- `orpheus_model_path`
+- `orpheus_runtime`
+- `orpheus_model`
+- `orpheus_executable`
+- `orpheus_decoder`
 - `orpheus_voice_catalog`
-- `orpheus_command_template`
-- `orpheus_text_command_template`
-- `orpheus_audio_command`
-- `orpheus_audio_command_template`
+- `default_voice`
 
 Environment overrides:
 
-- `VOICE_GENERATOR_ORPHEUS_COMMAND`
-- `VOICE_GENERATOR_ORPHEUS_MODEL_PATH`
+- `VOICE_GENERATOR_ORPHEUS_RUNTIME`
+- `VOICE_GENERATOR_ORPHEUS_MODEL`
+- `VOICE_GENERATOR_ORPHEUS_EXECUTABLE`
+- `VOICE_GENERATOR_ORPHEUS_DECODER`
 - `VOICE_GENERATOR_ORPHEUS_VOICE_CATALOG`
-- `VOICE_GENERATOR_ORPHEUS_COMMAND_TEMPLATE`
-- `VOICE_GENERATOR_ORPHEUS_TEXT_COMMAND_TEMPLATE`
-- `VOICE_GENERATOR_ORPHEUS_AUDIO_COMMAND`
-- `VOICE_GENERATOR_ORPHEUS_AUDIO_COMMAND_TEMPLATE`
 
-Runtime-specific details such as the exact prompt format, SNAC decoding, and
-emotion token handling stay inside the configured backend command.
+Runtime-specific details such as prompt shaping, audio-token extraction, and
+SNAC decoding stay inside the selected runtime implementation.
 
-When the backend is text-only, configure a text-stage template that writes to
-stdout and a separate audio-stage command that consumes the generated text.
-When `orpheus_audio_command` is set, provider status also validates that the
-audio-stage executable is available.
+The llama.cpp runtime uses a chat-style Orpheus prompt with special tokens and
+extracts `<custom_token_xxxxx>` output before decoding.
+The real SNAC decoder requires the `snac` and `torch` Python packages at
+runtime.
 
 ### ElevenLabs
 
@@ -259,7 +267,7 @@ Suggested extensions:
 ## Response Model
 
 ```python
-VoiceResponse
+AudioResult
 
 provider
 voice
@@ -269,6 +277,8 @@ output_file
 generation_time
 metadata
 ```
+
+`VoiceResponse` remains a compatibility alias for `AudioResult`.
 
 ---
 
@@ -285,13 +295,17 @@ voice validate
 ```
 
 `voice providers` reflects the loaded config and environment, so Orpheus shows
-`ready` once its runtime command and model path are configured.
+`ready` once its runtime, model, executable, and decoder are configured.
 
 Suggested examples:
 
 ```bash
 voice generate \
   --provider orpheus \
+  --runtime llama-cpp \
+  --model ./models/orpheus.gguf \
+  --executable llama-cli \
+  --decoder snac \
   --voice tara \
   --text "Hello Roman"
 ```
@@ -312,11 +326,10 @@ voice generate \
 
 voice generate \
   --provider orpheus \
-  --orpheus-command llama-cli \
-  --orpheus-model-path ./models/orpheus.gguf \
-  --orpheus-text-command-template '{command} --model {model} --prompt {text} --simple-io --single-turn --no-display-prompt --log-disable' \
-  --orpheus-audio-command your-tts-binary \
-  --orpheus-audio-command-template '{command} --voice {voice} --output {output} --text {generated_text}' \
+  --runtime llama-cpp \
+  --model ./models/orpheus.gguf \
+  --executable llama-cli \
+  --decoder snac \
   --text "Hello Roman"
 ```
 
@@ -332,13 +345,13 @@ default_voice:
 cache_directory:
 models_directory:
 ffmpeg_path:
-orpheus_command:
-orpheus_model_path:
-orpheus_voice_catalog:
-orpheus_command_template:
-orpheus_text_command_template:
-orpheus_audio_command:
-orpheus_audio_command_template:
+orpheus:
+  runtime:
+  model:
+  executable:
+  decoder:
+  default_voice:
+  voice_catalog:
 ```
 
 Recommended config behavior:
@@ -401,7 +414,8 @@ The benchmark command should measure:
 The validation command should verify:
 
 - ffmpeg availability
-- provider binaries
+- provider runtime availability
+- executable availability
 - model availability
 - API keys
 - writable output directories
@@ -480,7 +494,7 @@ Implemented in the first slice:
 - package scaffold under `voice_generator`
 - thin `voice-generator` script entry point
 - macOS Say provider backend
-- Orpheus configurable runtime adapter
+- Orpheus runtime adapter with internal decoder support
 - provider catalog command
 - voice catalog command
 - environment validation command
@@ -495,5 +509,7 @@ Implemented in the first slice:
 
 - [Development Guideline](docs/DEVELOPMENT_GUIDELINE.md): local rules for building `voice-generator`.
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md): current module state and next parts.
+- [Architecture](docs/ARCHITECTURE.md): runtime and decoder layout for Orpheus.
+- [Example Orpheus Config](docs/examples/orpheus.llama-cpp.example.yaml): a concrete `llama-cpp` configuration.
 - [Architecture Guideline](../../docs/guidelines/ARCHITECTURE_GUIDELINE.md): shared Python tool architecture.
 - [Implementation Guideline](../../docs/guidelines/IMPLEMENTATION_GUIDELINE.md): shared implementation process.

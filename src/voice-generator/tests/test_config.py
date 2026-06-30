@@ -9,19 +9,19 @@ from voice_generator.config import VoiceGeneratorConfig, apply_environment_overr
 
 
 class VoiceGeneratorConfigTests(TestCase):
-    def test_from_file_parses_simple_mapping(self) -> None:
+    def test_from_file_parses_nested_orpheus_section(self) -> None:
         with TemporaryDirectory() as tmpdir:
             config_file = Path(tmpdir) / "voice-generator.yaml"
             config_file.write_text(
                 "\n".join(
                     [
                         "default_provider: orpheus",
-                        "default_voice: tara",
-                        "cache_directory: /tmp/voice-cache",
-                        "models_directory: /tmp/voice-models",
-                        "ffmpeg_path: /opt/homebrew/bin/ffmpeg",
-                        "orpheus_text_command_template: text-template",
-                        "orpheus_audio_command: audio-runner",
+                        "orpheus:",
+                        "  runtime: llama-cpp",
+                        "  model: /tmp/models/orpheus.gguf",
+                        "  executable: /opt/homebrew/bin/llama-cli",
+                        "  decoder: snac",
+                        "  default_voice: tara",
                     ]
                 ),
                 encoding="utf-8",
@@ -31,11 +31,10 @@ class VoiceGeneratorConfigTests(TestCase):
 
             self.assertEqual(config.default_provider, "orpheus")
             self.assertEqual(config.default_voice, "tara")
-            self.assertEqual(config.cache_directory, Path("/tmp/voice-cache"))
-            self.assertEqual(config.models_directory, Path("/tmp/voice-models"))
-            self.assertEqual(config.ffmpeg_path, Path("/opt/homebrew/bin/ffmpeg"))
-            self.assertEqual(config.orpheus_text_command_template, "text-template")
-            self.assertEqual(config.orpheus_audio_command, "audio-runner")
+            self.assertEqual(config.orpheus_runtime, "llama-cpp")
+            self.assertEqual(config.orpheus_model, Path("/tmp/models/orpheus.gguf"))
+            self.assertEqual(config.orpheus_executable, "/opt/homebrew/bin/llama-cli")
+            self.assertEqual(config.orpheus_decoder, "snac")
 
     def test_environment_overrides_apply(self) -> None:
         config = VoiceGeneratorConfig()
@@ -43,14 +42,16 @@ class VoiceGeneratorConfigTests(TestCase):
         with patch.dict(
             "os.environ",
             {
-                "VOICE_GENERATOR_ORPHEUS_COMMAND": "orpheus-runner",
-                "VOICE_GENERATOR_ORPHEUS_MODEL_PATH": "/tmp/orpheus.gguf",
-                "VOICE_GENERATOR_ORPHEUS_AUDIO_COMMAND": "audio-runner",
+                "VOICE_GENERATOR_ORPHEUS_RUNTIME": "llama-cpp",
+                "VOICE_GENERATOR_ORPHEUS_MODEL": "/tmp/orpheus.gguf",
+                "VOICE_GENERATOR_ORPHEUS_EXECUTABLE": "llama-cli",
+                "VOICE_GENERATOR_ORPHEUS_DECODER": "snac",
             },
             clear=False,
         ):
             overridden = apply_environment_overrides(config)
 
-        self.assertEqual(overridden.orpheus_command, "orpheus-runner")
-        self.assertEqual(overridden.orpheus_model_path, Path("/tmp/orpheus.gguf"))
-        self.assertEqual(overridden.orpheus_audio_command, "audio-runner")
+        self.assertEqual(overridden.orpheus_runtime, "llama-cpp")
+        self.assertEqual(overridden.orpheus_model, Path("/tmp/orpheus.gguf"))
+        self.assertEqual(overridden.orpheus_executable, "llama-cli")
+        self.assertEqual(overridden.orpheus_decoder, "snac")

@@ -13,12 +13,12 @@ Implemented:
 - Shared request, response, provider, and voice metadata models.
 - MacOS Say provider backend with real `say` synthesis and voice listing.
 - WAV-first output for the macOS provider, with AIFF preserved as an option.
-- Orpheus configurable runtime adapter with voice catalog support.
+- Orpheus runtime adapter with voice catalog support.
 - Timestamped default output files under `./logs/voice-generator/`.
-- Environment overrides for the Orpheus runtime command, model path, and
-  voice catalog.
+- Environment overrides for the Orpheus runtime, model, executable, decoder,
+  and voice catalog.
 - Config-aware `voice providers` output that marks Orpheus as ready once its
-  runtime command and model path are configured.
+  runtime, model, executable, and decoder are configured.
 - Provider catalog command with live backend status.
 - Voice catalog command for implemented providers.
 - Environment validation command with `ffmpeg`, directory, and provider checks.
@@ -59,6 +59,16 @@ src/voice_generator/
         orpheus.py
         elevenlabs.py
 
+    runtimes/
+        base.py
+        llama_cpp.py
+        official_python.py
+        registry.py
+
+    decoders/
+        base.py
+        snac.py
+
     services/
         generator.py
         registry.py
@@ -77,7 +87,7 @@ src/voice_generator/
 - `ffmpeg` for format conversion when provider-native output needs post-
   processing.
 - `say` on macOS for the local provider backend.
-- Orpheus runtime command and GGUF model path for the configurable local
+- Orpheus runtime, model, executable, and decoder for the configurable local
   adapter.
 - Provider-specific binaries, model files, or API keys depending on the
   selected engine.

@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class VoiceResponse(BaseModel):
+class AudioResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     provider: str
@@ -16,3 +16,6 @@ class VoiceResponse(BaseModel):
     output_file: Path | None = None
     generation_time: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+VoiceResponse = AudioResult

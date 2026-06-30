@@ -4,25 +4,15 @@ from typing import Protocol, runtime_checkable
 
 from voice_generator.models.request import VoiceRequest
 from voice_generator.models.response import AudioResult
-from voice_generator.models.voice import VoiceInfo
 
 
 @runtime_checkable
-class VoiceProvider(Protocol):
+class OrpheusRuntime(Protocol):
     id: str
     name: str
 
-    def list_voices(self) -> list[VoiceInfo]:
-        ...
-
-    def supports_streaming(self) -> bool:
-        ...
-
-    def supports_ssml(self) -> bool:
+    def validate(self) -> None:
         ...
 
     def synthesize(self, request: VoiceRequest) -> AudioResult:
-        ...
-
-    def validate(self) -> None:
         ...

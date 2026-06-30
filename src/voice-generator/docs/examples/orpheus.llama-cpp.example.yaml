@@ -1,0 +1,8 @@
+default_provider: orpheus
+default_voice: tara
+orpheus:
+  runtime: llama-cpp
+  model: ./models/orpheus.gguf
+  executable: llama-cli
+  decoder: snac
+  voice_catalog: ./models/orpheus/voices.json

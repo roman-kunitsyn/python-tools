@@ -14,7 +14,7 @@ from voice_generator.errors import (
     ValidationError,
 )
 from voice_generator.models.request import VoiceRequest
-from voice_generator.models.response import VoiceResponse
+from voice_generator.models.response import AudioResult
 from voice_generator.models.voice import VoiceInfo
 from voice_generator.utils.audio import (
     convert_audio_with_ffmpeg,
@@ -73,7 +73,7 @@ class MacOSSayProvider:
         if shutil.which("ffmpeg") is None:
             raise ProviderUnavailableError("ffmpeg is required for output conversion")
 
-    def generate(self, request: VoiceRequest) -> VoiceResponse:
+    def synthesize(self, request: VoiceRequest) -> AudioResult:
         self.validate()
         if request.pitch is not None:
             raise ValidationError("macOS say does not support pitch control")
@@ -123,7 +123,7 @@ class MacOSSayProvider:
                 output_path.write_bytes(temp_aiff.read_bytes())
 
         generation_time = time.perf_counter() - start
-        return VoiceResponse(
+        return AudioResult(
             provider=self.id,
             voice=voice,
             duration=None,
@@ -132,6 +132,9 @@ class MacOSSayProvider:
             generation_time=generation_time,
             metadata={"engine": "say"},
         )
+
+    def generate(self, request: VoiceRequest) -> AudioResult:
+        return self.synthesize(request)
 
 
 def _parse_voice_line(line: str) -> dict[str, str] | None:

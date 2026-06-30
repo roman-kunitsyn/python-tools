@@ -67,46 +67,37 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--temperature", type=float, default=None)
     generate_parser.add_argument("--seed", type=int, default=None)
     generate_parser.add_argument("--stream", action="store_true")
+    generate_parser.add_argument(
+        "--runtime",
+        default=None,
+        help="Select the Orpheus runtime implementation, such as llama-cpp or official-python.",
+    )
+    generate_parser.add_argument(
+        "--model",
+        dest="model_path",
+        type=Path,
+        default=None,
+        help="Set the Orpheus model path used by the selected runtime.",
+    )
+    generate_parser.add_argument(
+        "--executable",
+        default=None,
+        help="Set the executable used by the selected Orpheus runtime.",
+    )
+    generate_parser.add_argument(
+        "--decoder",
+        default=None,
+        help="Select the internal audio decoder implementation, such as snac.",
+    )
 
     benchmark_parser = subparsers.add_parser("benchmark", help="Benchmark a provider.")
     benchmark_parser.add_argument("--provider", default=None)
 
     parser.add_argument(
-        "--orpheus-command",
-        default=None,
-        help="Override the Orpheus runtime command, for example orpheus-runner or llama-cli.",
-    )
-    parser.add_argument(
-        "--orpheus-model-path",
-        type=Path,
-        default=None,
-        help="Override the Orpheus model path.",
-    )
-    parser.add_argument(
         "--orpheus-voice-catalog",
         type=Path,
         default=None,
         help="Override the Orpheus voice catalog file.",
-    )
-    parser.add_argument(
-        "--orpheus-command-template",
-        default=None,
-        help="Override the Orpheus command template used to render the runtime command.",
-    )
-    parser.add_argument(
-        "--orpheus-text-command-template",
-        default=None,
-        help="Override the Orpheus text-stage template for text-only backends.",
-    )
-    parser.add_argument(
-        "--orpheus-audio-command",
-        default=None,
-        help="Override the Orpheus audio-stage command for text-to-audio pipelines.",
-    )
-    parser.add_argument(
-        "--orpheus-audio-command-template",
-        default=None,
-        help="Override the Orpheus audio-stage template for text-to-audio pipelines.",
     )
 
     return parser
@@ -118,13 +109,11 @@ def run(argv: list[str] | None = None) -> int:
 
     try:
         config = _load_config(args.config).with_overrides(
-            orpheus_command=args.orpheus_command,
-            orpheus_model_path=args.orpheus_model_path,
+            orpheus_runtime=args.runtime,
+            orpheus_model=args.model_path,
+            orpheus_executable=args.executable,
+            orpheus_decoder=args.decoder,
             orpheus_voice_catalog=args.orpheus_voice_catalog,
-            orpheus_command_template=args.orpheus_command_template,
-            orpheus_text_command_template=args.orpheus_text_command_template,
-            orpheus_audio_command=args.orpheus_audio_command,
-            orpheus_audio_command_template=args.orpheus_audio_command_template,
         )
         config.validate()
         if args.verbose:
