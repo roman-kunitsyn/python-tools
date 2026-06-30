@@ -104,11 +104,13 @@ class VoiceNoteServiceTest(unittest.TestCase):
 
             payload = json.loads(json_file.read_text())
 
-        self.assertEqual(payload["session"], "voice_note_2026_06_23-22_15_00")
-        self.assertEqual(
-            payload["data"],
-            [{"audio": "note.wav", "text": "hello world"}],
-        )
+        self.assertEqual(payload["meta"]["session"], "voice_note_2026_06_23-22_15_00")
+        self.assertEqual(payload["meta"]["schema_version"], "1.0")
+        self.assertEqual(payload["meta"]["tool"], "voice-note")
+        self.assertEqual(len(payload["data"]), 1)
+        self.assertEqual(payload["data"][0]["audio"], "note.wav")
+        self.assertEqual(payload["data"][0]["text"], "hello world")
+        self.assertIn("created_at", payload["data"][0])
 
     def test_format_note_with_timestamp(self) -> None:
         note = VoiceNote(
@@ -231,12 +233,12 @@ class TranscriptJsonWriterTest(unittest.TestCase):
 
             payload = json.loads(output_file.read_text())
 
-        self.assertEqual(payload["session"], "session-a")
+        self.assertEqual(payload["meta"]["session"], "session-a")
         self.assertEqual(
-            payload["data"],
+            [(entry["audio"], entry["text"]) for entry in payload["data"]],
             [
-                {"audio": "audio_1.wav", "text": "first"},
-                {"audio": "audio_2.wav", "text": "second"},
+                ("audio_1.wav", "first"),
+                ("audio_2.wav", "second"),
             ],
         )
 

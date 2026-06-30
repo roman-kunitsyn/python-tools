@@ -38,6 +38,10 @@ def build_writer(output_file: Path | None) -> TextWriter:
     return FileWriter(output_file)
 
 
+SCHEMA_VERSION = "1.0"
+TOOL_NAME = "voice-note"
+
+
 class TranscriptJsonWriter:
     def __init__(self, output_file: Path, session: str) -> None:
         self.output_file = output_file
@@ -45,19 +49,31 @@ class TranscriptJsonWriter:
 
     def write_note(self, note: VoiceNote) -> None:
         payload = self._read_payload()
-        payload["session"] = self.session
+        meta = payload.setdefault("meta", {})
+        meta["schema_version"] = SCHEMA_VERSION
+        meta["tool"] = TOOL_NAME
+        meta["session"] = self.session
+        meta.setdefault("created_at", note.created_at.isoformat(timespec="seconds"))
         payload.setdefault("data", [])
         payload["data"].append(
             {
                 "audio": str(note.audio_file),
                 "text": note.text,
+                "created_at": note.created_at.isoformat(timespec="seconds"),
             }
         )
         self._write_payload(payload)
 
     def _read_payload(self) -> dict:
         if not self.output_file.exists():
-            return {"session": self.session, "data": []}
+            return {
+                "meta": {
+                    "schema_version": SCHEMA_VERSION,
+                    "tool": TOOL_NAME,
+                    "session": self.session,
+                },
+                "data": [],
+            }
 
         return json.loads(self.output_file.read_text())
 
