@@ -260,15 +260,6 @@ class VoiceNoteApp(App):
             with TabbedContent(initial="notes", id="main-tabs"):
                 with TabPane("Notes", id="notes"):
                     yield Vertical(
-                        Horizontal(
-                            Static("Transcript", id="notes-title"),
-                            Horizontal(
-                                Button("A+", id="zoom-in"),
-                                Button("A-", id="zoom-out"),
-                                id="zoom-controls",
-                            ),
-                            id="notes-toolbar",
-                        ),
                         VerticalScroll(
                             NoteTranscriptView("", id="notes-content"),
                             id="notes-scroll",
@@ -1007,7 +998,9 @@ class NoteTranscriptView(Static):
 
         parts: list[str] = []
         for index, note in enumerate(notes, start=1):
-            parts.append(_render_note_card(note, index, note.note_id == selected_note_id, zoom))
+            parts.append(
+                _render_note_card(note, index, note.note_id == selected_note_id, zoom)
+            )
 
         self.update("\n".join(parts).rstrip())
 
