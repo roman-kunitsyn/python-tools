@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from textual.containers import Container, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, Select, Static
+from textual.widgets import Button, Input, Label, Select, Static, TextArea
 
 from voice_note.models.session import DEFAULT_SESSION_TITLE, VoiceNoteSession
 
@@ -12,6 +12,12 @@ class SessionChoice:
     mode: str
     title: str | None = None
     session_dir: str | None = None
+
+
+@dataclass(frozen=True)
+class NoteEditResult:
+    mode: str
+    text: str | None = None
 
 
 class SessionChooserScreen(ModalScreen[SessionChoice | None]):
@@ -133,3 +139,74 @@ class SessionChooserScreen(ModalScreen[SessionChoice | None]):
             (f"{session.title}  ({session.timestamp})", str(session.session_dir))
             for session in self.sessions
         ]
+
+
+class NoteEditorScreen(ModalScreen[NoteEditResult | None]):
+    CSS = """
+    NoteEditorScreen {
+        align: center middle;
+    }
+
+    #dialog {
+        width: 80;
+        height: 24;
+        padding: 1 2;
+        border: tall $accent;
+        background: $surface;
+    }
+
+    #title {
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #editor {
+        height: 1fr;
+        border: solid $surface;
+        margin: 1 0;
+    }
+
+    #actions {
+        height: auto;
+    }
+    """
+
+    def __init__(self, title: str, text: str = "") -> None:
+        super().__init__()
+        self.title = title
+        self.text = text
+
+    def compose(self):
+        yield Container(
+            Static(self.title, id="title"),
+            Static("Ctrl+Enter saves, Esc cancels."),
+            TextArea(text=self.text, id="editor"),
+            Container(
+                Button("Save", variant="primary", id="save-note"),
+                Button("Cancel", variant="error", id="cancel-note"),
+                id="actions",
+            ),
+            id="dialog",
+        )
+
+    def on_mount(self) -> None:
+        self.query_one("#editor", TextArea).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "save-note":
+            self.dismiss(
+                NoteEditResult(
+                    mode="save",
+                    text=self.query_one("#editor", TextArea).text,
+                )
+            )
+        elif event.button.id == "cancel-note":
+            self.dismiss(NoteEditResult(mode="cancel"))
+
+    def action_submit(self) -> None:
+        self.dismiss(
+            NoteEditResult(
+                mode="save",
+                text=self.query_one("#editor", TextArea).text,
+            )
+        )

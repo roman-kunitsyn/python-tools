@@ -12,6 +12,7 @@ def build_service(
     settings: VoiceNoteSettings,
     session_dir: Path,
 ) -> VoiceNoteService:
+    keep_audio = True if settings.mode == "tui" else settings.keep_audio
     session_store = SessionNoteStore(
         notes_file=settings.json_output_file or session_dir / "notes.json",
         transcript_file=settings.text_output_file or session_dir / "transcribe.txt",
@@ -24,7 +25,7 @@ def build_service(
         audio_file=settings.audio_file,
         audio_device=settings.audio_device,
         max_recording_seconds=settings.max_recording_seconds,
-        keep_audio=settings.keep_audio,
+        keep_audio=keep_audio,
         verbose=False,
     )
     transcriber = WhisperTranscriber(

@@ -18,7 +18,12 @@ from voice_note.models.settings import VoiceNoteSettings
 from voice_note.services.runtime import build_service
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService
-from voice_note.tui.screens import SessionChooserScreen, SessionChoice
+from voice_note.tui.screens import (
+    NoteEditResult,
+    NoteEditorScreen,
+    SessionChooserScreen,
+    SessionChoice,
+)
 
 
 STATUS_CLASSES = (
@@ -158,7 +163,12 @@ class VoiceNoteApp(App):
         ("space", "toggle_recording", "Record"),
         ("enter", "open_session", "Open Session"),
         ("o", "open_session", "Open Session"),
+        ("n", "new_note", "New Note"),
+        ("e", "edit_note", "Edit Note"),
+        ("delete", "delete_note", "Delete Note"),
         ("p", "play_note", "Play Note"),
+        ("j", "next_note", "Next Note"),
+        ("k", "previous_note", "Previous Note"),
         ("+", "zoom_in", "Zoom In"),
         ("-", "zoom_out", "Zoom Out"),
         ("ctrl+s", "save_notes", "Save"),
@@ -224,15 +234,18 @@ class VoiceNoteApp(App):
                     ),
                     id="notes-panel",
                 ),
-                Vertical(
-                    Static("Selected note", id="details-title"),
-                    Static("", id="note-detail"),
-                    Container(
-                        Button("Play", id="play-selected", variant="primary"),
-                        Button("Open Folder", id="open-session"),
-                        id="note-actions",
-                    ),
-                    id="details-card",
+                    Vertical(
+                        Static("Selected note", id="details-title"),
+                        Static("", id="note-detail"),
+                        Container(
+                            Button("New", variant="primary", id="new-note"),
+                            Button("Edit", id="edit-note"),
+                            Button("Delete", variant="error", id="delete-note"),
+                            Button("Play", id="play-selected", variant="primary"),
+                            Button("Open Folder", id="open-session"),
+                            id="note-actions",
+                        ),
+                        id="details-card",
                 ),
                 id="main-panels",
             ),
@@ -323,7 +336,37 @@ class VoiceNoteApp(App):
         self._set_status("Status: Saved")
 
     def action_insert_timestamp(self) -> None:
-        self._set_status("Status: Manual note entry is pending")
+        self.action_new_note()
+
+    def action_new_note(self) -> None:
+        self._open_note_editor(title="New note")
+
+    def action_edit_note(self) -> None:
+        note = self._selected_note()
+        if note is None:
+            self._set_status("Status: Error: no note selected")
+            return
+
+        self._open_note_editor(title="Edit note", note=note)
+
+    def action_delete_note(self) -> None:
+        note = self._selected_note()
+        if note is None:
+            self._set_status("Status: Error: no note selected")
+            return
+
+        if self.service is None or self.service.session_store is None:
+            self._set_status("Status: Error: session store is not ready")
+            return
+
+        try:
+            self.service.session_store.delete_note(note.note_id)
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        self._reload_notes_from_store()
+        self._set_status("Status: Saved")
 
     def action_play_note(self) -> None:
         note = self._selected_note()
@@ -353,6 +396,12 @@ class VoiceNoteApp(App):
 
     def action_zoom_out(self) -> None:
         self._set_note_zoom(max(1, self.note_zoom - 1))
+
+    def action_next_note(self) -> None:
+        self._move_note_selection(1)
+
+    def action_previous_note(self) -> None:
+        self._move_note_selection(-1)
 
     def _stop_recording(self, time_overflow: bool = False) -> None:
         if self.service is None:
@@ -429,7 +478,7 @@ class VoiceNoteApp(App):
     def _render_notes(self) -> None:
         table = self.query_one("#notes-table", TranscriptTable)
         table.clear(columns=False)
-        if not table.columns:
+        if table.row_count == 0 and len(table.columns) == 0:
             table.add_columns("Time", "Note", "Audio")
 
         for note in self.notes:
@@ -499,10 +548,58 @@ class VoiceNoteApp(App):
             self.action_play_note()
         elif event.button.id == "open-session":
             self.action_open_session()
+        elif event.button.id == "new-note":
+            self.action_new_note()
+        elif event.button.id == "edit-note":
+            self.action_edit_note()
+        elif event.button.id == "delete-note":
+            self.action_delete_note()
         elif event.button.id == "zoom-in":
             self.action_zoom_in()
         elif event.button.id == "zoom-out":
             self.action_zoom_out()
+
+    def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
+        initial_text = note.text if note is not None else ""
+        self.push_screen(
+            NoteEditorScreen(title=title, text=initial_text),
+            callback=lambda result: self._on_note_editor_result(result, note),
+        )
+
+    def _on_note_editor_result(
+        self,
+        result: NoteEditResult | None,
+        original_note: SessionNote | None,
+    ) -> None:
+        if result is None or result.mode != "save" or result.text is None:
+            return
+
+        if self.service is None or self.service.session_store is None:
+            self._set_status("Status: Error: session store is not ready")
+            return
+
+        try:
+            if original_note is None:
+                saved_note = self.service.session_store.append_note(result.text)
+            else:
+                saved_note = self.service.session_store.update_note(
+                    original_note.note_id,
+                    result.text,
+                )
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        self._reload_notes_from_store(select_note_id=saved_note.note_id)
+        self._set_status("Status: Saved")
+
+    def _reload_notes_from_store(self, select_note_id: str | None = None) -> None:
+        if self.service is None or self.service.session_store is None:
+            return
+
+        self.notes = self.service.session_store.load_notes()
+        self.selected_note_id = select_note_id or (self.notes[0].note_id if self.notes else None)
+        self._render_notes()
 
     def _selected_note(self) -> SessionNote | None:
         if self.selected_note_id is None:
@@ -531,6 +628,35 @@ class VoiceNoteApp(App):
 
         self.selected_note_id = self.notes[0].note_id
         table.move_cursor(row=0)
+
+    def _set_selected_note_by_index(self, index: int) -> None:
+        if not self.notes:
+            self.selected_note_id = None
+            return
+
+        index = max(0, min(index, len(self.notes) - 1))
+        self.selected_note_id = self.notes[index].note_id
+        table = self.query_one("#notes-table", TranscriptTable)
+        table.move_cursor(row=index)
+        self._update_detail_panel()
+
+    def _move_note_selection(self, delta: int) -> None:
+        if not self.notes:
+            return
+
+        current_index = self._selected_note_index()
+        next_index = max(0, min(len(self.notes) - 1, current_index + delta))
+        self._set_selected_note_by_index(next_index)
+
+    def _selected_note_index(self) -> int:
+        if self.selected_note_id is None:
+            return 0
+
+        for index, note in enumerate(self.notes):
+            if note.note_id == self.selected_note_id:
+                return index
+
+        return 0
 
     def _update_detail_panel(self) -> None:
         note = self._selected_note()

@@ -49,6 +49,37 @@ class SessionNoteStore:
         self._write(notes)
         return note
 
+    def update_note(self, note_id: str, text: str) -> SessionNote:
+        notes = self.load_notes()
+        updated_notes: list[SessionNote] = []
+        updated_note: SessionNote | None = None
+
+        for note in notes:
+            if note.note_id == note_id:
+                updated_note = SessionNote(
+                    note_id=note.note_id,
+                    text=text.strip(),
+                    created_at=note.created_at,
+                    audio_file=note.audio_file,
+                )
+                updated_notes.append(updated_note)
+            else:
+                updated_notes.append(note)
+
+        if updated_note is None:
+            raise KeyError(f"Note not found: {note_id}")
+
+        self._write(updated_notes)
+        return updated_note
+
+    def delete_note(self, note_id: str) -> None:
+        notes = self.load_notes()
+        filtered_notes = [note for note in notes if note.note_id != note_id]
+        if len(filtered_notes) == len(notes):
+            raise KeyError(f"Note not found: {note_id}")
+
+        self._write(filtered_notes)
+
     def replace_notes(self, notes: list[SessionNote]) -> None:
         ordered_notes = sorted(notes, key=lambda note: note.created_at, reverse=True)
         self._write(ordered_notes)

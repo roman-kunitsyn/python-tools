@@ -323,6 +323,31 @@ class SessionNoteStoreTest(unittest.TestCase):
             "[2026-07-04 12:36:12]\n\nsecond\n\n[2026-07-04 12:35:16]\n\nfirst\n",
         )
 
+    def test_updates_and_deletes_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
+            store = SessionNoteStore(
+                notes_file=session_dir / "notes.json",
+                transcript_file=session_dir / "transcribe.txt",
+                session="voice_note_2026_07_04-12_34_58",
+                append_timestamp=False,
+            )
+
+            note = store.append_note(
+                "original",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+                audio_file=Path("audio_1.wav"),
+            )
+            updated_note = store.update_note(note.note_id, "edited text")
+            store.delete_note(note.note_id)
+
+            payload = json.loads((session_dir / "notes.json").read_text())
+            transcript_text = (session_dir / "transcribe.txt").read_text()
+
+        self.assertEqual(updated_note.text, "edited text")
+        self.assertEqual(payload["data"], [])
+        self.assertEqual(transcript_text, "")
+
 
 class WhisperTranscriberTest(unittest.TestCase):
     def test_transcribe_uses_translate_flag_for_english_output(self) -> None:
