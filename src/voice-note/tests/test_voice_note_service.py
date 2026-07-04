@@ -9,6 +9,7 @@ from voice_note.cli.parser import build_settings_from_args
 from voice_note.models.note import VoiceNote
 from voice_note.models.session import slugify_session_title
 from voice_note.models.settings import VoiceNoteSettings
+from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
@@ -90,27 +91,40 @@ class VoiceNoteServiceTest(unittest.TestCase):
 
     def test_stop_writes_transcript_json_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            json_file = Path(temp_dir) / "transcribe.json"
+            session_dir = Path(temp_dir) / "voice_note_2026_06_23-22_15_00"
+            store = SessionNoteStore(
+                notes_file=session_dir / "notes.json",
+                transcript_file=session_dir / "transcribe.txt",
+                session="voice_note_2026_06_23-22_15_00",
+                append_timestamp=False,
+            )
             service = VoiceNoteService(
                 recorder=FakeRecorder(),
                 transcriber=FakeTranscriber(),
                 writer=MemoryWriter(),
-                json_writer=TranscriptJsonWriter(
-                    output_file=json_file,
-                    session="voice_note_2026_06_23-22_15_00",
-                ),
+                session_store=store,
+                append_timestamp=False,
             )
 
             service.start_recording()
             service.stop_recording_and_transcribe()
 
-            payload = json.loads(json_file.read_text())
+            payload = json.loads((session_dir / "notes.json").read_text())
+            transcript_text = (session_dir / "transcribe.txt").read_text()
 
         self.assertEqual(payload["session"], "voice_note_2026_06_23-22_15_00")
         self.assertEqual(
             payload["data"],
-            [{"audio": "note.wav", "text": "hello world"}],
+            [
+                {
+                    "id": payload["data"][0]["id"],
+                    "text": "hello world",
+                    "created_at": payload["data"][0]["created_at"],
+                    "audio_file": "note.wav",
+                }
+            ],
         )
+        self.assertEqual(transcript_text, "hello world\n")
 
     def test_format_note_with_timestamp(self) -> None:
         note = VoiceNote(
@@ -145,12 +159,13 @@ class SettingsTest(unittest.TestCase):
             None,
         )
         self.assertEqual(settings.text_output_file, settings.session_dir / "transcribe.txt")
-        self.assertEqual(settings.json_output_file, settings.session_dir / "transcribe.json")
+        self.assertEqual(settings.json_output_file, settings.session_dir / "notes.json")
         self.assertEqual(settings.log_file, settings.session_dir / "log.txt")
         self.assertEqual(settings.audio_device, "built-in microphone")
         self.assertEqual(settings.editor, "code")
         self.assertEqual(settings.max_recording_seconds, 90)
         self.assertTrue(settings.keep_audio)
+        self.assertEqual(settings.session_title, "voice_note")
 
     def test_loads_json_config(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -257,7 +272,7 @@ class SessionServiceTest(unittest.TestCase):
             self.assertTrue(session.session_dir.exists())
             self.assertTrue(session.audio_dir.exists())
             self.assertTrue(session.transcript_file.exists())
-            self.assertTrue(session.transcript_json_file.exists())
+            self.assertTrue(session.notes_file.exists())
             self.assertTrue(session.log_file.exists())
 
             discovered = service.discover_sessions()
@@ -273,6 +288,40 @@ class SessionServiceTest(unittest.TestCase):
         self.assertEqual(slugify_session_title("Project Review"), "project_review")
         self.assertEqual(slugify_session_title(""), "voice_note")
         self.assertEqual(slugify_session_title("  "), "voice_note")
+
+
+class SessionNoteStoreTest(unittest.TestCase):
+    def test_appends_notes_newest_first_and_renders_transcript(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
+            store = SessionNoteStore(
+                notes_file=session_dir / "notes.json",
+                transcript_file=session_dir / "transcribe.txt",
+                session="voice_note_2026_07_04-12_34_58",
+                append_timestamp=True,
+            )
+
+            first = store.append_note(
+                "first",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+                audio_file=Path("audio_1.wav"),
+            )
+            second = store.append_note(
+                "second",
+                created_at=datetime(2026, 7, 4, 12, 36, 12),
+                audio_file=Path("audio_2.wav"),
+            )
+
+            notes = store.load_notes()
+            payload = json.loads((session_dir / "notes.json").read_text())
+            transcript_text = (session_dir / "transcribe.txt").read_text()
+
+        self.assertEqual([note.note_id for note in notes], [second.note_id, first.note_id])
+        self.assertEqual(payload["data"][0]["text"], "second")
+        self.assertEqual(
+            transcript_text,
+            "[2026-07-04 12:36:12]\n\nsecond\n\n[2026-07-04 12:35:16]\n\nfirst\n",
+        )
 
 
 class WhisperTranscriberTest(unittest.TestCase):

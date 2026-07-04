@@ -28,7 +28,7 @@ class VoiceNoteSession:
 
     @property
     def transcript_json_file(self) -> Path:
-        return self.session_dir / "transcribe.json"
+        return self.notes_file
 
     @property
     def notes_file(self) -> Path:

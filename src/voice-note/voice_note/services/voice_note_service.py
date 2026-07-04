@@ -3,7 +3,8 @@ from pathlib import Path
 from typing import Protocol
 
 from voice_note.models.note import VoiceNote
-from voice_note.output.writer import TextWriter, TranscriptJsonWriter
+from voice_note.output.session_store import SessionNoteStore
+from voice_note.output.writer import TextWriter
 
 
 class Recorder(Protocol):
@@ -28,13 +29,13 @@ class VoiceNoteService:
         recorder: Recorder,
         transcriber: Transcriber,
         writer: TextWriter,
-        json_writer: TranscriptJsonWriter | None = None,
+        session_store: SessionNoteStore | None = None,
         append_timestamp: bool = False,
     ) -> None:
         self.recorder = recorder
         self.transcriber = transcriber
         self.writer = writer
-        self.json_writer = json_writer
+        self.session_store = session_store
         self.append_timestamp = append_timestamp
         self._current_audio_file: Path | None = None
 
@@ -44,6 +45,9 @@ class VoiceNoteService:
 
     @property
     def output_file(self) -> Path | None:
+        if self.session_store is not None:
+            return self.session_store.transcript_file
+
         return self.writer.output_file
 
     def start_recording(self) -> Path:
@@ -58,9 +62,14 @@ class VoiceNoteService:
         self._current_audio_file = None
         text = self.transcriber.transcribe(audio_file).strip()
         note = VoiceNote(text=text, created_at=datetime.now(), audio_file=audio_file)
-        self.writer.write(format_note(note, self.append_timestamp))
-        if self.json_writer is not None:
-            self.json_writer.write_note(note)
+        if self.session_store is not None:
+            self.session_store.append_note(
+                text=note.text,
+                created_at=note.created_at,
+                audio_file=note.audio_file,
+            )
+        else:
+            self.writer.write(format_note(note, self.append_timestamp))
         self.recorder.cleanup(audio_file)
         return note
 

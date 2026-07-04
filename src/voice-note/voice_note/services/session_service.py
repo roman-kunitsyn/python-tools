@@ -98,8 +98,8 @@ class SessionService:
     def _initialize_session(self, session: VoiceNoteSession) -> None:
         session.audio_dir.mkdir(parents=True, exist_ok=True)
         self._write_metadata(session)
+        session.notes_file.touch(exist_ok=True)
         session.transcript_file.touch(exist_ok=True)
-        session.transcript_json_file.touch(exist_ok=True)
         session.log_file.touch(exist_ok=True)
 
     def _read_metadata(self, session_dir: Path) -> dict | None:

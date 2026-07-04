@@ -68,7 +68,7 @@ class VoiceNoteSettings:
         )
         audio_output_folder = self.audio_output_folder or session_dir / "audio"
         text_output_file = self.text_output_file or session_dir / "transcribe.txt"
-        json_output_file = self.json_output_file or session_dir / "transcribe.json"
+        json_output_file = self.json_output_file or session_dir / "notes.json"
         log_file = self.log_file or session_dir / "log.txt"
 
         return VoiceNoteSettings(

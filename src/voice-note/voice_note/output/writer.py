@@ -17,6 +17,11 @@ class StdoutWriter(TextWriter):
         print(text)
 
 
+class NullWriter(TextWriter):
+    def write(self, text: str) -> None:
+        return None
+
+
 class FileWriter(TextWriter):
     writes_to_file = True
 

@@ -167,7 +167,10 @@ class VoiceNoteApp(App):
             return
 
         self.service = build_service(self.settings, self.session.session_dir)
+        if self.service.session_store is not None:
+            self.notes = [note.text for note in self.service.session_store.load_notes()]
         self._refresh_session_widgets()
+        self._render_notes()
         self._set_status("Status: Idle")
 
     def action_toggle_recording(self) -> None:
@@ -273,7 +276,7 @@ class VoiceNoteApp(App):
         return max(0, math.ceil(self.settings.max_recording_seconds - elapsed))
 
     def _add_note(self, text: str) -> None:
-        self.notes.append(text)
+        self.notes.insert(0, text)
         self._render_notes()
         self.recording_started_at = None
         self.stopping = False
