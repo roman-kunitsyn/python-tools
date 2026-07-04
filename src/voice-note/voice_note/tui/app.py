@@ -98,7 +98,7 @@ class VoiceNoteApp(App):
     }
 
     #qr-card {
-        width: 18;
+        width: 1fr;
         height: auto;
         margin-left: 1;
     }
@@ -148,7 +148,7 @@ class VoiceNoteApp(App):
 
     #qr-code {
         color: $accent;
-        padding: 0;
+        padding: 1;
         height: auto;
     }
 
