@@ -142,6 +142,11 @@ class SessionChooserScreen(ModalScreen[SessionChoice | None]):
 
 
 class NoteEditorScreen(ModalScreen[NoteEditResult | None]):
+    BINDINGS = [
+        ("ctrl+enter", "submit", "Save"),
+        ("escape", "cancel", "Cancel"),
+    ]
+
     CSS = """
     NoteEditorScreen {
         align: center middle;
@@ -168,6 +173,8 @@ class NoteEditorScreen(ModalScreen[NoteEditResult | None]):
 
     #actions {
         height: auto;
+        layout: horizontal;
+        margin-top: 1;
     }
     """
 
@@ -182,8 +189,8 @@ class NoteEditorScreen(ModalScreen[NoteEditResult | None]):
             Static("Ctrl+Enter saves, Esc cancels."),
             TextArea(text=self.text, id="editor"),
             Container(
-                Button("Save", variant="primary", id="save-note"),
-                Button("Cancel", variant="error", id="cancel-note"),
+                Button("Save [Ctrl+Enter]", variant="primary", id="save-note"),
+                Button("Cancel [Esc]", variant="error", id="cancel-note"),
                 id="actions",
             ),
             id="dialog",
@@ -194,14 +201,9 @@ class NoteEditorScreen(ModalScreen[NoteEditResult | None]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save-note":
-            self.dismiss(
-                NoteEditResult(
-                    mode="save",
-                    text=self.query_one("#editor", TextArea).text,
-                )
-            )
+            self.action_submit()
         elif event.button.id == "cancel-note":
-            self.dismiss(NoteEditResult(mode="cancel"))
+            self.action_cancel()
 
     def action_submit(self) -> None:
         self.dismiss(
@@ -210,3 +212,6 @@ class NoteEditorScreen(ModalScreen[NoteEditResult | None]):
                 text=self.query_one("#editor", TextArea).text,
             )
         )
+
+    def action_cancel(self) -> None:
+        self.dismiss(NoteEditResult(mode="cancel"))

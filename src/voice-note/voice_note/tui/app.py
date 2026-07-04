@@ -9,7 +9,16 @@ from textual import events
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.timer import Timer
-from textual.widgets import Button, DataTable, Footer, Header, Link, Static, TabbedContent, TabPane
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Link,
+    Static,
+    TabbedContent,
+    TabPane,
+)
 
 from voice_note.audio.player import play_audio_file
 from voice_note.models.session import VoiceNoteSession
@@ -258,19 +267,6 @@ class VoiceNoteApp(App):
                             ),
                             id="notes-panel",
                         ),
-                        Vertical(
-                            Static("Selected note", id="details-title"),
-                            Static("", id="note-detail"),
-                            Horizontal(
-                                Button("New", variant="primary", id="new-note"),
-                                Button("Edit", id="edit-note"),
-                                Button("Delete", variant="error", id="delete-note"),
-                                Button("Play", id="play-selected", variant="primary"),
-                                Button("Open Folder", id="open-session"),
-                                id="note-actions",
-                            ),
-                            id="details-card",
-                        ),
                     )
                 with TabPane("Session", id="session"):
                     yield Vertical(
@@ -278,8 +274,14 @@ class VoiceNoteApp(App):
                             Vertical(
                                 Static("", id="session-title"),
                                 Static("", id="session-description"),
-                                SessionLink("Session: not selected", id="session-folder-path"),
-                                Button("Open Folder", variant="primary", id="open-session-session"),
+                                SessionLink(
+                                    "Session: not selected", id="session-folder-path"
+                                ),
+                                Button(
+                                    "Open Folder",
+                                    variant="primary",
+                                    id="open-session-session",
+                                ),
                                 id="session-card",
                             ),
                             Vertical(
@@ -516,7 +518,11 @@ class VoiceNoteApp(App):
         )
 
     def _stop_countdown_timers(self) -> None:
-        for timer in (self.countdown_timer, self.status_blink_timer, self.overflow_timer):
+        for timer in (
+            self.countdown_timer,
+            self.status_blink_timer,
+            self.overflow_timer,
+        ):
             if timer is not None:
                 timer.stop()
         self.countdown_timer = None
@@ -599,7 +605,9 @@ class VoiceNoteApp(App):
             self.session.session_dir,
             self.settings.editor,
         )
-        self.query_one("#qr-code", Static).update(_render_qr_art(_qr_payload(self.session)))
+        self.query_one("#qr-code", Static).update(
+            _render_qr_art(_qr_payload(self.session))
+        )
         self.query_one("#notes-table", TranscriptTable).focus()
 
     def _refresh_settings_widgets(self) -> None:
@@ -641,7 +649,9 @@ class VoiceNoteApp(App):
         self.active_tab = tab
         self.query_one("#main-tabs", TabbedContent).active = tab
 
-    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+    def on_tabbed_content_tab_activated(
+        self, event: TabbedContent.TabActivated
+    ) -> None:
         if event.tabbed_content.id != "main-tabs":
             return
 
@@ -712,7 +722,9 @@ class VoiceNoteApp(App):
             return
 
         self.notes = self.service.session_store.load_notes()
-        self.selected_note_id = select_note_id or (self.notes[0].note_id if self.notes else None)
+        self.selected_note_id = select_note_id or (
+            self.notes[0].note_id if self.notes else None
+        )
         self._render_notes()
 
     def _selected_note(self) -> SessionNote | None:
@@ -773,8 +785,12 @@ class VoiceNoteApp(App):
         return 0
 
     def _update_detail_panel(self) -> None:
+        try:
+            detail = self.query_one("#note-detail", Static)
+        except Exception:
+            return
+
         note = self._selected_note()
-        detail = self.query_one("#note-detail", Static)
         if note is None:
             detail.update("No note selected.")
             return
@@ -812,7 +828,6 @@ class VoiceNoteApp(App):
         self.note_zoom = value
         table = self.query_one("#notes-table", TranscriptTable)
         table.cell_padding = self.note_zoom
-
 
 
 def _format_status(status: str) -> str:
@@ -871,7 +886,9 @@ def _transcript_link(target: VoiceNoteSession | Path | None) -> str:
     return f"Session: {session_path}"
 
 
-def _transcript_url(target: VoiceNoteSession | Path | None, editor: str = "code") -> str | None:
+def _transcript_url(
+    target: VoiceNoteSession | Path | None, editor: str = "code"
+) -> str | None:
     if target is None:
         return None
 
@@ -939,8 +956,7 @@ def _render_qr_art(target: Path | str) -> str:
         qr.make(fit=True)
         matrix = qr.get_matrix()
         return "\n".join(
-            "".join("██" if cell else "  " for cell in row)
-            for row in matrix
+            "".join("██" if cell else "  " for cell in row) for row in matrix
         )
     except Exception:
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
