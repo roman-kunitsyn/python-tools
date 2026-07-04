@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from voice_note.models.session import DEFAULT_SESSION_TITLE, build_session_folder_name
+
 
 DEFAULT_VOICE_NOTES_DIR = Path("logs") / "voice_notes"
 TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
@@ -23,6 +25,7 @@ class VoiceNoteSettings:
     model: str = "small"
     verbose: bool = False
     session_dir: Path | None = None
+    session_title: str = DEFAULT_SESSION_TITLE
     audio_file: Path | None = None
     log_file: Path | None = None
     audio_device: str | None = DEFAULT_AUDIO_DEVICE
@@ -43,6 +46,7 @@ class VoiceNoteSettings:
             model=payload.get("model", "small"),
             verbose=bool(payload.get("verbose", False)),
             session_dir=_optional_path(payload.get("session_dir")),
+            session_title=payload.get("session_title", DEFAULT_SESSION_TITLE),
             audio_file=_optional_path(payload.get("audio_file")),
             log_file=_optional_path(payload.get("log_file")),
             audio_device=payload.get("audio_device", DEFAULT_AUDIO_DEVICE),
@@ -58,7 +62,10 @@ class VoiceNoteSettings:
         base_dir: Path = DEFAULT_VOICE_NOTES_DIR,
     ) -> "VoiceNoteSettings":
         timestamp = timestamp or build_timestamp()
-        session_dir = self.session_dir or base_dir / f"voice_note_{timestamp}"
+        session_dir = self.session_dir or base_dir / build_session_folder_name(
+            self.session_title,
+            timestamp,
+        )
         audio_output_folder = self.audio_output_folder or session_dir / "audio"
         text_output_file = self.text_output_file or session_dir / "transcribe.txt"
         json_output_file = self.json_output_file or session_dir / "transcribe.json"
@@ -75,6 +82,7 @@ class VoiceNoteSettings:
             model=self.model,
             verbose=self.verbose,
             session_dir=session_dir,
+            session_title=self.session_title,
             audio_file=self.audio_file,
             log_file=log_file,
             audio_device=self.audio_device,

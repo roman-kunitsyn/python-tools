@@ -7,8 +7,10 @@ from pathlib import Path
 
 from voice_note.cli.parser import build_settings_from_args
 from voice_note.models.note import VoiceNote
+from voice_note.models.session import slugify_session_title
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
+from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
 from voice_note.tui.app import (
@@ -156,6 +158,7 @@ class SettingsTest(unittest.TestCase):
             config_file.write_text(
                 '{"mode":"tui","language":"en","model":"small",'
                 '"append_timestamp":true,"keep_audio":true,'
+                '"session_title":"project review",'
                 '"audio_output_folder":"./audio","text_output_file":"./notes.md"}'
             )
 
@@ -166,6 +169,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.model, "small")
         self.assertTrue(settings.append_timestamp)
         self.assertTrue(settings.keep_audio)
+        self.assertEqual(settings.session_title, "project review")
         self.assertEqual(settings.audio_output_folder, Path("./audio"))
         self.assertEqual(settings.text_output_file, Path("./notes.md"))
         self.assertEqual(settings.audio_device, "built-in microphone")
@@ -239,6 +243,36 @@ class TranscriptJsonWriterTest(unittest.TestCase):
                 {"audio": "audio_2.wav", "text": "second"},
             ],
         )
+
+
+class SessionServiceTest(unittest.TestCase):
+    def test_creates_discovers_and_renames_sessions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = SessionService(base_dir=Path(temp_dir) / "voice_notes")
+            session = service.create_session(title="Project Review", timestamp="2026_07_04-12_34_58")
+
+            self.assertEqual(session.title, "Project Review")
+            self.assertEqual(session.slug, "project_review")
+            self.assertEqual(session.folder_name, "project_review_2026_07_04-12_34_58")
+            self.assertTrue(session.session_dir.exists())
+            self.assertTrue(session.audio_dir.exists())
+            self.assertTrue(session.transcript_file.exists())
+            self.assertTrue(session.transcript_json_file.exists())
+            self.assertTrue(session.log_file.exists())
+
+            discovered = service.discover_sessions()
+            self.assertEqual([item.session_dir for item in discovered], [session.session_dir])
+
+            renamed = service.rename_session(session, "Daily Standup")
+            self.assertEqual(renamed.title, "Daily Standup")
+            self.assertEqual(renamed.slug, "daily_standup")
+            self.assertEqual(renamed.folder_name, "daily_standup_2026_07_04-12_34_58")
+            self.assertTrue(renamed.session_dir.exists())
+
+    def test_slugify_session_title(self) -> None:
+        self.assertEqual(slugify_session_title("Project Review"), "project_review")
+        self.assertEqual(slugify_session_title(""), "voice_note")
+        self.assertEqual(slugify_session_title("  "), "voice_note")
 
 
 class WhisperTranscriberTest(unittest.TestCase):
@@ -366,11 +400,20 @@ class TuiStatusTest(unittest.TestCase):
         )
 
         self.assertEqual(_session_name(transcript_file), "voice_note_2026_06_23-22_15_00")
-        self.assertEqual(_transcript_link(transcript_file), f"Transcript: {transcript_file}")
-        self.assertEqual(_transcript_url(transcript_file, "code"), _vscode_url(transcript_file))
-        self.assertEqual(_transcript_url(transcript_file, "nvim"), transcript_file.resolve().as_uri())
+        self.assertEqual(
+            _transcript_link(transcript_file),
+            f"Session: {transcript_file.parent}",
+        )
+        self.assertEqual(
+            _transcript_url(transcript_file, "code"),
+            _vscode_url(transcript_file.parent),
+        )
+        self.assertEqual(
+            _transcript_url(transcript_file, "nvim"),
+            transcript_file.parent.resolve().as_uri(),
+        )
         self.assertEqual(_session_name(None), "Voice Note Session")
-        self.assertEqual(_transcript_link(None), "Transcript: stdout")
+        self.assertEqual(_transcript_link(None), "Session: not selected")
         self.assertIsNone(_transcript_url(None))
 
     def test_editor_normalization(self) -> None:
@@ -381,15 +424,15 @@ class TuiStatusTest(unittest.TestCase):
             _normalize_editor("vim")
 
     def test_editor_commands(self) -> None:
-        transcript_file = Path("logs/voice_notes/session/transcribe.txt")
+        session_dir = Path("logs/voice_notes/session")
 
         self.assertEqual(
-            _editor_command(transcript_file, "code"),
-            ["code", "-g", str(transcript_file)],
+            _editor_command(session_dir, "code"),
+            ["code", str(session_dir)],
         )
         self.assertEqual(
-            _editor_command(transcript_file, "nvim"),
-            ["nvim", str(transcript_file)],
+            _editor_command(session_dir, "nvim"),
+            ["nvim", str(session_dir)],
         )
 
 

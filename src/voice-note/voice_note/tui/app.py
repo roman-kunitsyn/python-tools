@@ -4,13 +4,18 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
+from textual import events
 from textual.app import App, ComposeResult
 from textual.containers import Container
-from textual import events
 from textual.timer import Timer
 from textual.widgets import Footer, Header, Link, Static
 
+from voice_note.models.session import VoiceNoteSession
+from voice_note.models.settings import VoiceNoteSettings
+from voice_note.services.runtime import build_service
+from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService
+from voice_note.tui.screens import SessionChooserScreen, SessionChoice
 
 
 STATUS_CLASSES = (
@@ -44,7 +49,7 @@ class VoiceNoteApp(App):
         text-style: bold;
     }
 
-    #transcript-link {
+    #session-link {
         color: $accent;
     }
 
@@ -89,7 +94,8 @@ class VoiceNoteApp(App):
 
     BINDINGS = [
         ("space", "toggle_recording", "Record"),
-        ("o", "open_transcript", "Open Transcript"),
+        ("enter", "open_session", "Open Session"),
+        ("o", "open_session", "Open Session"),
         ("ctrl+s", "save_notes", "Save"),
         ("ctrl+l", "insert_timestamp", "Timestamp"),
         ("escape", "quit", "Exit"),
@@ -98,14 +104,14 @@ class VoiceNoteApp(App):
 
     def __init__(
         self,
-        service: VoiceNoteService,
-        editor: str = "code",
-        max_recording_seconds: int = 300,
+        settings: VoiceNoteSettings,
+        session_service: SessionService,
     ) -> None:
         super().__init__()
-        self.service = service
-        self.editor = editor
-        self.max_recording_seconds = max_recording_seconds
+        self.settings = settings
+        self.session_service = session_service
+        self.session: VoiceNoteSession | None = None
+        self.service: VoiceNoteService | None = None
         self.recording = False
         self.notes: list[str] = []
         self.recording_started_at: float | None = None
@@ -116,22 +122,59 @@ class VoiceNoteApp(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
-            Static(self.session_name, id="session-name"),
-            TranscriptLink(
-                self.transcript_link,
-                url=self.transcript_url,
-                id="transcript-link",
-            ),
+            Static("Choose or create a session", id="session-name"),
+            SessionLink("Session: not selected", id="session-link"),
             Static("", id="notes"),
             id="content",
         )
         yield Container(
-            Static("Status: Idle", id="status", classes="status-idle"),
+            Static("Status: Starting...", id="status", classes="status-idle"),
             Footer(),
             id="app-footer",
         )
 
+    def on_mount(self) -> None:
+        sessions = self.session_service.discover_sessions()
+        self.push_screen(
+            SessionChooserScreen(
+                sessions=sessions,
+                default_title=self.settings.session_title,
+            ),
+            callback=self._on_session_choice,
+        )
+
+    def _on_session_choice(self, choice: SessionChoice | None) -> None:
+        if choice is None:
+            self.exit()
+            return
+
+        self._activate_choice(choice)
+
+    def _activate_choice(self, choice: SessionChoice) -> None:
+        try:
+            if choice.mode == "new":
+                self.session = self.session_service.create_session(choice.title)
+            elif choice.session_dir is not None:
+                loaded = self.session_service.load_session(Path(choice.session_dir))
+                if loaded is None:
+                    raise RuntimeError(f"Unable to load session: {choice.session_dir}")
+                self.session = loaded
+            else:
+                raise RuntimeError("No session was selected")
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            self.exit(1)
+            return
+
+        self.service = build_service(self.settings, self.session.session_dir)
+        self._refresh_session_widgets()
+        self._set_status("Status: Idle")
+
     def action_toggle_recording(self) -> None:
+        if self.service is None:
+            self._set_status("Status: Error: session is not ready")
+            return
+
         if self.recording:
             self._stop_recording()
             return
@@ -151,14 +194,13 @@ class VoiceNoteApp(App):
     def action_save_notes(self) -> None:
         self._set_status("Status: Saved")
 
-    def action_open_transcript(self) -> None:
-        transcript_file = self.service.output_file
-        if transcript_file is None:
-            self._set_status("Status: Error: transcript is stdout")
+    def action_open_session(self) -> None:
+        if self.session is None:
+            self._set_status("Status: Error: session is not ready")
             return
 
         try:
-            open_transcript_file(transcript_file, self.editor, self)
+            open_session_folder(self.session.session_dir, self.settings.editor, self)
         except Exception as error:
             self._set_status(f"Status: Error: {error}")
             return
@@ -172,6 +214,10 @@ class VoiceNoteApp(App):
         self._render_notes()
 
     def _stop_recording(self, time_overflow: bool = False) -> None:
+        if self.service is None:
+            self._set_status("Status: Error: session is not ready")
+            return
+
         if self.stopping:
             return
 
@@ -199,7 +245,7 @@ class VoiceNoteApp(App):
         self._stop_countdown_timers()
         self.countdown_timer = self.set_interval(1, self._set_recording_status)
         self.overflow_timer = self.set_timer(
-            self.max_recording_seconds,
+            self.settings.max_recording_seconds,
             self._handle_time_overflow,
         )
 
@@ -221,10 +267,10 @@ class VoiceNoteApp(App):
 
     def _remaining_seconds(self) -> int:
         if self.recording_started_at is None:
-            return self.max_recording_seconds
+            return self.settings.max_recording_seconds
 
         elapsed = time.monotonic() - self.recording_started_at
-        return max(0, math.ceil(self.max_recording_seconds - elapsed))
+        return max(0, math.ceil(self.settings.max_recording_seconds - elapsed))
 
     def _add_note(self, text: str) -> None:
         self.notes.append(text)
@@ -245,17 +291,36 @@ class VoiceNoteApp(App):
             status_widget.remove_class(status_class)
         status_widget.add_class(_status_class(status))
 
+    def _refresh_session_widgets(self) -> None:
+        if self.session is None:
+            return
+
+        self.query_one("#session-name", Static).update(self.session.title)
+        self.query_one("#session-link", SessionLink).update(
+            f"Session: {self.session.session_dir}"
+        )
+        self.query_one("#session-link", SessionLink).url = _transcript_url(
+            self.session.session_dir,
+            self.settings.editor,
+        )
+
     @property
     def session_name(self) -> str:
-        return _session_name(self.service.output_file)
+        if self.session is None:
+            return "Voice Note Session"
+        return self.session.title
 
     @property
     def transcript_link(self) -> str:
-        return _transcript_link(self.service.output_file)
+        if self.session is None:
+            return "Session: not selected"
+        return f"Session: {self.session.session_dir}"
 
     @property
     def transcript_url(self) -> str | None:
-        return _transcript_url(self.service.output_file, self.editor)
+        if self.session is None:
+            return None
+        return _transcript_url(self.session.session_dir, self.settings.editor)
 
 
 def _format_status(status: str) -> str:
@@ -290,41 +355,65 @@ def _format_countdown(seconds: int) -> str:
     return f"{minutes:02d}:{remaining_seconds:02d}"
 
 
-def _session_name(transcript_file) -> str:
-    if transcript_file is None:
+def _session_name(target: VoiceNoteSession | Path | None) -> str:
+    if target is None:
         return "Voice Note Session"
 
-    return transcript_file.parent.name
+    if isinstance(target, VoiceNoteSession):
+        return target.title
+
+    if target.is_dir():
+        return target.name
+
+    return target.parent.name
 
 
-def _transcript_link(transcript_file) -> str:
-    if transcript_file is None:
-        return "Transcript: stdout"
+def _transcript_link(target: VoiceNoteSession | Path | None) -> str:
+    if target is None:
+        return "Session: not selected"
 
-    return f"Transcript: {transcript_file}"
+    session_path = _session_path(target)
+    if session_path is None:
+        return "Session: not selected"
+
+    return f"Session: {session_path}"
 
 
-def _transcript_url(transcript_file, editor: str = "code") -> str | None:
-    if transcript_file is None:
+def _transcript_url(target: VoiceNoteSession | Path | None, editor: str = "code") -> str | None:
+    if target is None:
+        return None
+
+    session_path = _session_path(target)
+    if session_path is None:
         return None
 
     if _normalize_editor(editor) == "code":
-        return _vscode_url(transcript_file)
+        return _vscode_url(session_path)
 
-    return transcript_file.resolve().as_uri()
+    return session_path.resolve().as_uri()
 
 
-def open_transcript_file(transcript_file: Path, editor: str, app: App) -> None:
+def _session_path(target: VoiceNoteSession | Path) -> Path | None:
+    if isinstance(target, VoiceNoteSession):
+        return target.session_dir
+
+    if target.is_dir():
+        return target
+
+    return target.parent
+
+
+def open_session_folder(session_path: Path, editor: str, app: App) -> None:
     normalized_editor = _normalize_editor(editor)
-    transcript_file.parent.mkdir(parents=True, exist_ok=True)
-    transcript_file.touch(exist_ok=True)
+    session_path.parent.mkdir(parents=True, exist_ok=True)
+    session_path.mkdir(parents=True, exist_ok=True)
 
     if normalized_editor == "code":
-        subprocess.run(_editor_command(transcript_file, normalized_editor), check=True)
+        subprocess.run(_editor_command(session_path, normalized_editor), check=True)
         return
 
     with app.suspend():
-        subprocess.run(_editor_command(transcript_file, normalized_editor), check=True)
+        subprocess.run(_editor_command(session_path, normalized_editor), check=True)
 
 
 def _normalize_editor(editor: str) -> str:
@@ -336,24 +425,24 @@ def _normalize_editor(editor: str) -> str:
     raise ValueError(f"Unsupported editor: {editor}")
 
 
-def _vscode_url(transcript_file: Path) -> str:
-    return f"vscode://file{quote(str(transcript_file.resolve()))}"
+def _vscode_url(target: Path) -> str:
+    return f"vscode://file{quote(str(target.resolve()))}"
 
 
-def _editor_command(transcript_file: Path, editor: str) -> list[str]:
+def _editor_command(target: Path, editor: str) -> list[str]:
     normalized_editor = _normalize_editor(editor)
     if normalized_editor == "code":
-        return ["code", "-g", str(transcript_file)]
+        return ["code", str(target)]
 
-    return [normalized_editor, str(transcript_file)]
+    return [normalized_editor, str(target)]
 
 
-class TranscriptLink(Link):
+class SessionLink(Link):
     async def _on_click(self, event: events.Click) -> None:
         await super()._on_click(event)
         if event.widget is self:
-            self.app.action_open_transcript()
+            self.app.action_open_session()
             event.stop()
 
     def action_open_link(self) -> None:
-        self.app.action_open_transcript()
+        self.app.action_open_session()
