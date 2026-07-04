@@ -9,7 +9,7 @@ from textual import events
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.timer import Timer
-from textual.widgets import Button, DataTable, Footer, Header, Link, Static
+from textual.widgets import Button, DataTable, Footer, Header, Link, Static, TabbedContent, TabPane
 
 from voice_note.audio.player import play_audio_file
 from voice_note.models.session import VoiceNoteSession
@@ -56,28 +56,8 @@ class VoiceNoteApp(App):
         layout: vertical;
     }
 
-    #tab-bar {
-        height: auto;
-        layout: horizontal;
-        margin-bottom: 1;
-    }
-
-    .tab-button {
-        margin-right: 1;
-    }
-
-    .tab-button.active {
-        background: $accent;
-        color: $text;
-    }
-
-    .tab-panel {
+    #main-tabs {
         height: 1fr;
-        display: none;
-    }
-
-    .tab-panel.active {
-        display: block;
     }
 
     #summary-bar {
@@ -251,96 +231,86 @@ class VoiceNoteApp(App):
         self.overflow_timer: Timer | None = None
         self.stopping = False
         self.note_zoom = 1
-        self.active_tab = "notes"
         self._status_blink_state = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield Container(
-            Horizontal(
-                Button("Notes", id="tab-notes", classes="tab-button"),
-                Button("Session", id="tab-session", classes="tab-button"),
-                Button("Help", id="tab-help", classes="tab-button"),
-                Button("Settings", id="tab-settings", classes="tab-button"),
-                id="tab-bar",
-            ),
-            Vertical(
-                Vertical(
-                    Horizontal(
-                        Static("Transcript", id="notes-title"),
-                        Horizontal(
-                            Button("A+", id="zoom-in"),
-                            Button("A-", id="zoom-out"),
-                            id="zoom-controls",
-                        ),
-                        id="notes-toolbar",
-                    ),
-                    TranscriptTable(
-                        id="notes-table",
-                        zebra_stripes=True,
-                        show_cursor=True,
-                        cursor_type="row",
-                        show_row_labels=False,
-                    ),
-                    Vertical(
-                        Static("Selected note", id="details-title"),
-                        Static("", id="note-detail"),
-                        Horizontal(
-                            Button("New", variant="primary", id="new-note"),
-                            Button("Edit", id="edit-note"),
-                            Button("Delete", variant="error", id="delete-note"),
-                            Button("Play", id="play-selected", variant="primary"),
-                            Button("Open Folder", id="open-session"),
-                            id="note-actions",
-                        ),
-                        id="details-card",
-                    ),
-                    classes="tab-panel active",
-                    id="notes-view",
-                ),
-                Vertical(
-                    Horizontal(
+        with Container(id="workspace"):
+            with TabbedContent(initial="notes", id="main-tabs"):
+                with TabPane("Notes", id="notes"):
+                    yield Vertical(
                         Vertical(
-                            Static("", id="session-title"),
-                            Static("", id="session-description"),
-                            SessionLink("Session: not selected", id="session-folder-path"),
-                            Button("Open Folder", variant="primary", id="open-session-session"),
-                            id="session-card",
+                            Horizontal(
+                                Static("Transcript", id="notes-title"),
+                                Horizontal(
+                                    Button("A+", id="zoom-in"),
+                                    Button("A-", id="zoom-out"),
+                                    id="zoom-controls",
+                                ),
+                                id="notes-toolbar",
+                            ),
+                            TranscriptTable(
+                                id="notes-table",
+                                zebra_stripes=True,
+                                show_cursor=True,
+                                cursor_type="row",
+                                show_row_labels=False,
+                            ),
+                            id="notes-panel",
                         ),
                         Vertical(
-                            Static("Telegram assistant", id="qr-title"),
-                            Static("", id="qr-code"),
-                            id="qr-card",
+                            Static("Selected note", id="details-title"),
+                            Static("", id="note-detail"),
+                            Horizontal(
+                                Button("New", variant="primary", id="new-note"),
+                                Button("Edit", id="edit-note"),
+                                Button("Delete", variant="error", id="delete-note"),
+                                Button("Play", id="play-selected", variant="primary"),
+                                Button("Open Folder", id="open-session"),
+                                id="note-actions",
+                            ),
+                            id="details-card",
                         ),
-                        id="summary-bar",
-                    ),
-                    classes="tab-panel",
-                    id="session-view",
-                ),
-                Vertical(
-                    Static("About", id="help-title"),
-                    Static(
-                        "Voice Note is a push-to-talk TUI for recording, transcribing, and editing human-readable session artefacts.",
-                        id="help-card",
-                    ),
-                    Static(
-                        "Use Notes for transcripts, Session for folder and QR access, and Settings for source/output configuration.",
-                        id="help-details",
-                    ),
-                    classes="tab-panel",
-                    id="help-view",
-                ),
-                Vertical(
-                    Static("Settings", id="settings-title"),
-                    Static("", id="settings-inputs"),
-                    Static("", id="settings-outputs"),
-                    Static("", id="settings-runtime"),
-                    classes="tab-panel",
-                    id="settings-view",
-                ),
-            ),
-            id="workspace",
-        )
+                    )
+                with TabPane("Session", id="session"):
+                    yield Vertical(
+                        Horizontal(
+                            Vertical(
+                                Static("", id="session-title"),
+                                Static("", id="session-description"),
+                                SessionLink("Session: not selected", id="session-folder-path"),
+                                Button("Open Folder", variant="primary", id="open-session-session"),
+                                id="session-card",
+                            ),
+                            Vertical(
+                                Static("Telegram assistant", id="qr-title"),
+                                Static("", id="qr-code"),
+                                id="qr-card",
+                            ),
+                            id="summary-bar",
+                        ),
+                    )
+                with TabPane("Help", id="help"):
+                    yield Vertical(
+                        Static("About", id="help-title"),
+                        Static(
+                            "Voice Note is a push-to-talk TUI for recording, transcribing, and editing human-readable session artefacts.",
+                            id="help-card",
+                        ),
+                        Static(
+                            "Use Notes for transcripts, Session for folder and QR access, and Settings for source/output configuration.",
+                            id="help-details",
+                        ),
+                        id="help-view",
+                    )
+                with TabPane("Settings", id="settings"):
+                    yield Vertical(
+                        Static("Settings", id="settings-title"),
+                        Static("", id="settings-inputs"),
+                        Static("", id="settings-outputs"),
+                        Static("", id="settings-runtime"),
+                        id="settings-view",
+                    )
         yield Container(
             Static("Status: Starting...", id="status", classes="status-idle"),
             Footer(),
@@ -669,35 +639,16 @@ class VoiceNoteApp(App):
 
     def _show_tab(self, tab: str) -> None:
         self.active_tab = tab
+        self.query_one("#main-tabs", TabbedContent).active = tab
 
-        panels = {
-            "notes": self.query_one("#notes-view", Vertical),
-            "session": self.query_one("#session-view", Vertical),
-            "help": self.query_one("#help-view", Vertical),
-            "settings": self.query_one("#settings-view", Vertical),
-        }
+    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        if event.tabbed_content.id != "main-tabs":
+            return
 
-        for name, widget in panels.items():
-            is_active = name == tab
-            widget.visible = is_active
-            if is_active:
-                widget.add_class("active")
-            else:
-                widget.remove_class("active")
-
-        for button_id, name in (
-            ("tab-notes", "notes"),
-            ("tab-session", "session"),
-            ("tab-help", "help"),
-            ("tab-settings", "settings"),
-        ):
-            button = self.query_one(f"#{button_id}", Button)
-            if name == tab:
-                button.add_class("active")
-            else:
-                button.remove_class("active")
-
-        if tab == "notes":
+        tab_id = getattr(event.tab, "id", "") or "notes"
+        self.active_tab = tab_id
+        self._refresh_settings_widgets()
+        if tab_id == "notes":
             self.query_one("#notes-table", TranscriptTable).focus()
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
@@ -705,15 +656,7 @@ class VoiceNoteApp(App):
         self._update_detail_panel()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "tab-notes":
-            self._show_tab("notes")
-        elif event.button.id == "tab-session":
-            self._show_tab("session")
-        elif event.button.id == "tab-help":
-            self._show_tab("help")
-        elif event.button.id == "tab-settings":
-            self._show_tab("settings")
-        elif event.button.id == "play-selected":
+        if event.button.id == "play-selected":
             self.action_play_note()
         elif event.button.id == "open-session":
             self.action_open_session()
