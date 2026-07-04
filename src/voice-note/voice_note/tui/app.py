@@ -7,11 +7,10 @@ from urllib.parse import quote
 
 from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.timer import Timer
 from textual.widgets import (
     Button,
-    DataTable,
     Footer,
     Header,
     Link,
@@ -69,6 +68,14 @@ class VoiceNoteApp(App):
         height: 1fr;
     }
 
+    TabPane {
+        height: 1fr;
+    }
+
+    #notes {
+        height: 1fr;
+    }
+
     #summary-bar {
         height: auto;
         layout: horizontal;
@@ -117,8 +124,13 @@ class VoiceNoteApp(App):
         layout: vertical;
     }
 
-    #notes-table {
+    #notes-scroll {
         height: 1fr;
+    }
+
+    #notes-content {
+        height: auto;
+        width: 1fr;
     }
 
     #details-card {
@@ -248,25 +260,20 @@ class VoiceNoteApp(App):
             with TabbedContent(initial="notes", id="main-tabs"):
                 with TabPane("Notes", id="notes"):
                     yield Vertical(
-                        Vertical(
+                        Horizontal(
+                            Static("Transcript", id="notes-title"),
                             Horizontal(
-                                Static("Transcript", id="notes-title"),
-                                Horizontal(
-                                    Button("A+", id="zoom-in"),
-                                    Button("A-", id="zoom-out"),
-                                    id="zoom-controls",
-                                ),
-                                id="notes-toolbar",
+                                Button("A+", id="zoom-in"),
+                                Button("A-", id="zoom-out"),
+                                id="zoom-controls",
                             ),
-                            TranscriptTable(
-                                id="notes-table",
-                                zebra_stripes=True,
-                                show_cursor=True,
-                                cursor_type="row",
-                                show_row_labels=False,
-                            ),
-                            id="notes-panel",
+                            id="notes-toolbar",
                         ),
+                        VerticalScroll(
+                            NoteTranscriptView("", id="notes-content"),
+                            id="notes-scroll",
+                        ),
+                        id="notes-panel",
                     )
                 with TabPane("Session", id="session"):
                     yield Vertical(
@@ -556,25 +563,15 @@ class VoiceNoteApp(App):
         self._set_status("Status: Idle")
 
     def _render_notes(self) -> None:
-        table = self.query_one("#notes-table", TranscriptTable)
-        table.clear(columns=False)
-        if table.row_count == 0 and len(table.columns) == 0:
-            table.add_columns("Time", "Note", "Audio")
-
-        for note in self.notes:
-            preview = _note_preview(note.text)
-            audio = "yes" if note.audio_file is not None else ""
-            table.add_row(
-                note.created_at.strftime("%H:%M:%S"),
-                preview,
-                audio,
-                key=note.note_id,
-            )
-
         if self.notes and self.selected_note_id is None:
             self.selected_note_id = self.notes[0].note_id
-        self._sync_selected_note()
-        self._update_detail_panel()
+
+        notes_view = self.query_one("#notes-content", NoteTranscriptView)
+        notes_view.render_notes(
+            self.notes,
+            selected_note_id=self.selected_note_id,
+            zoom=self.note_zoom,
+        )
         if self.session is not None:
             self.query_one("#session-description", Static).update(
                 f"{self.session.slug} • {self.session.timestamp} • {len(self.notes)} notes"
@@ -608,7 +605,7 @@ class VoiceNoteApp(App):
         self.query_one("#qr-code", Static).update(
             _render_qr_art(_qr_payload(self.session))
         )
-        self.query_one("#notes-table", TranscriptTable).focus()
+        self.query_one("#notes-content", NoteTranscriptView).focus()
 
     def _refresh_settings_widgets(self) -> None:
         self.query_one("#settings-inputs", Static).update(
@@ -659,11 +656,7 @@ class VoiceNoteApp(App):
         self.active_tab = tab_id
         self._refresh_settings_widgets()
         if tab_id == "notes":
-            self.query_one("#notes-table", TranscriptTable).focus()
-
-    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        self.selected_note_id = _row_key_value(event.row_key)
-        self._update_detail_panel()
+            self.query_one("#notes-content", NoteTranscriptView).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "play-selected":
@@ -737,23 +730,19 @@ class VoiceNoteApp(App):
         return self.service.session_store.get_note(self.selected_note_id)
 
     def _sync_selected_note(self) -> None:
-        table = self.query_one("#notes-table", TranscriptTable)
         if not self.notes:
             self.selected_note_id = None
             return
 
         if self.selected_note_id is None:
             self.selected_note_id = self.notes[0].note_id
-            table.move_cursor(row=0)
             return
 
         for index, note in enumerate(self.notes):
             if note.note_id == self.selected_note_id:
-                table.move_cursor(row=index)
                 return
 
         self.selected_note_id = self.notes[0].note_id
-        table.move_cursor(row=0)
 
     def _set_selected_note_by_index(self, index: int) -> None:
         if not self.notes:
@@ -762,9 +751,7 @@ class VoiceNoteApp(App):
 
         index = max(0, min(index, len(self.notes) - 1))
         self.selected_note_id = self.notes[index].note_id
-        table = self.query_one("#notes-table", TranscriptTable)
-        table.move_cursor(row=index)
-        self._update_detail_panel()
+        self._render_notes()
 
     def _move_note_selection(self, delta: int) -> None:
         if not self.notes:
@@ -826,8 +813,7 @@ class VoiceNoteApp(App):
 
     def _set_note_zoom(self, value: int) -> None:
         self.note_zoom = value
-        table = self.query_one("#notes-table", TranscriptTable)
-        table.cell_padding = self.note_zoom
+        self._render_notes()
 
 
 def _format_status(status: str) -> str:
@@ -982,17 +968,48 @@ def _note_preview(text: str, width: int = 72) -> str:
     return cleaned[: width - 1].rstrip() + "…"
 
 
-def _row_key_value(row_key) -> str:
-    for attr in ("value", "key", "id"):
-        value = getattr(row_key, attr, None)
-        if value is not None:
-            return str(value)
+def _render_note_card(
+    note: SessionNote,
+    index: int,
+    selected: bool,
+    zoom: int,
+) -> str:
+    timestamp = note.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    header = f"{index:02d}. {timestamp}"
+    if note.audio_file is not None:
+        header += " [audio]"
 
-    return str(row_key)
+    body = note.text.strip() or "(empty note)"
+    zoom_spacing = {1: 0, 2: 1, 3: 2}.get(max(1, min(3, zoom)), 0)
+    gap = "\n" * zoom_spacing
+    prefix = "▶ " if selected else "  "
+    underline = "─" * max(12, min(48, len(header)))
+
+    return "\n".join(
+        [
+            f"{prefix}{header}",
+            underline,
+            f"{gap}{body}{gap}",
+        ]
+    )
 
 
-class TranscriptTable(DataTable):
-    pass
+class NoteTranscriptView(Static):
+    def render_notes(
+        self,
+        notes: list[SessionNote],
+        selected_note_id: str | None = None,
+        zoom: int = 1,
+    ) -> None:
+        if not notes:
+            self.update("No notes yet.")
+            return
+
+        parts: list[str] = []
+        for index, note in enumerate(notes, start=1):
+            parts.append(_render_note_card(note, index, note.note_id == selected_note_id, zoom))
+
+        self.update("\n".join(parts).rstrip())
 
 
 class SessionLink(Link):
