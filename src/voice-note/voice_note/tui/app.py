@@ -1,4 +1,5 @@
 import math
+import hashlib
 import subprocess
 import time
 from pathlib import Path
@@ -6,11 +7,13 @@ from urllib.parse import quote
 
 from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Container
+from textual.containers import Container, Horizontal, Vertical
 from textual.timer import Timer
-from textual.widgets import Footer, Header, Link, Static
+from textual.widgets import Button, DataTable, Footer, Header, Link, Static
 
+from voice_note.audio.player import play_audio_file
 from voice_note.models.session import VoiceNoteSession
+from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.services.runtime import build_service
 from voice_note.services.session_service import SessionService
@@ -34,13 +37,28 @@ class VoiceNoteApp(App):
         layout: vertical;
     }
 
-    #content {
-        height: 1fr;
-        padding: 1 2;
+    Screen.recording {
+        background: $error;
     }
 
-    #notes {
-        min-height: 12;
+    Screen.recording #status {
+        text-style: bold blink;
+    }
+
+    #workspace {
+        height: 1fr;
+        padding: 1 2;
+        layout: vertical;
+    }
+
+    #summary-bar {
+        height: auto;
+        layout: horizontal;
+    }
+
+    #session-card,
+    #qr-card,
+    #details-card {
         border: solid $surface;
         padding: 1;
     }
@@ -51,6 +69,45 @@ class VoiceNoteApp(App):
 
     #session-link {
         color: $accent;
+    }
+
+    #main-panels {
+        height: 1fr;
+        layout: horizontal;
+    }
+
+    #notes-panel {
+        width: 2fr;
+        border: solid $surface;
+        padding: 1;
+    }
+
+    #notes-table {
+        height: 1fr;
+    }
+
+    #details-card {
+        width: 1fr;
+        height: 1fr;
+        layout: vertical;
+    }
+
+    #note-detail {
+        height: 1fr;
+    }
+
+    #note-actions {
+        height: auto;
+    }
+
+    #qr-code {
+        color: $accent;
+        padding: 0 1;
+    }
+
+    #zoom-controls {
+        height: auto;
+        margin-left: 1;
     }
 
     #app-footer {
@@ -71,6 +128,11 @@ class VoiceNoteApp(App):
 
     #status.status-recording {
         background: $error;
+    }
+
+    #status.status-recording-alt {
+        background: $warning;
+        color: black;
     }
 
     #status.status-transcribing {
@@ -96,6 +158,9 @@ class VoiceNoteApp(App):
         ("space", "toggle_recording", "Record"),
         ("enter", "open_session", "Open Session"),
         ("o", "open_session", "Open Session"),
+        ("p", "play_note", "Play Note"),
+        ("+", "zoom_in", "Zoom In"),
+        ("-", "zoom_out", "Zoom Out"),
         ("ctrl+s", "save_notes", "Save"),
         ("ctrl+l", "insert_timestamp", "Timestamp"),
         ("escape", "quit", "Exit"),
@@ -113,19 +178,65 @@ class VoiceNoteApp(App):
         self.session: VoiceNoteSession | None = None
         self.service: VoiceNoteService | None = None
         self.recording = False
-        self.notes: list[str] = []
+        self.notes: list[SessionNote] = []
+        self.selected_note_id: str | None = None
         self.recording_started_at: float | None = None
         self.countdown_timer: Timer | None = None
+        self.status_blink_timer: Timer | None = None
         self.overflow_timer: Timer | None = None
         self.stopping = False
+        self.note_zoom = 1
+        self._status_blink_state = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
-            Static("Choose or create a session", id="session-name"),
-            SessionLink("Session: not selected", id="session-link"),
-            Static("", id="notes"),
-            id="content",
+            Horizontal(
+                Vertical(
+                    Static("Choose or create a session", id="session-name"),
+                    SessionLink("Session: not selected", id="session-link"),
+                    id="session-card",
+                ),
+                Vertical(
+                    Static("QR session link", id="qr-title"),
+                    Static("", id="qr-code"),
+                    id="qr-card",
+                ),
+                id="summary-bar",
+            ),
+            Horizontal(
+                Vertical(
+                    Horizontal(
+                        Static("Transcript", id="notes-title"),
+                        Container(
+                            Button("A+", id="zoom-in"),
+                            Button("A-", id="zoom-out"),
+                            id="zoom-controls",
+                        ),
+                        id="notes-toolbar",
+                    ),
+                    TranscriptTable(
+                        id="notes-table",
+                        zebra_stripes=True,
+                        show_cursor=True,
+                        cursor_type="row",
+                        show_row_labels=False,
+                    ),
+                    id="notes-panel",
+                ),
+                Vertical(
+                    Static("Selected note", id="details-title"),
+                    Static("", id="note-detail"),
+                    Container(
+                        Button("Play", id="play-selected", variant="primary"),
+                        Button("Open Folder", id="open-session"),
+                        id="note-actions",
+                    ),
+                    id="details-card",
+                ),
+                id="main-panels",
+            ),
+            id="workspace",
         )
         yield Container(
             Static("Status: Starting...", id="status", classes="status-idle"),
@@ -168,7 +279,7 @@ class VoiceNoteApp(App):
 
         self.service = build_service(self.settings, self.session.session_dir)
         if self.service.session_store is not None:
-            self.notes = [note.text for note in self.service.session_store.load_notes()]
+            self.notes = self.service.session_store.load_notes()
         self._refresh_session_widgets()
         self._render_notes()
         self._set_status("Status: Idle")
@@ -193,6 +304,7 @@ class VoiceNoteApp(App):
         self.recording_started_at = time.monotonic()
         self._start_countdown_timers()
         self._set_recording_status()
+        self._set_recording_theme(True)
 
     def action_save_notes(self) -> None:
         self._set_status("Status: Saved")
@@ -211,10 +323,36 @@ class VoiceNoteApp(App):
         self._set_status("Status: Saved")
 
     def action_insert_timestamp(self) -> None:
-        from datetime import datetime
+        self._set_status("Status: Manual note entry is pending")
 
-        self.notes.append(datetime.now().strftime("[%Y-%m-%d %H:%M:%S]"))
-        self._render_notes()
+    def action_play_note(self) -> None:
+        note = self._selected_note()
+        if note is None:
+            self._set_status("Status: Error: no note selected")
+            return
+
+        if note.audio_file is None:
+            self._set_status("Status: Error: selected note has no audio")
+            return
+
+        self._set_status("Status: Playing...")
+
+        def work() -> None:
+            try:
+                play_audio_file(note.audio_file)
+            except Exception as error:
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            self.call_from_thread(self._set_status, "Status: Saved")
+
+        self.run_worker(work, thread=True)
+
+    def action_zoom_in(self) -> None:
+        self._set_note_zoom(min(3, self.note_zoom + 1))
+
+    def action_zoom_out(self) -> None:
+        self._set_note_zoom(max(1, self.note_zoom - 1))
 
     def _stop_recording(self, time_overflow: bool = False) -> None:
         if self.service is None:
@@ -227,6 +365,7 @@ class VoiceNoteApp(App):
         self.stopping = True
         self.recording = False
         self._stop_countdown_timers()
+        self._set_recording_theme(False)
 
         if time_overflow:
             self._set_status("Status: Record Stop by time overflow")
@@ -247,16 +386,18 @@ class VoiceNoteApp(App):
     def _start_countdown_timers(self) -> None:
         self._stop_countdown_timers()
         self.countdown_timer = self.set_interval(1, self._set_recording_status)
+        self.status_blink_timer = self.set_interval(0.5, self._toggle_status_blink)
         self.overflow_timer = self.set_timer(
             self.settings.max_recording_seconds,
             self._handle_time_overflow,
         )
 
     def _stop_countdown_timers(self) -> None:
-        for timer in (self.countdown_timer, self.overflow_timer):
+        for timer in (self.countdown_timer, self.status_blink_timer, self.overflow_timer):
             if timer is not None:
                 timer.stop()
         self.countdown_timer = None
+        self.status_blink_timer = None
         self.overflow_timer = None
 
     def _handle_time_overflow(self) -> None:
@@ -276,15 +417,35 @@ class VoiceNoteApp(App):
         return max(0, math.ceil(self.settings.max_recording_seconds - elapsed))
 
     def _add_note(self, text: str) -> None:
-        self.notes.insert(0, text)
+        if self.service is None or self.service.session_store is None:
+            return
+
+        self.notes = self.service.session_store.load_notes()
         self._render_notes()
         self.recording_started_at = None
         self.stopping = False
         self._set_status("Status: Idle")
 
     def _render_notes(self) -> None:
-        body = "\n\n".join(f"- {note}" for note in self.notes)
-        self.query_one("#notes", Static).update(body)
+        table = self.query_one("#notes-table", TranscriptTable)
+        table.clear(columns=False)
+        if not table.columns:
+            table.add_columns("Time", "Note", "Audio")
+
+        for note in self.notes:
+            preview = _note_preview(note.text)
+            audio = "yes" if note.audio_file is not None else ""
+            table.add_row(
+                note.created_at.strftime("%H:%M:%S"),
+                preview,
+                audio,
+                key=note.note_id,
+            )
+
+        if self.notes and self.selected_note_id is None:
+            self.selected_note_id = self.notes[0].note_id
+        self._sync_selected_note()
+        self._update_detail_panel()
 
     def _set_status(self, status: str) -> None:
         status_widget = self.query_one("#status", Static)
@@ -293,6 +454,8 @@ class VoiceNoteApp(App):
         for status_class in STATUS_CLASSES:
             status_widget.remove_class(status_class)
         status_widget.add_class(_status_class(status))
+        if self.recording:
+            self._toggle_status_blink(force=True)
 
     def _refresh_session_widgets(self) -> None:
         if self.session is None:
@@ -306,6 +469,8 @@ class VoiceNoteApp(App):
             self.session.session_dir,
             self.settings.editor,
         )
+        self.query_one("#qr-code", Static).update(_render_qr_art(self.session.session_dir))
+        self.query_one("#notes-table", TranscriptTable).focus()
 
     @property
     def session_name(self) -> str:
@@ -324,6 +489,90 @@ class VoiceNoteApp(App):
         if self.session is None:
             return None
         return _transcript_url(self.session.session_dir, self.settings.editor)
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        self.selected_note_id = _row_key_value(event.row_key)
+        self._update_detail_panel()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "play-selected":
+            self.action_play_note()
+        elif event.button.id == "open-session":
+            self.action_open_session()
+        elif event.button.id == "zoom-in":
+            self.action_zoom_in()
+        elif event.button.id == "zoom-out":
+            self.action_zoom_out()
+
+    def _selected_note(self) -> SessionNote | None:
+        if self.selected_note_id is None:
+            return None
+
+        if self.service is None or self.service.session_store is None:
+            return None
+
+        return self.service.session_store.get_note(self.selected_note_id)
+
+    def _sync_selected_note(self) -> None:
+        table = self.query_one("#notes-table", TranscriptTable)
+        if not self.notes:
+            self.selected_note_id = None
+            return
+
+        if self.selected_note_id is None:
+            self.selected_note_id = self.notes[0].note_id
+            table.move_cursor(row=0)
+            return
+
+        for index, note in enumerate(self.notes):
+            if note.note_id == self.selected_note_id:
+                table.move_cursor(row=index)
+                return
+
+        self.selected_note_id = self.notes[0].note_id
+        table.move_cursor(row=0)
+
+    def _update_detail_panel(self) -> None:
+        note = self._selected_note()
+        detail = self.query_one("#note-detail", Static)
+        if note is None:
+            detail.update("No note selected.")
+            return
+
+        audio = str(note.audio_file) if note.audio_file is not None else "No audio"
+        detail.update(
+            "\n".join(
+                [
+                    f"Time: {note.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"Audio: {audio}",
+                    "",
+                    note.text,
+                ]
+            )
+        )
+
+    def _set_recording_theme(self, recording: bool) -> None:
+        self.screen.set_class(recording, "recording")
+        self._status_blink_state = False
+        if not recording:
+            self.query_one("#status", Static).remove_class("status-recording-alt")
+
+    def _toggle_status_blink(self, force: bool = False) -> None:
+        if not self.recording and not force:
+            return
+
+        self._status_blink_state = not self._status_blink_state
+        status_widget = self.query_one("#status", Static)
+        if self._status_blink_state:
+            status_widget.add_class("status-recording-alt")
+        else:
+            status_widget.remove_class("status-recording-alt")
+
+    def _set_note_zoom(self, value: int) -> None:
+        self.note_zoom = value
+        table = self.query_one("#notes-table", TranscriptTable)
+        table.cell_padding = self.note_zoom
+
 
 
 def _format_status(status: str) -> str:
@@ -438,6 +687,52 @@ def _editor_command(target: Path, editor: str) -> list[str]:
         return ["code", str(target)]
 
     return [normalized_editor, str(target)]
+
+
+def _render_qr_art(target: Path | str) -> str:
+    payload = str(target)
+    try:
+        import qrcode
+
+        qr = qrcode.QRCode(border=1, box_size=1)
+        qr.add_data(payload)
+        qr.make(fit=True)
+        matrix = qr.get_matrix()
+        return "\n".join(
+            "".join("██" if cell else "  " for cell in row)
+            for row in matrix
+        )
+    except Exception:
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        rows = []
+        bits = bin(int(digest, 16))[2:].zfill(256)
+        width = 16
+        for row_index in range(16):
+            row_bits = bits[row_index * width : (row_index + 1) * width]
+            rows.append("".join("██" if bit == "1" else "  " for bit in row_bits))
+        rows.append("")
+        rows.append(payload)
+        return "\n".join(rows)
+
+
+def _note_preview(text: str, width: int = 72) -> str:
+    cleaned = " ".join(text.split())
+    if len(cleaned) <= width:
+        return cleaned
+    return cleaned[: width - 1].rstrip() + "…"
+
+
+def _row_key_value(row_key) -> str:
+    for attr in ("value", "key", "id"):
+        value = getattr(row_key, attr, None)
+        if value is not None:
+            return str(value)
+
+    return str(row_key)
+
+
+class TranscriptTable(DataTable):
+    pass
 
 
 class SessionLink(Link):

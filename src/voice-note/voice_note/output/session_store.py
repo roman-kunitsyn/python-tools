@@ -25,6 +25,13 @@ class SessionNoteStore:
         notes = [self._note_from_payload(item) for item in data]
         return sorted(notes, key=lambda note: note.created_at, reverse=True)
 
+    def get_note(self, note_id: str) -> SessionNote | None:
+        for note in self.load_notes():
+            if note.note_id == note_id:
+                return note
+
+        return None
+
     def append_note(
         self,
         text: str,

@@ -62,14 +62,13 @@ class VoiceNoteService:
         self._current_audio_file = None
         text = self.transcriber.transcribe(audio_file).strip()
         note = VoiceNote(text=text, created_at=datetime.now(), audio_file=audio_file)
+        self.writer.write(format_note(note, self.append_timestamp))
         if self.session_store is not None:
             self.session_store.append_note(
                 text=note.text,
                 created_at=note.created_at,
                 audio_file=note.audio_file,
             )
-        else:
-            self.writer.write(format_note(note, self.append_timestamp))
         self.recorder.cleanup(audio_file)
         return note
 
