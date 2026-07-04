@@ -126,6 +126,12 @@ The session should use a hybrid artifact model:
 - Implement folder rename behavior when the session title changes.
 - Add tests for session listing, selection, and rename behavior.
 - Leave a report in `docs/reports/` describing the session lifecycle change.
+- Checklist:
+  - Add a session model in `voice_note/models/` for title, slug, timestamp, and paths.
+  - Add a session service in `voice_note/services/` for listing, creating, loading, and renaming sessions.
+  - Move startup selection logic out of `voice_note/tui/app.py` into a dedicated screen/module.
+  - Update `voice_note/main.py` so TUI starts with a session chooser before building the runtime service.
+  - Add unit tests for slug generation, folder rename behavior, and session discovery sorting.
 
 ### Task 2: Structured note storage
 - Replace append-only transcript handling with a structured session note store.
@@ -133,6 +139,13 @@ The session should use a hybrid artifact model:
 - Keep audio file references in the structured data for playback and editing.
 - Add tests for persistence, regeneration, and note ordering.
 - Leave a report in `docs/reports/` describing the storage model change.
+- Checklist:
+  - Add a note record model with id, text, created_at, source audio path, and edit state.
+  - Add a repository or store module in `voice_note/output/` or `voice_note/services/` for reading and writing notes.
+  - Make `notes.json` or the chosen structured file the primary source of truth.
+  - Regenerate `transcribe.txt` from structured data after every mutation.
+  - Keep the audio list and JSON transcript in sync with edits, deletes, and manual additions.
+  - Add tests for round-tripping the note store and regenerating the text artifact.
 
 ### Task 3: TUI workspace redesign
 - Add the startup modal/screen for new or existing sessions.
@@ -141,6 +154,13 @@ The session should use a hybrid artifact model:
 - Add font size controls and scrollable newest-first notes.
 - Add tests for the new screen composition and bindings.
 - Leave a report in `docs/reports/` describing the TUI redesign.
+- Checklist:
+  - Split the current `VoiceNoteApp` into screen/widgets such as `StartupScreen`, `MainScreen`, and note/transcript widgets.
+  - Replace the current `Static` notes block with a scrollable list or virtualized panel.
+  - Add recording-specific CSS for full-screen background changes and a blinking status element.
+  - Add `+` and `-` controls for transcript text scale.
+  - Add QR rendering using `qrcode` and a Textual-friendly presentation widget.
+  - Add tests for screen mounting, default focus, and binding registration.
 
 ### Task 4: Note interactions
 - Add independent per-note edit/save/cancel/delete actions.
@@ -148,6 +168,13 @@ The session should use a hybrid artifact model:
 - Add note playback when source audio exists.
 - Add tests for note selection, editing, manual entry, and playback gating.
 - Leave a report in `docs/reports/` describing the note interaction layer.
+- Checklist:
+  - Add selection state for the active note and keyboard navigation with arrows and vim keys.
+  - Add per-note action controls for edit, save, cancel, delete, and play.
+  - Add a text-entry mode for manual notes that reuses the same persistence path as voice notes.
+  - Add an audio playback adapter in `voice_note/audio/` or a dedicated playback module.
+  - Gate playback controls when the note has no source audio.
+  - Add tests for edit flow, cancel flow, delete flow, and playback availability.
 
 ### Task 5: Editor and docs
 - Make Enter open the session folder in the configured editor.
@@ -155,6 +182,12 @@ The session should use a hybrid artifact model:
 - Update README examples and keyboard shortcut documentation.
 - Add final regression tests and update the top-level implementation plan.
 - Leave a report in `docs/reports/` describing the final integration changes.
+- Checklist:
+  - Replace transcript-file open behavior with session-folder open behavior for Enter.
+  - Keep editor handling configurable and support both `code` and `nvim`.
+  - Update CLI/TUI help text and README screenshots to match the new workspace.
+  - Update existing transcript-link tests to reflect folder-based navigation.
+  - Run the project test suite and record the results in a final report file.
 
 ## Runtime Dependencies
 
