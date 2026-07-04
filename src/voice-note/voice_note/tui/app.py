@@ -552,14 +552,19 @@ class VoiceNoteApp(App):
             return
 
         self.notes = self.service.session_store.load_notes()
+        if self.notes:
+            self.selected_note_id = self.notes[0].note_id
         self._render_notes()
         self.recording_started_at = None
         self.stopping = False
         self._set_status("Status: Idle")
 
     def _render_notes(self) -> None:
-        if self.notes and self.selected_note_id is None:
-            self.selected_note_id = self.notes[0].note_id
+        if self.notes:
+            if self.selected_note_id is None or self.selected_note_id not in {
+                note.note_id for note in self.notes
+            }:
+                self.selected_note_id = self.notes[0].note_id
 
         notes_view = self.query_one("#notes-content", NoteTranscriptView)
         notes_view.render_notes(
@@ -977,9 +982,10 @@ def _render_note_card(
     body = note.text.strip() or "(empty note)"
     zoom_padding = {1: (0, 1), 2: (1, 2), 3: (1, 3)}.get(max(1, min(3, zoom)), (0, 1))
     title = f"▶ {header}" if selected else header
-    panel_style = "bold yellow on blue" if selected else "default"
-    border_style = "yellow" if selected else "grey37"
-    body_text = Text(body, style="bold yellow" if selected else "default")
+    panel_style = "black on white" if selected else "default"
+    border_style = "black" if selected else "grey70"
+    body_style = "bold black" if selected else "default"
+    body_text = Text(body, style=body_style)
 
     return Panel(
         body_text,
