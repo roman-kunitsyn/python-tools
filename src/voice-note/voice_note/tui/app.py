@@ -56,6 +56,30 @@ class VoiceNoteApp(App):
         layout: vertical;
     }
 
+    #tab-bar {
+        height: auto;
+        layout: horizontal;
+        margin-bottom: 1;
+    }
+
+    .tab-button {
+        margin-right: 1;
+    }
+
+    .tab-button.active {
+        background: $accent;
+        color: $text;
+    }
+
+    .tab-panel {
+        height: 1fr;
+        display: none;
+    }
+
+    .tab-panel.active {
+        display: block;
+    }
+
     #summary-bar {
         height: auto;
         layout: horizontal;
@@ -140,6 +164,12 @@ class VoiceNoteApp(App):
         margin-top: 1;
     }
 
+    #help-card,
+    #settings-card {
+        border: solid $surface;
+        padding: 1;
+    }
+
     #app-footer {
         height: auto;
         dock: bottom;
@@ -221,24 +251,18 @@ class VoiceNoteApp(App):
         self.overflow_timer: Timer | None = None
         self.stopping = False
         self.note_zoom = 1
+        self.active_tab = "notes"
         self._status_blink_state = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Container(
             Horizontal(
-                Vertical(
-                    Static("", id="session-title"),
-                    Static("", id="session-description"),
-                    SessionLink("Session: not selected", id="session-folder-path"),
-                    id="session-card",
-                ),
-                Vertical(
-                    Static("Telegram assistant", id="qr-title"),
-                    Static("", id="qr-code"),
-                    id="qr-card",
-                ),
-                id="summary-bar",
+                Button("Notes", id="tab-notes", classes="tab-button"),
+                Button("Session", id="tab-session", classes="tab-button"),
+                Button("Help", id="tab-help", classes="tab-button"),
+                Button("Settings", id="tab-settings", classes="tab-button"),
+                id="tab-bar",
             ),
             Vertical(
                 Vertical(
@@ -258,22 +282,62 @@ class VoiceNoteApp(App):
                         cursor_type="row",
                         show_row_labels=False,
                     ),
-                    id="notes-panel",
+                    Vertical(
+                        Static("Selected note", id="details-title"),
+                        Static("", id="note-detail"),
+                        Horizontal(
+                            Button("New", variant="primary", id="new-note"),
+                            Button("Edit", id="edit-note"),
+                            Button("Delete", variant="error", id="delete-note"),
+                            Button("Play", id="play-selected", variant="primary"),
+                            Button("Open Folder", id="open-session"),
+                            id="note-actions",
+                        ),
+                        id="details-card",
+                    ),
+                    classes="tab-panel active",
+                    id="notes-view",
                 ),
                 Vertical(
-                    Static("Selected note", id="details-title"),
-                    Static("", id="note-detail"),
                     Horizontal(
-                        Button("New", variant="primary", id="new-note"),
-                        Button("Edit", id="edit-note"),
-                        Button("Delete", variant="error", id="delete-note"),
-                        Button("Play", id="play-selected", variant="primary"),
-                        Button("Open Folder", id="open-session"),
-                        id="note-actions",
+                        Vertical(
+                            Static("", id="session-title"),
+                            Static("", id="session-description"),
+                            SessionLink("Session: not selected", id="session-folder-path"),
+                            Button("Open Folder", variant="primary", id="open-session-session"),
+                            id="session-card",
+                        ),
+                        Vertical(
+                            Static("Telegram assistant", id="qr-title"),
+                            Static("", id="qr-code"),
+                            id="qr-card",
+                        ),
+                        id="summary-bar",
                     ),
-                    id="details-card",
+                    classes="tab-panel",
+                    id="session-view",
                 ),
-                id="main-panels",
+                Vertical(
+                    Static("About", id="help-title"),
+                    Static(
+                        "Voice Note is a push-to-talk TUI for recording, transcribing, and editing human-readable session artefacts.",
+                        id="help-card",
+                    ),
+                    Static(
+                        "Use Notes for transcripts, Session for folder and QR access, and Settings for source/output configuration.",
+                        id="help-details",
+                    ),
+                    classes="tab-panel",
+                    id="help-view",
+                ),
+                Vertical(
+                    Static("Settings", id="settings-title"),
+                    Static("", id="settings-inputs"),
+                    Static("", id="settings-outputs"),
+                    Static("", id="settings-runtime"),
+                    classes="tab-panel",
+                    id="settings-view",
+                ),
             ),
             id="workspace",
         )
@@ -320,8 +384,10 @@ class VoiceNoteApp(App):
         if self.service.session_store is not None:
             self.notes = self.service.session_store.load_notes()
         self._refresh_session_widgets()
+        self._refresh_settings_widgets()
         self._render_notes()
         self._set_status("Status: Idle")
+        self._show_tab("notes")
 
     def action_toggle_recording(self) -> None:
         if self.service is None:
@@ -422,6 +488,18 @@ class VoiceNoteApp(App):
 
     def action_zoom_out(self) -> None:
         self._set_note_zoom(max(1, self.note_zoom - 1))
+
+    def action_show_notes_tab(self) -> None:
+        self._show_tab("notes")
+
+    def action_show_session_tab(self) -> None:
+        self._show_tab("session")
+
+    def action_show_help_tab(self) -> None:
+        self._show_tab("help")
+
+    def action_show_settings_tab(self) -> None:
+        self._show_tab("settings")
 
     def action_next_note(self) -> None:
         self._move_note_selection(1)
@@ -554,14 +632,92 @@ class VoiceNoteApp(App):
         self.query_one("#qr-code", Static).update(_render_qr_art(_qr_payload(self.session)))
         self.query_one("#notes-table", TranscriptTable).focus()
 
+    def _refresh_settings_widgets(self) -> None:
+        self.query_one("#settings-inputs", Static).update(
+            "\n".join(
+                [
+                    "Input sources",
+                    f"Audio device: {self.settings.audio_device or 'default'}",
+                    f"Language: {self.settings.language}",
+                    f"Model: {self.settings.model}",
+                    f"Max recording seconds: {self.settings.max_recording_seconds}",
+                ]
+            )
+        )
+        self.query_one("#settings-outputs", Static).update(
+            "\n".join(
+                [
+                    "Output sources",
+                    f"Editor: {self.settings.editor}",
+                    f"Keep audio: {self.settings.keep_audio}",
+                    f"Append timestamps: {self.settings.append_timestamp}",
+                    f"Audio folder: {self.settings.audio_output_folder or 'session/audio'}",
+                    f"Text file: {self.settings.text_output_file or 'session/transcribe.txt'}",
+                    f"JSON file: {self.settings.json_output_file or 'session/notes.json'}",
+                ]
+            )
+        )
+        self.query_one("#settings-runtime", Static).update(
+            "\n".join(
+                [
+                    "Session runtime",
+                    f"Base title: {self.settings.session_title}",
+                    f"Current tab: {self.active_tab}",
+                ]
+            )
+        )
+
+    def _show_tab(self, tab: str) -> None:
+        self.active_tab = tab
+
+        panels = {
+            "notes": self.query_one("#notes-view", Vertical),
+            "session": self.query_one("#session-view", Vertical),
+            "help": self.query_one("#help-view", Vertical),
+            "settings": self.query_one("#settings-view", Vertical),
+        }
+
+        for name, widget in panels.items():
+            is_active = name == tab
+            widget.visible = is_active
+            if is_active:
+                widget.add_class("active")
+            else:
+                widget.remove_class("active")
+
+        for button_id, name in (
+            ("tab-notes", "notes"),
+            ("tab-session", "session"),
+            ("tab-help", "help"),
+            ("tab-settings", "settings"),
+        ):
+            button = self.query_one(f"#{button_id}", Button)
+            if name == tab:
+                button.add_class("active")
+            else:
+                button.remove_class("active")
+
+        if tab == "notes":
+            self.query_one("#notes-table", TranscriptTable).focus()
+
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         self.selected_note_id = _row_key_value(event.row_key)
         self._update_detail_panel()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "play-selected":
+        if event.button.id == "tab-notes":
+            self._show_tab("notes")
+        elif event.button.id == "tab-session":
+            self._show_tab("session")
+        elif event.button.id == "tab-help":
+            self._show_tab("help")
+        elif event.button.id == "tab-settings":
+            self._show_tab("settings")
+        elif event.button.id == "play-selected":
             self.action_play_note()
         elif event.button.id == "open-session":
+            self.action_open_session()
+        elif event.button.id == "open-session-session":
             self.action_open_session()
         elif event.button.id == "new-note":
             self.action_new_note()
