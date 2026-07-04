@@ -18,6 +18,10 @@ from textual.widgets import (
     TabbedContent,
     TabPane,
 )
+from rich.console import Group
+from rich.panel import Panel
+from rich.text import Text
+from rich import box
 
 from voice_note.audio.player import play_audio_file
 from voice_note.models.session import VoiceNoteSession
@@ -964,24 +968,27 @@ def _render_note_card(
     index: int,
     selected: bool,
     zoom: int,
-) -> str:
+) -> Panel:
     timestamp = note.created_at.strftime("%Y-%m-%d %H:%M:%S")
     header = f"{index:02d}. {timestamp}"
     if note.audio_file is not None:
-        header += " [audio]"
+        header += "  [audio]"
 
     body = note.text.strip() or "(empty note)"
-    zoom_spacing = {1: 0, 2: 1, 3: 2}.get(max(1, min(3, zoom)), 0)
-    gap = "\n" * zoom_spacing
-    prefix = "▶ " if selected else "  "
-    underline = "─" * max(12, min(48, len(header)))
+    zoom_padding = {1: (0, 1), 2: (1, 2), 3: (1, 3)}.get(max(1, min(3, zoom)), (0, 1))
+    title = f"▶ {header}" if selected else header
+    panel_style = "bold yellow on blue" if selected else "default"
+    border_style = "yellow" if selected else "grey37"
+    body_text = Text(body, style="bold yellow" if selected else "default")
 
-    return "\n".join(
-        [
-            f"{prefix}{header}",
-            underline,
-            f"{gap}{body}{gap}",
-        ]
+    return Panel(
+        body_text,
+        title=title,
+        border_style=border_style,
+        style=panel_style,
+        box=box.ROUNDED,
+        padding=zoom_padding,
+        expand=True,
     )
 
 
@@ -993,16 +1000,24 @@ class NoteTranscriptView(Static):
         zoom: int = 1,
     ) -> None:
         if not notes:
-            self.update("No notes yet.")
+            self.update(
+                Panel(
+                    Text("No notes yet."),
+                    border_style="grey37",
+                    box=box.ROUNDED,
+                    padding=(1, 2),
+                    expand=True,
+                )
+            )
             return
 
-        parts: list[str] = []
+        parts = []
         for index, note in enumerate(notes, start=1):
             parts.append(
                 _render_note_card(note, index, note.note_id == selected_note_id, zoom)
             )
 
-        self.update("\n".join(parts).rstrip())
+        self.update(Group(*parts))
 
 
 class SessionLink(Link):
