@@ -63,28 +63,45 @@ class VoiceNoteApp(App):
 
     #session-card,
     #qr-card,
-    #details-card {
+    #details-card,
+    #notes-panel {
         border: solid $surface;
         padding: 1;
     }
 
-    #session-name {
+    #session-card {
+        width: 1fr;
+        height: auto;
+    }
+
+    #qr-card {
+        width: 18;
+        height: auto;
+        margin-left: 1;
+    }
+
+    #session-title {
         text-style: bold;
     }
 
-    #session-link {
+    #session-description {
+        color: $text-muted;
+    }
+
+    #session-folder-path {
         color: $accent;
+        text-style: underline;
     }
 
     #main-panels {
         height: 1fr;
-        layout: horizontal;
+        layout: vertical;
+        margin-top: 1;
     }
 
     #notes-panel {
-        width: 2fr;
-        border: solid $surface;
-        padding: 1;
+        height: 1fr;
+        layout: vertical;
     }
 
     #notes-table {
@@ -92,13 +109,13 @@ class VoiceNoteApp(App):
     }
 
     #details-card {
-        width: 1fr;
-        height: 1fr;
+        height: auto;
         layout: vertical;
+        margin-top: 1;
     }
 
     #note-detail {
-        height: 1fr;
+        height: auto;
     }
 
     #note-actions {
@@ -107,12 +124,20 @@ class VoiceNoteApp(App):
 
     #qr-code {
         color: $accent;
-        padding: 0 1;
+        padding: 0;
+        height: auto;
     }
 
     #zoom-controls {
         height: auto;
+        layout: horizontal;
         margin-left: 1;
+    }
+
+    #note-actions {
+        height: auto;
+        layout: horizontal;
+        margin-top: 1;
     }
 
     #app-footer {
@@ -203,22 +228,23 @@ class VoiceNoteApp(App):
         yield Container(
             Horizontal(
                 Vertical(
-                    Static("Choose or create a session", id="session-name"),
-                    SessionLink("Session: not selected", id="session-link"),
+                    Static("", id="session-title"),
+                    Static("", id="session-description"),
+                    SessionLink("Session: not selected", id="session-folder-path"),
                     id="session-card",
                 ),
                 Vertical(
-                    Static("QR session link", id="qr-title"),
+                    Static("Telegram assistant", id="qr-title"),
                     Static("", id="qr-code"),
                     id="qr-card",
                 ),
                 id="summary-bar",
             ),
-            Horizontal(
+            Vertical(
                 Vertical(
                     Horizontal(
                         Static("Transcript", id="notes-title"),
-                        Container(
+                        Horizontal(
                             Button("A+", id="zoom-in"),
                             Button("A-", id="zoom-out"),
                             id="zoom-controls",
@@ -234,18 +260,18 @@ class VoiceNoteApp(App):
                     ),
                     id="notes-panel",
                 ),
-                    Vertical(
-                        Static("Selected note", id="details-title"),
-                        Static("", id="note-detail"),
-                        Container(
-                            Button("New", variant="primary", id="new-note"),
-                            Button("Edit", id="edit-note"),
-                            Button("Delete", variant="error", id="delete-note"),
-                            Button("Play", id="play-selected", variant="primary"),
-                            Button("Open Folder", id="open-session"),
-                            id="note-actions",
-                        ),
-                        id="details-card",
+                Vertical(
+                    Static("Selected note", id="details-title"),
+                    Static("", id="note-detail"),
+                    Horizontal(
+                        Button("New", variant="primary", id="new-note"),
+                        Button("Edit", id="edit-note"),
+                        Button("Delete", variant="error", id="delete-note"),
+                        Button("Play", id="play-selected", variant="primary"),
+                        Button("Open Folder", id="open-session"),
+                        id="note-actions",
+                    ),
+                    id="details-card",
                 ),
                 id="main-panels",
             ),
@@ -495,6 +521,10 @@ class VoiceNoteApp(App):
             self.selected_note_id = self.notes[0].note_id
         self._sync_selected_note()
         self._update_detail_panel()
+        if self.session is not None:
+            self.query_one("#session-description", Static).update(
+                f"{self.session.slug} • {self.session.timestamp} • {len(self.notes)} notes"
+            )
 
     def _set_status(self, status: str) -> None:
         status_widget = self.query_one("#status", Static)
@@ -510,34 +540,19 @@ class VoiceNoteApp(App):
         if self.session is None:
             return
 
-        self.query_one("#session-name", Static).update(self.session.title)
-        self.query_one("#session-link", SessionLink).update(
-            f"Session: {self.session.session_dir}"
+        self.query_one("#session-title", Static).update(self.session.title)
+        self.query_one("#session-description", Static).update(
+            f"{self.session.slug} • {self.session.timestamp} • {len(self.notes)} notes"
         )
-        self.query_one("#session-link", SessionLink).url = _transcript_url(
+        self.query_one("#session-folder-path", SessionLink).update(
+            f"Session folder: {self.session.session_dir}"
+        )
+        self.query_one("#session-folder-path", SessionLink).url = _transcript_url(
             self.session.session_dir,
             self.settings.editor,
         )
-        self.query_one("#qr-code", Static).update(_render_qr_art(self.session.session_dir))
+        self.query_one("#qr-code", Static).update(_render_qr_art(_qr_payload(self.session)))
         self.query_one("#notes-table", TranscriptTable).focus()
-
-    @property
-    def session_name(self) -> str:
-        if self.session is None:
-            return "Voice Note Session"
-        return self.session.title
-
-    @property
-    def transcript_link(self) -> str:
-        if self.session is None:
-            return "Session: not selected"
-        return f"Session: {self.session.session_dir}"
-
-    @property
-    def transcript_url(self) -> str | None:
-        if self.session is None:
-            return None
-        return _transcript_url(self.session.session_dir, self.settings.editor)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         self.selected_note_id = _row_key_value(event.row_key)
@@ -820,7 +835,7 @@ def _render_qr_art(target: Path | str) -> str:
     try:
         import qrcode
 
-        qr = qrcode.QRCode(border=1, box_size=1)
+        qr = qrcode.QRCode(border=0, box_size=1)
         qr.add_data(payload)
         qr.make(fit=True)
         matrix = qr.get_matrix()
@@ -839,6 +854,10 @@ def _render_qr_art(target: Path | str) -> str:
         rows.append("")
         rows.append(payload)
         return "\n".join(rows)
+
+
+def _qr_payload(session: VoiceNoteSession) -> str:
+    return session.folder_name
 
 
 def _note_preview(text: str, width: int = 72) -> str:
