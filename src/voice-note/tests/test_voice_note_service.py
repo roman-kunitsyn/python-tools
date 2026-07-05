@@ -823,7 +823,7 @@ class TuiComponentRefactorTest(unittest.TestCase):
         self.assertEqual(panel.title, "▶ 01. 2026-07-04 12:35:16  [audio]")
         self.assertEqual(panel.border_style, "black")
 
-    def test_render_assistant_message_card_uses_green_selection_style(self) -> None:
+    def test_render_assistant_message_card_uses_green_active_style(self) -> None:
         message = AssistantMessage(
             message_id="msg-1",
             role="assistant",
@@ -842,6 +842,26 @@ class TuiComponentRefactorTest(unittest.TestCase):
 
         self.assertEqual(panel.title, "▶ Response: 02. 2026-07-04 12:36:12")
         self.assertEqual(panel.border_style, "#16a34a")
+
+    def test_render_assistant_message_card_uses_red_range_style(self) -> None:
+        message = AssistantMessage(
+            message_id="msg-1",
+            role="assistant",
+            prompt="give me summary",
+            response="Summary output",
+            created_at=datetime(2026, 7, 4, 12, 36, 12),
+        )
+
+        panel = render_assistant_message_card(
+            message=message,
+            index=2,
+            selected=False,
+            in_selection=True,
+            zoom=1,
+        )
+
+        self.assertEqual(panel.title, "▣ Response: 02. 2026-07-04 12:36:12")
+        self.assertEqual(panel.border_style, "#dc2626")
 
     def test_assistant_tab_placeholder_is_present(self) -> None:
         assistant_tab = build_assistant_tab()
