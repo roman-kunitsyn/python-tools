@@ -48,7 +48,8 @@ fast to navigate from the keyboard:
   metadata.
 - Pressing `p` on a note without source audio should speak the note with macOS
   built-in `say`.
-- The TUI should gain a dedicated `Assistant` tab.
+- The TUI should gain a dedicated `Assistant` tab that behaves like a local
+  Ollama chat surface over the current session notes.
 
 ## Storage Requirements
 
@@ -67,6 +68,8 @@ note store:
   for reading and editing.
 - Notes should support independent updates so individual entries can be edited,
   saved, canceled, removed, and augmented with manual typing.
+- Assistant messages should support the same human-readable session storage
+  pattern, plus prompt/response metadata needed for chat history and playback.
 
 ## Feature Plan
 
@@ -106,11 +109,29 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Add tests for playback selection and the text-to-speech fallback branch.
 - Leave a report in `docs/reports/` describing the playback change.
 
-### Task 6: Assistant tab
-- Add a new `Assistant` tab to the TUI.
-- Keep the tab integrated with the current keyboard navigation model.
-- Add tests for tab presence, default focus, and tab switching.
-- Leave a report in `docs/reports/` describing the new tab.
+### Task 6: Assistant chat model and Ollama client
+- Add a structured assistant message model with prompt, response, role, created
+  at, source audio, and response state fields.
+- Add a local Ollama client/service that can send the current session notes as
+  context and return streamed or non-streamed responses.
+- Decide the assistant session artifact layout, keeping it human-readable and
+  editable on disk.
+- Add tests for assistant message persistence, context assembly, and Ollama
+  request/response handling.
+- Leave a report in `docs/reports/` describing the assistant backend slice.
+
+### Task 7: Assistant TUI chat workspace
+- Turn the `Assistant` tab into a chat-like workspace that can record voice
+  prompts, accept manual text prompts, and show Ollama responses inline.
+- Render prompt and response cards with different visual treatment so the chat
+  flow is easy to scan.
+- Keep the same note-style navigation, edit, save, delete, and play controls for
+  assistant messages.
+- Add optional streaming text updates so the response can appear as it is being
+  generated.
+- Add tests for assistant tab composition, prompt submission, response display,
+  and playback behavior.
+- Leave a report in `docs/reports/` describing the assistant chat workspace.
 
 ## Runtime Dependencies
 
@@ -121,6 +142,8 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - `qrcode` for QR code generation in the TUI.
 - An audio playback backend for note playback, if implemented in the same
   release.
+- A local Ollama server for assistant responses, if the assistant tab is
+  implemented in the same release.
 
 ## Remaining Enhancements
 
