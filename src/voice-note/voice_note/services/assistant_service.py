@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.session import VoiceNoteSession
@@ -33,6 +34,13 @@ class AssistantService:
         self.context_builder = context_builder or AssistantContextBuilder()
 
     def generate_response(self, prompt: str) -> AssistantGenerationResult:
+        return self.generate_response_from_audio(prompt, source_audio=None)
+
+    def generate_response_from_audio(
+        self,
+        prompt: str,
+        source_audio: Path | None = None,
+    ) -> AssistantGenerationResult:
         notes = self.notes_store.load_notes()
         context = self.context_builder.build(
             notes=notes,
@@ -46,12 +54,14 @@ class AssistantService:
             prompt=prompt,
             response="",
             response_state="sent",
+            source_audio=source_audio,
         )
         response_message = self.assistant_store.append_message(
             role="assistant",
             prompt=prompt,
             response=ollama_result.content,
             response_state="complete" if ollama_result.done else "partial",
+            source_audio=source_audio,
         )
         return AssistantGenerationResult(
             prompt_message=prompt_message,

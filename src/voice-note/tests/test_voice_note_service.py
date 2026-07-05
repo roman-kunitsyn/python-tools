@@ -706,6 +706,70 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
 
             self.assertEqual(copied, ["first note"])
 
+    def test_assistant_recording_routes_prompt_without_persisting_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+
+            calls: list[tuple[str, tuple, dict]] = []
+
+            class FakeService:
+                def stop_recording_and_transcribe(self, persist: bool = True) -> VoiceNote:
+                    calls.append(("stop", (), {"persist": persist}))
+                    return VoiceNote(
+                        text="assistant prompt",
+                        created_at=datetime(2026, 7, 4, 12, 35, 16),
+                        audio_file=Path("recording.wav"),
+                    )
+
+            app.service = FakeService()  # type: ignore[assignment]
+            app.active_tab = "assistant"
+            app.stopping = False
+            app.recording = True
+            app._stop_countdown_timers = lambda: None  # type: ignore[method-assign]
+            app._set_recording_theme = lambda recording: None  # type: ignore[method-assign]
+            app._set_status = lambda status: calls.append(("status", (status,), {}))  # type: ignore[method-assign]
+            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
+            app.call_from_thread = lambda fn, *args: fn(*args)  # type: ignore[method-assign]
+            app.action_send_assistant_prompt = lambda prompt=None: calls.append(("prompt", (prompt,), {}))  # type: ignore[method-assign]
+
+            app._stop_recording()
+
+        self.assertIn(("stop", (), {"persist": False}), calls)
+        self.assertIn(("prompt", ("assistant prompt",), {}), calls)
+
+    def test_assistant_selection_copies_text_without_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+            app.assistant_messages = [
+                AssistantMessage(
+                    message_id="msg-1",
+                    role="user",
+                    prompt="give me summary",
+                    response="",
+                    created_at=datetime(2026, 7, 4, 12, 35, 16),
+                ),
+                AssistantMessage(
+                    message_id="msg-2",
+                    role="assistant",
+                    prompt="give me summary",
+                    response="Summary output",
+                    created_at=datetime(2026, 7, 4, 12, 36, 12),
+                ),
+            ]
+            app.assistant_selected_message_id = "msg-1"
+            app.assistant_selection_anchor_index = 0
+            app.assistant_selection_end_index = 1
+
+            text = app._selected_assistant_messages_text()
+
+        self.assertEqual(text, "give me summary\n\nSummary output")
+
 
 class TuiComponentRefactorTest(unittest.TestCase):
     def test_render_note_card_preserves_note_header_and_styles(self) -> None:
@@ -731,7 +795,7 @@ class TuiComponentRefactorTest(unittest.TestCase):
         assistant_tab = build_assistant_tab()
 
         self.assertEqual(assistant_tab.id, "assistant-view")
-        self.assertEqual(len(list(assistant_tab.compose())), 3)
+        self.assertEqual(len(list(assistant_tab.compose())), 6)
 
 
 class ClipboardAdapterTest(unittest.TestCase):

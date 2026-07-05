@@ -57,13 +57,14 @@ class VoiceNoteService:
         self._current_audio_file = self.recorder.start()
         return self._current_audio_file
 
-    def stop_recording_and_transcribe(self) -> VoiceNote:
+    def stop_recording_and_transcribe(self, persist: bool = True) -> VoiceNote:
         audio_file = self.recorder.stop()
         self._current_audio_file = None
         text = self.transcriber.transcribe(audio_file).strip()
         note = VoiceNote(text=text, created_at=datetime.now(), audio_file=audio_file)
-        self.writer.write(format_note(note, self.append_timestamp))
-        if self.session_store is not None:
+        if persist:
+            self.writer.write(format_note(note, self.append_timestamp))
+        if persist and self.session_store is not None:
             self.session_store.append_note(
                 text=note.text,
                 created_at=note.created_at,

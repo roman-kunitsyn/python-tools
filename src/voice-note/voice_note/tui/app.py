@@ -14,21 +14,26 @@ from textual.widgets import (
     Footer,
     Header,
     Link,
+    Input,
     Static,
     TabbedContent,
     TabPane,
 )
 
 from voice_note.audio.player import play_audio_file, speak_text
+from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.session import VoiceNoteSession
 from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
+from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.services.runtime import build_service
+from voice_note.services.assistant_service import AssistantService
+from voice_note.services.ollama_client import OllamaClient
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService
 from voice_note.tui.clipboard import copy_text_to_clipboard
 from voice_note.tui.assistant import build_assistant_tab
-from voice_note.tui.views import NoteTranscriptView
+from voice_note.tui.views import AssistantMessageView, NoteTranscriptView
 from voice_note.tui.screens import (
     NoteEditResult,
     NoteEditorScreen,
@@ -250,11 +255,18 @@ class VoiceNoteApp(App):
         self.session_service = session_service
         self.session: VoiceNoteSession | None = None
         self.service: VoiceNoteService | None = None
+        self.assistant_store: AssistantMessageStore | None = None
+        self.assistant_service: AssistantService | None = None
+        self.assistant_messages: list[AssistantMessage] = []
+        self.active_tab = "notes"
         self.recording = False
         self.notes: list[SessionNote] = []
         self.selected_note_id: str | None = None
         self.selection_anchor_index: int | None = None
         self.selection_end_index: int | None = None
+        self.assistant_selected_message_id: str | None = None
+        self.assistant_selection_anchor_index: int | None = None
+        self.assistant_selection_end_index: int | None = None
         self.recording_started_at: float | None = None
         self.countdown_timer: Timer | None = None
         self.status_blink_timer: Timer | None = None
@@ -361,9 +373,22 @@ class VoiceNoteApp(App):
         self.service = build_service(self.settings, self.session.session_dir)
         if self.service.session_store is not None:
             self.notes = self.service.session_store.load_notes()
+        self.assistant_store = AssistantMessageStore(
+            messages_file=self.session.assistant_file,
+            transcript_file=self.session.assistant_transcript_file,
+            session=self.session.session_dir.name,
+        )
+        self.assistant_service = AssistantService(
+            session=self.session,
+            notes_store=self.service.session_store,
+            assistant_store=self.assistant_store,
+            ollama_client=OllamaClient(model=self.settings.model),
+        )
+        self._reload_assistant_messages()
         self._refresh_session_widgets()
         self._refresh_settings_widgets()
         self._render_notes()
+        self._render_assistant_messages()
         self._set_status("Status: Idle")
         self._show_tab("notes")
 
@@ -409,9 +434,15 @@ class VoiceNoteApp(App):
         self.action_new_note()
 
     def action_new_note(self) -> None:
+        if self.active_tab == "assistant":
+            self._focus_assistant_prompt()
+            return
         self._open_note_editor(title="New note")
 
     def action_edit_note(self) -> None:
+        if self.active_tab == "assistant":
+            self.action_edit_assistant_message()
+            return
         note = self._selected_note()
         if note is None:
             self._set_status("Status: Error: no note selected")
@@ -420,6 +451,9 @@ class VoiceNoteApp(App):
         self._open_note_editor(title="Edit note", note=note)
 
     def action_delete_note(self) -> None:
+        if self.active_tab == "assistant":
+            self.action_delete_assistant_message()
+            return
         note = self._selected_note()
         if note is None:
             self._set_status("Status: Error: no note selected")
@@ -439,6 +473,9 @@ class VoiceNoteApp(App):
         self._set_status("Status: Saved")
 
     def action_play_note(self) -> None:
+        if self.active_tab == "assistant":
+            self.action_play_assistant_message()
+            return
         note = self._selected_note()
         if note is None:
             self._set_status("Status: Error: no note selected")
@@ -482,18 +519,45 @@ class VoiceNoteApp(App):
         self._show_tab("settings")
 
     def action_next_note(self) -> None:
+        if self.active_tab == "assistant":
+            self._move_assistant_message_selection(1)
+            return
         self._move_note_selection(1)
 
     def action_previous_note(self) -> None:
+        if self.active_tab == "assistant":
+            self._move_assistant_message_selection(-1)
+            return
         self._move_note_selection(-1)
 
     def action_extend_next_note(self) -> None:
+        if self.active_tab == "assistant":
+            self._move_assistant_message_selection(1, extend_selection=True)
+            return
         self._move_note_selection(1, extend_selection=True)
 
     def action_extend_previous_note(self) -> None:
+        if self.active_tab == "assistant":
+            self._move_assistant_message_selection(-1, extend_selection=True)
+            return
         self._move_note_selection(-1, extend_selection=True)
 
     def action_copy_selection(self) -> None:
+        if self.active_tab == "assistant":
+            text = self._selected_assistant_messages_text()
+            if text == "":
+                self._set_status("Status: Error: no assistant text to copy")
+                return
+
+            try:
+                copy_text_to_clipboard(text)
+            except Exception as error:
+                self._set_status(f"Status: Error: {error}")
+                return
+
+            self._set_status("Status: Copied")
+            return
+
         text = self._selected_notes_text()
         if text == "":
             self._set_status("Status: Error: no note text to copy")
@@ -506,6 +570,83 @@ class VoiceNoteApp(App):
             return
 
         self._set_status("Status: Copied")
+
+    def action_send_assistant_prompt(self, prompt: str | None = None) -> None:
+        if self.assistant_service is None:
+            self._set_status("Status: Error: assistant is not ready")
+            return
+
+        text = prompt if prompt is not None else self._assistant_prompt_value()
+        text = text.strip()
+        if text == "":
+            self._set_status("Status: Error: no assistant prompt")
+            return
+
+        self._set_status("Status: Generating assistant response...")
+
+        def work() -> None:
+            try:
+                result = self.assistant_service.generate_response(text)
+            except Exception as error:
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            self.call_from_thread(self._on_assistant_response, result.response_message.message_id)
+
+        self.run_worker(work, thread=True)
+
+    def action_play_assistant_message(self) -> None:
+        message = self._selected_assistant_message()
+        if message is None:
+            self._set_status("Status: Error: no assistant message selected")
+            return
+
+        self._set_status("Status: Playing...")
+
+        def work() -> None:
+            try:
+                text = message.response if message.role != "user" else message.prompt
+                if text.strip() == "":
+                    raise RuntimeError("assistant message has no text to play")
+                speak_text(text)
+            except Exception as error:
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            self.call_from_thread(self._set_status, "Status: Saved")
+
+        self.run_worker(work, thread=True)
+
+    def action_edit_assistant_message(self) -> None:
+        message = self._selected_assistant_message()
+        if message is None:
+            self._set_status("Status: Error: no assistant message selected")
+            return
+
+        initial_text = message.prompt if message.role == "user" else message.response
+        self.push_screen(
+            NoteEditorScreen(title="Edit assistant message", text=initial_text),
+            callback=lambda result: self._on_assistant_editor_result(result, message),
+        )
+
+    def action_delete_assistant_message(self) -> None:
+        message = self._selected_assistant_message()
+        if message is None:
+            self._set_status("Status: Error: no assistant message selected")
+            return
+
+        if self.assistant_store is None:
+            self._set_status("Status: Error: assistant store is not ready")
+            return
+
+        try:
+            self.assistant_store.delete_message(message.message_id)
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        self._reload_assistant_messages()
+        self._set_status("Status: Saved")
 
     def _stop_recording(self, time_overflow: bool = False) -> None:
         if self.service is None:
@@ -525,11 +666,25 @@ class VoiceNoteApp(App):
         else:
             self._set_status("Status: Transcribing...")
 
+        assistant_mode = self.active_tab == "assistant"
+
         def work() -> None:
             try:
-                note = self.service.stop_recording_and_transcribe()
+                if assistant_mode:
+                    note = self.service.stop_recording_and_transcribe(persist=False)
+                else:
+                    note = self.service.stop_recording_and_transcribe()
             except Exception as error:
                 self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            if assistant_mode:
+                self.recording_started_at = None
+                self.stopping = False
+                self.call_from_thread(
+                    self.action_send_assistant_prompt,
+                    note.text,
+                )
                 return
 
             self.call_from_thread(self._add_note, note.text)
@@ -609,6 +764,100 @@ class VoiceNoteApp(App):
                 f"{self.session.slug} • {self.session.timestamp} • {len(self.notes)} notes"
             )
 
+    def _reload_assistant_messages(
+        self, select_message_id: str | None = None
+    ) -> None:
+        if self.assistant_store is None:
+            return
+
+        self.assistant_messages = self.assistant_store.load_messages()
+        if not self.assistant_messages:
+            self.assistant_selected_message_id = None
+            self.assistant_selection_anchor_index = None
+            self.assistant_selection_end_index = None
+        elif select_message_id is not None and select_message_id in {
+            message.message_id for message in self.assistant_messages
+        }:
+            self.assistant_selected_message_id = select_message_id
+            index = self._assistant_selected_message_index()
+            self.assistant_selection_anchor_index = index
+            self.assistant_selection_end_index = index
+        elif self.assistant_selected_message_id is None or self.assistant_selected_message_id not in {
+            message.message_id for message in self.assistant_messages
+        }:
+            self.assistant_selected_message_id = self.assistant_messages[-1].message_id
+            index = len(self.assistant_messages) - 1
+            self.assistant_selection_anchor_index = index
+            self.assistant_selection_end_index = index
+        self._render_assistant_messages()
+
+    def _render_assistant_messages(self) -> None:
+        try:
+            messages_view = self.query_one("#assistant-messages", AssistantMessageView)
+        except Exception:
+            return
+
+        selection_bounds = self._selected_assistant_message_bounds()
+        messages_view.render_messages(
+            self.assistant_messages,
+            selected_message_id=self.assistant_selected_message_id,
+            selected_message_bounds=selection_bounds,
+        )
+
+    def _assistant_prompt_value(self) -> str:
+        try:
+            return self.query_one("#assistant-prompt", Input).value
+        except Exception:
+            return ""
+
+    def _focus_assistant_prompt(self) -> None:
+        try:
+            self.query_one("#assistant-prompt", Input).focus()
+        except Exception:
+            pass
+
+    def _on_assistant_response(self, message_id: str) -> None:
+        try:
+            prompt_input = self.query_one("#assistant-prompt", Input)
+            prompt_input.value = ""
+        except Exception:
+            pass
+
+        self.recording_started_at = None
+        self.stopping = False
+        self._reload_assistant_messages(select_message_id=message_id)
+        self._set_status("Status: Idle")
+
+    def _on_assistant_editor_result(
+        self,
+        result: NoteEditResult | None,
+        original_message: AssistantMessage,
+    ) -> None:
+        if result is None or result.mode != "save" or result.text is None:
+            return
+
+        if self.assistant_store is None:
+            self._set_status("Status: Error: assistant store is not ready")
+            return
+
+        try:
+            if original_message.role == "user":
+                updated_message = self.assistant_store.update_message(
+                    original_message.message_id,
+                    prompt=result.text,
+                )
+            else:
+                updated_message = self.assistant_store.update_message(
+                    original_message.message_id,
+                    response=result.text,
+                )
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        self._reload_assistant_messages(select_message_id=updated_message.message_id)
+        self._set_status("Status: Saved")
+
     def _set_status(self, status: str) -> None:
         status_widget = self.query_one("#status", Static)
         status_widget.update(_format_status(status))
@@ -681,6 +930,14 @@ class VoiceNoteApp(App):
         except Exception:
             pass
 
+        if tab == "assistant":
+            self._focus_assistant_prompt()
+        elif tab == "notes":
+            try:
+                self.query_one("#notes-content", NoteTranscriptView).focus()
+            except Exception:
+                pass
+
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
@@ -692,6 +949,8 @@ class VoiceNoteApp(App):
         self._refresh_settings_widgets()
         if tab_id == "notes":
             self.query_one("#notes-content", NoteTranscriptView).focus()
+        elif tab_id == "assistant":
+            self._focus_assistant_prompt()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "play-selected":
@@ -710,6 +969,12 @@ class VoiceNoteApp(App):
             self.action_zoom_in()
         elif event.button.id == "zoom-out":
             self.action_zoom_out()
+        elif event.button.id == "assistant-send":
+            self.action_send_assistant_prompt()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "assistant-prompt":
+            self.action_send_assistant_prompt(event.value)
 
     def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
         initial_text = note.text if note is not None else ""
@@ -771,6 +1036,15 @@ class VoiceNoteApp(App):
 
         return self.service.session_store.get_note(self.selected_note_id)
 
+    def _selected_assistant_message(self) -> AssistantMessage | None:
+        if self.assistant_selected_message_id is None:
+            return None
+
+        if self.assistant_store is None:
+            return None
+
+        return self.assistant_store.get_message(self.assistant_selected_message_id)
+
     def _sync_selected_note(self) -> None:
         if not self.notes:
             self.selected_note_id = None
@@ -791,6 +1065,27 @@ class VoiceNoteApp(App):
         self.selected_note_id = self.notes[-1].note_id
         self.selection_anchor_index = len(self.notes) - 1
         self.selection_end_index = len(self.notes) - 1
+
+    def _sync_selected_assistant_message(self) -> None:
+        if not self.assistant_messages:
+            self.assistant_selected_message_id = None
+            self.assistant_selection_anchor_index = None
+            self.assistant_selection_end_index = None
+            return
+
+        if self.assistant_selected_message_id is None:
+            self.assistant_selected_message_id = self.assistant_messages[-1].message_id
+            self.assistant_selection_anchor_index = len(self.assistant_messages) - 1
+            self.assistant_selection_end_index = len(self.assistant_messages) - 1
+            return
+
+        for index, message in enumerate(self.assistant_messages):
+            if message.message_id == self.assistant_selected_message_id:
+                return
+
+        self.assistant_selected_message_id = self.assistant_messages[-1].message_id
+        self.assistant_selection_anchor_index = len(self.assistant_messages) - 1
+        self.assistant_selection_end_index = len(self.assistant_messages) - 1
 
     def _set_selected_note_by_index(
         self,
@@ -823,12 +1118,60 @@ class VoiceNoteApp(App):
         next_index = max(0, min(len(self.notes) - 1, current_index + delta))
         self._set_selected_note_by_index(next_index, extend_selection=extend_selection)
 
+    def _set_selected_assistant_message_by_index(
+        self,
+        index: int,
+        extend_selection: bool = False,
+    ) -> None:
+        if not self.assistant_messages:
+            self.assistant_selected_message_id = None
+            self.assistant_selection_anchor_index = None
+            self.assistant_selection_end_index = None
+            return
+
+        previous_index = self._assistant_selected_message_index()
+        index = max(0, min(index, len(self.assistant_messages) - 1))
+        self.assistant_selected_message_id = self.assistant_messages[index].message_id
+        if extend_selection:
+            if self.assistant_selection_anchor_index is None:
+                self.assistant_selection_anchor_index = previous_index
+            self.assistant_selection_end_index = index
+        else:
+            self.assistant_selection_anchor_index = index
+            self.assistant_selection_end_index = index
+        self._render_assistant_messages()
+
+    def _move_assistant_message_selection(
+        self, delta: int, extend_selection: bool = False
+    ) -> None:
+        if not self.assistant_messages:
+            return
+
+        current_index = self._assistant_selected_message_index()
+        next_index = max(
+            0, min(len(self.assistant_messages) - 1, current_index + delta)
+        )
+        self._set_selected_assistant_message_by_index(
+            next_index,
+            extend_selection=extend_selection,
+        )
+
     def _selected_note_index(self) -> int:
         if self.selected_note_id is None:
             return 0
 
         for index, note in enumerate(self.notes):
             if note.note_id == self.selected_note_id:
+                return index
+
+        return 0
+
+    def _assistant_selected_message_index(self) -> int:
+        if self.assistant_selected_message_id is None:
+            return 0
+
+        for index, message in enumerate(self.assistant_messages):
+            if message.message_id == self.assistant_selected_message_id:
                 return index
 
         return 0
@@ -854,6 +1197,37 @@ class VoiceNoteApp(App):
         selected_notes = self.notes[start : end + 1]
         return "\n\n".join(
             note.text.strip() for note in selected_notes if note.text.strip()
+        )
+
+    def _selected_assistant_message_bounds(self) -> tuple[int, int] | None:
+        if not self.assistant_messages or self.assistant_selected_message_id is None:
+            return None
+
+        start = self.assistant_selection_anchor_index
+        end = self.assistant_selection_end_index
+        if start is None or end is None:
+            current_index = self._assistant_selected_message_index()
+            return current_index, current_index
+
+        return min(start, end), max(start, end)
+
+    def _selected_assistant_messages_text(self) -> str:
+        bounds = self._selected_assistant_message_bounds()
+        if bounds is None:
+            return ""
+
+        start, end = bounds
+        selected_messages = self.assistant_messages[start : end + 1]
+        return "\n\n".join(
+            (
+                message.prompt.strip()
+                if message.role == "user"
+                else message.response.strip()
+            )
+            for message in selected_messages
+            if (
+                message.prompt.strip() if message.role == "user" else message.response.strip()
+            )
         )
 
     def _update_detail_panel(self) -> None:
