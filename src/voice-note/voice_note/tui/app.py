@@ -29,6 +29,7 @@ from voice_note.models.settings import VoiceNoteSettings
 from voice_note.services.runtime import build_service
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService
+from voice_note.tui.clipboard import copy_text_to_clipboard
 from voice_note.tui.screens import (
     NoteEditResult,
     NoteEditorScreen,
@@ -224,6 +225,14 @@ class VoiceNoteApp(App):
         ("p", "play_note", "Play Note"),
         ("j", "next_note", "Next Note"),
         ("k", "previous_note", "Previous Note"),
+        ("down", "next_note", "Next Note"),
+        ("up", "previous_note", "Previous Note"),
+        ("shift+j", "extend_next_note", "Extend Selection"),
+        ("shift+k", "extend_previous_note", "Extend Selection"),
+        ("shift+down", "extend_next_note", "Extend Selection"),
+        ("shift+up", "extend_previous_note", "Extend Selection"),
+        ("y", "copy_selection", "Copy Selection"),
+        ("ctrl+shift+c", "copy_selection", "Copy Selection"),
         ("+", "zoom_in", "Zoom In"),
         ("-", "zoom_out", "Zoom Out"),
         ("ctrl+s", "save_notes", "Save"),
@@ -245,6 +254,8 @@ class VoiceNoteApp(App):
         self.recording = False
         self.notes: list[SessionNote] = []
         self.selected_note_id: str | None = None
+        self.selection_anchor_index: int | None = None
+        self.selection_end_index: int | None = None
         self.recording_started_at: float | None = None
         self.countdown_timer: Timer | None = None
         self.status_blink_timer: Timer | None = None
@@ -473,6 +484,26 @@ class VoiceNoteApp(App):
     def action_previous_note(self) -> None:
         self._move_note_selection(-1)
 
+    def action_extend_next_note(self) -> None:
+        self._move_note_selection(1, extend_selection=True)
+
+    def action_extend_previous_note(self) -> None:
+        self._move_note_selection(-1, extend_selection=True)
+
+    def action_copy_selection(self) -> None:
+        text = self._selected_notes_text()
+        if text == "":
+            self._set_status("Status: Error: no note text to copy")
+            return
+
+        try:
+            copy_text_to_clipboard(text)
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        self._set_status("Status: Copied")
+
     def _stop_recording(self, time_overflow: bool = False) -> None:
         if self.service is None:
             self._set_status("Status: Error: session is not ready")
@@ -546,6 +577,8 @@ class VoiceNoteApp(App):
         self.notes = self.service.session_store.load_notes()
         if self.notes:
             self.selected_note_id = self.notes[-1].note_id
+            self.selection_anchor_index = len(self.notes) - 1
+            self.selection_end_index = len(self.notes) - 1
         self._render_notes()
         self.recording_started_at = None
         self.stopping = False
@@ -557,11 +590,15 @@ class VoiceNoteApp(App):
                 note.note_id for note in self.notes
             }:
                 self.selected_note_id = self.notes[0].note_id
+                self.selection_anchor_index = 0
+                self.selection_end_index = 0
 
         notes_view = self.query_one("#notes-content", NoteTranscriptView)
+        selection_bounds = self._selected_note_bounds()
         notes_view.render_notes(
             self.notes,
             selected_note_id=self.selected_note_id,
+            selected_note_bounds=selection_bounds,
             zoom=self.note_zoom,
         )
         if self.session is not None:
@@ -710,6 +747,13 @@ class VoiceNoteApp(App):
         self.selected_note_id = select_note_id or (
             self.notes[-1].note_id if self.notes else None
         )
+        if self.selected_note_id is None:
+            self.selection_anchor_index = None
+            self.selection_end_index = None
+        else:
+            index = self._selected_note_index()
+            self.selection_anchor_index = index
+            self.selection_end_index = index
         self._render_notes()
 
     def _selected_note(self) -> SessionNote | None:
@@ -724,10 +768,14 @@ class VoiceNoteApp(App):
     def _sync_selected_note(self) -> None:
         if not self.notes:
             self.selected_note_id = None
+            self.selection_anchor_index = None
+            self.selection_end_index = None
             return
 
         if self.selected_note_id is None:
             self.selected_note_id = self.notes[-1].note_id
+            self.selection_anchor_index = len(self.notes) - 1
+            self.selection_end_index = len(self.notes) - 1
             return
 
         for index, note in enumerate(self.notes):
@@ -735,23 +783,39 @@ class VoiceNoteApp(App):
                 return
 
         self.selected_note_id = self.notes[-1].note_id
+        self.selection_anchor_index = len(self.notes) - 1
+        self.selection_end_index = len(self.notes) - 1
 
-    def _set_selected_note_by_index(self, index: int) -> None:
+    def _set_selected_note_by_index(
+        self,
+        index: int,
+        extend_selection: bool = False,
+    ) -> None:
         if not self.notes:
             self.selected_note_id = None
+            self.selection_anchor_index = None
+            self.selection_end_index = None
             return
 
+        previous_index = self._selected_note_index()
         index = max(0, min(index, len(self.notes) - 1))
         self.selected_note_id = self.notes[index].note_id
+        if extend_selection:
+            if self.selection_anchor_index is None:
+                self.selection_anchor_index = previous_index
+            self.selection_end_index = index
+        else:
+            self.selection_anchor_index = index
+            self.selection_end_index = index
         self._render_notes()
 
-    def _move_note_selection(self, delta: int) -> None:
+    def _move_note_selection(self, delta: int, extend_selection: bool = False) -> None:
         if not self.notes:
             return
 
         current_index = self._selected_note_index()
         next_index = max(0, min(len(self.notes) - 1, current_index + delta))
-        self._set_selected_note_by_index(next_index)
+        self._set_selected_note_by_index(next_index, extend_selection=extend_selection)
 
     def _selected_note_index(self) -> int:
         if self.selected_note_id is None:
@@ -762,6 +826,29 @@ class VoiceNoteApp(App):
                 return index
 
         return 0
+
+    def _selected_note_bounds(self) -> tuple[int, int] | None:
+        if not self.notes or self.selected_note_id is None:
+            return None
+
+        start = self.selection_anchor_index
+        end = self.selection_end_index
+        if start is None or end is None:
+            current_index = self._selected_note_index()
+            return current_index, current_index
+
+        return min(start, end), max(start, end)
+
+    def _selected_notes_text(self) -> str:
+        bounds = self._selected_note_bounds()
+        if bounds is None:
+            return ""
+
+        start, end = bounds
+        selected_notes = self.notes[start : end + 1]
+        return "\n\n".join(
+            note.text.strip() for note in selected_notes if note.text.strip()
+        )
 
     def _update_detail_panel(self) -> None:
         try:
@@ -964,6 +1051,7 @@ def _render_note_card(
     note: SessionNote,
     index: int,
     selected: bool,
+    in_selection: bool,
     zoom: int,
 ) -> Panel:
     timestamp = note.created_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -973,10 +1061,25 @@ def _render_note_card(
 
     body = note.text.strip() or "(empty note)"
     zoom_padding = {1: (0, 1), 2: (1, 2), 3: (1, 3)}.get(max(1, min(3, zoom)), (0, 1))
-    title = f"▶ {header}" if selected else header
-    panel_style = "black on white" if selected else "default"
-    border_style = "black" if selected else "grey70"
-    body_style = "bold black" if selected else "default"
+    if selected:
+        title = f"▶ {header}"
+    elif in_selection:
+        title = f"▣ {header}"
+    else:
+        title = header
+
+    if selected:
+        panel_style = "black on white"
+        border_style = "black"
+        body_style = "bold black"
+    elif in_selection:
+        panel_style = "black on #dbeafe"
+        border_style = "#2563eb"
+        body_style = "black"
+    else:
+        panel_style = "default"
+        border_style = "grey70"
+        body_style = "default"
     body_text = Text(body, style=body_style)
 
     return Panel(
@@ -995,6 +1098,7 @@ class NoteTranscriptView(VerticalScroll):
         self,
         notes: list[SessionNote],
         selected_note_id: str | None = None,
+        selected_note_bounds: tuple[int, int] | None = None,
         zoom: int = 1,
     ) -> None:
         self.remove_children()
@@ -1017,12 +1121,18 @@ class NoteTranscriptView(VerticalScroll):
 
         cards: list[NoteCard] = []
         for index, note in enumerate(notes, start=1):
+            in_selection = False
+            if selected_note_bounds is not None:
+                start, end = selected_note_bounds
+                in_selection = start <= (index - 1) <= end
+
             card = NoteCard(
                 note_id=note.note_id,
                 renderable=_render_note_card(
                     note,
                     index,
                     note.note_id == selected_note_id,
+                    in_selection,
                     zoom,
                 ),
             )

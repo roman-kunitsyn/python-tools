@@ -4,16 +4,20 @@ import unittest
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from voice_note.cli.parser import build_settings_from_args
 from voice_note.models.note import VoiceNote
 from voice_note.models.session import slugify_session_title
+from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
+from voice_note.tui.app import VoiceNoteApp
+from voice_note.tui import clipboard as clipboard_module
 from voice_note.tui.app import (
     _format_countdown,
     _editor_command,
@@ -347,6 +351,140 @@ class SessionNoteStoreTest(unittest.TestCase):
         self.assertEqual(updated_note.text, "edited text")
         self.assertEqual(payload["data"], [])
         self.assertEqual(transcript_text, "")
+
+
+class VoiceNoteAppNavigationTest(unittest.TestCase):
+    def test_note_navigation_uses_vim_and_arrow_bindings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+
+            app.notes = [
+                SessionNote(
+                    note_id="note-1",
+                    text="first",
+                    created_at=datetime(2026, 7, 4, 12, 35, 16),
+                ),
+                SessionNote(
+                    note_id="note-2",
+                    text="second",
+                    created_at=datetime(2026, 7, 4, 12, 36, 12),
+                ),
+            ]
+            app.selected_note_id = "note-1"
+            app._render_notes = lambda: None  # type: ignore[method-assign]
+
+            app.action_next_note()
+            self.assertEqual(app.selected_note_id, "note-2")
+
+            app.action_next_note()
+            self.assertEqual(app.selected_note_id, "note-2")
+
+            app.action_previous_note()
+            self.assertEqual(app.selected_note_id, "note-1")
+
+            app.action_previous_note()
+            self.assertEqual(app.selected_note_id, "note-1")
+
+    def test_note_navigation_bindings_include_arrow_keys(self) -> None:
+        bindings = {binding[0]: binding[1] for binding in VoiceNoteApp.BINDINGS}
+
+        self.assertEqual(bindings["j"], "next_note")
+        self.assertEqual(bindings["k"], "previous_note")
+        self.assertEqual(bindings["down"], "next_note")
+        self.assertEqual(bindings["up"], "previous_note")
+        self.assertEqual(bindings["shift+j"], "extend_next_note")
+        self.assertEqual(bindings["shift+k"], "extend_previous_note")
+        self.assertEqual(bindings["shift+down"], "extend_next_note")
+        self.assertEqual(bindings["shift+up"], "extend_previous_note")
+        self.assertEqual(bindings["y"], "copy_selection")
+        self.assertEqual(bindings["ctrl+shift+c"], "copy_selection")
+
+    def test_shift_navigation_extends_selection_and_copies_plain_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+
+            app.notes = [
+                SessionNote(
+                    note_id="note-1",
+                    text="first note",
+                    created_at=datetime(2026, 7, 4, 12, 35, 16),
+                ),
+                SessionNote(
+                    note_id="note-2",
+                    text="second note",
+                    created_at=datetime(2026, 7, 4, 12, 36, 12),
+                ),
+                SessionNote(
+                    note_id="note-3",
+                    text="third note",
+                    created_at=datetime(2026, 7, 4, 12, 37, 8),
+                ),
+            ]
+            app.selected_note_id = "note-2"
+            app.selection_anchor_index = 1
+            app.selection_end_index = 1
+            app._render_notes = lambda: None  # type: ignore[method-assign]
+            captured: list[str] = []
+            app._set_status = lambda status: captured.append(status)  # type: ignore[method-assign]
+
+            with patch("voice_note.tui.app.copy_text_to_clipboard") as copy_mock:
+                copy_mock.side_effect = lambda text: captured.append(text)
+                app.action_extend_previous_note()
+                self.assertEqual(app.selected_note_id, "note-1")
+                self.assertEqual(app.selection_anchor_index, 1)
+                self.assertEqual(app.selection_end_index, 0)
+
+                app.action_copy_selection()
+
+            self.assertEqual(captured[-2], "first note\n\nsecond note")
+            self.assertEqual(captured[-1], "Status: Copied")
+
+    def test_copy_selection_uses_plain_text_without_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+
+            app.notes = [
+                SessionNote(
+                    note_id="note-1",
+                    text="first note",
+                    created_at=datetime(2026, 7, 4, 12, 35, 16),
+                    audio_file=Path("audio_1.wav"),
+                )
+            ]
+            app.selected_note_id = "note-1"
+            app.selection_anchor_index = 0
+            app.selection_end_index = 0
+            app._render_notes = lambda: None  # type: ignore[method-assign]
+            copied: list[str] = []
+            app._set_status = lambda status: None  # type: ignore[method-assign]
+
+            with patch("voice_note.tui.app.copy_text_to_clipboard") as copy_mock:
+                copy_mock.side_effect = lambda text: copied.append(text)
+                app.action_copy_selection()
+
+            self.assertEqual(copied, ["first note"])
+
+
+class ClipboardAdapterTest(unittest.TestCase):
+    def test_copy_text_to_clipboard_uses_pbcopy_on_macos(self) -> None:
+        calls: list[list[str]] = []
+
+        with patch("voice_note.tui.clipboard.platform.system", return_value="Darwin"), patch(
+            "voice_note.tui.clipboard.shutil.which", return_value="/usr/bin/pbcopy"
+        ), patch("voice_note.tui.clipboard.subprocess.run") as run_mock:
+            run_mock.side_effect = lambda command, **kwargs: calls.append(command)
+            clipboard_module.copy_text_to_clipboard("hello world")
+
+        self.assertEqual(calls, [["pbcopy"]])
 
 
 class WhisperTranscriberTest(unittest.TestCase):
