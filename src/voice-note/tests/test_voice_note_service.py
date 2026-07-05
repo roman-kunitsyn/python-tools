@@ -13,6 +13,7 @@ from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
+from voice_note.audio.player import speak_text
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
@@ -473,6 +474,35 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
             self.assertTrue(event.stopped)
             self.assertTrue(event.prevented)
 
+    def test_play_note_falls_back_to_say_for_text_only_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+
+            note = SessionNote(
+                note_id="note-1",
+                text="text only note",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+                audio_file=None,
+            )
+            captured: list[str] = []
+            app._selected_note = lambda: note  # type: ignore[method-assign]
+            app._set_status = lambda status: captured.append(status)  # type: ignore[method-assign]
+            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
+            app.call_from_thread = lambda fn, *args, **kwargs: fn(*args, **kwargs)  # type: ignore[method-assign]
+
+            with patch("voice_note.tui.app.speak_text") as speak_mock, patch(
+                "voice_note.tui.app.play_audio_file"
+            ) as play_mock:
+                app.action_play_note()
+
+            speak_mock.assert_called_once_with("text only note")
+            play_mock.assert_not_called()
+            self.assertEqual(captured[0], "Status: Playing...")
+            self.assertEqual(captured[-1], "Status: Saved")
+
     def test_shift_navigation_extends_selection_and_copies_plain_text(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = VoiceNoteApp(
@@ -556,6 +586,19 @@ class ClipboardAdapterTest(unittest.TestCase):
             clipboard_module.copy_text_to_clipboard("hello world")
 
         self.assertEqual(calls, [["pbcopy"]])
+
+
+class AudioPlayerTest(unittest.TestCase):
+    def test_speak_text_uses_say_on_macos(self) -> None:
+        calls: list[list[str]] = []
+
+        with patch("voice_note.audio.player.sys.platform", "darwin"), patch(
+            "voice_note.audio.player.subprocess.run"
+        ) as run_mock:
+            run_mock.side_effect = lambda command, **kwargs: calls.append(command)
+            speak_text("hello world")
+
+        self.assertEqual(calls, [["say", "hello world"]])
 
 
 class WhisperTranscriberTest(unittest.TestCase):

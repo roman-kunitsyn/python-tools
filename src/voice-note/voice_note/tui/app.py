@@ -22,7 +22,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import box
 
-from voice_note.audio.player import play_audio_file
+from voice_note.audio.player import play_audio_file, speak_text
 from voice_note.models.session import VoiceNoteSession
 from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
@@ -447,15 +447,14 @@ class VoiceNoteApp(App):
             self._set_status("Status: Error: no note selected")
             return
 
-        if note.audio_file is None:
-            self._set_status("Status: Error: selected note has no audio")
-            return
-
         self._set_status("Status: Playing...")
 
         def work() -> None:
             try:
-                play_audio_file(note.audio_file)
+                if note.audio_file is not None:
+                    play_audio_file(note.audio_file)
+                else:
+                    speak_text(note.text)
             except Exception as error:
                 self.call_from_thread(self._set_status, f"Status: Error: {error}")
                 return

@@ -22,3 +22,14 @@ def play_audio_file(audio_file: Path) -> None:
         return
 
     raise RuntimeError("No supported audio player found")
+
+
+def speak_text(text: str) -> None:
+    cleaned = text.strip()
+    if cleaned == "":
+        raise ValueError("text must not be empty")
+
+    if sys.platform != "darwin":
+        raise RuntimeError("Text-to-speech fallback is only supported on macOS")
+
+    subprocess.run(["say", cleaned], check=True)
