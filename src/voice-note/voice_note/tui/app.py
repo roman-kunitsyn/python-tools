@@ -273,6 +273,19 @@ class VoiceNoteApp(App):
                         NoteTranscriptView(id="notes-content"),
                         id="notes-panel",
                     )
+                with TabPane("Assistant", id="assistant"):
+                    yield Vertical(
+                        Static("Assistant", id="assistant-title"),
+                        Static(
+                            "Use this tab for session assistance and future assistant workflows.",
+                            id="assistant-card",
+                        ),
+                        Static(
+                            "The session QR and assistant link remain available from the Session tab.",
+                            id="assistant-details",
+                        ),
+                        id="assistant-view",
+                    )
                 with TabPane("Session", id="session"):
                     yield Vertical(
                         Horizontal(
@@ -309,19 +322,6 @@ class VoiceNoteApp(App):
                             id="help-details",
                         ),
                         id="help-view",
-                    )
-                with TabPane("Assistant", id="assistant"):
-                    yield Vertical(
-                        Static("Assistant", id="assistant-title"),
-                        Static(
-                            "Use this tab for session assistance and future assistant workflows.",
-                            id="assistant-card",
-                        ),
-                        Static(
-                            "The session QR and assistant link remain available from the Session tab.",
-                            id="assistant-details",
-                        ),
-                        id="assistant-view",
                     )
                 with TabPane("Settings", id="settings"):
                     yield Vertical(
