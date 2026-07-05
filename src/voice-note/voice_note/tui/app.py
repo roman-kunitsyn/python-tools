@@ -14,7 +14,6 @@ from textual.widgets import (
     Footer,
     Header,
     Link,
-    Input,
     Static,
     TabbedContent,
     TabPane,
@@ -259,6 +258,7 @@ class VoiceNoteApp(App):
         self.assistant_service: AssistantService | None = None
         self.assistant_messages: list[AssistantMessage] = []
         self.active_tab = "notes"
+        self.recording_mode = "notes"
         self.recording = False
         self.notes: list[SessionNote] = []
         self.selected_note_id: str | None = None
@@ -401,6 +401,8 @@ class VoiceNoteApp(App):
             self._stop_recording()
             return
 
+        self.recording_mode = self._workspace_tab()
+
         try:
             self.service.start_recording()
         except Exception as error:
@@ -434,13 +436,13 @@ class VoiceNoteApp(App):
         self.action_new_note()
 
     def action_new_note(self) -> None:
-        if self.active_tab == "assistant":
-            self._focus_assistant_prompt()
+        if self._workspace_tab() == "assistant":
+            self._open_assistant_prompt_editor(title="New prompt")
             return
         self._open_note_editor(title="New note")
 
     def action_edit_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self.action_edit_assistant_message()
             return
         note = self._selected_note()
@@ -451,7 +453,7 @@ class VoiceNoteApp(App):
         self._open_note_editor(title="Edit note", note=note)
 
     def action_delete_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self.action_delete_assistant_message()
             return
         note = self._selected_note()
@@ -473,7 +475,7 @@ class VoiceNoteApp(App):
         self._set_status("Status: Saved")
 
     def action_play_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self.action_play_assistant_message()
             return
         note = self._selected_note()
@@ -519,31 +521,31 @@ class VoiceNoteApp(App):
         self._show_tab("settings")
 
     def action_next_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self._move_assistant_message_selection(1)
             return
         self._move_note_selection(1)
 
     def action_previous_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self._move_assistant_message_selection(-1)
             return
         self._move_note_selection(-1)
 
     def action_extend_next_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self._move_assistant_message_selection(1, extend_selection=True)
             return
         self._move_note_selection(1, extend_selection=True)
 
     def action_extend_previous_note(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             self._move_assistant_message_selection(-1, extend_selection=True)
             return
         self._move_note_selection(-1, extend_selection=True)
 
     def action_copy_selection(self) -> None:
-        if self.active_tab == "assistant":
+        if self._workspace_tab() == "assistant":
             text = self._selected_assistant_messages_text()
             if text == "":
                 self._set_status("Status: Error: no assistant text to copy")
@@ -576,8 +578,7 @@ class VoiceNoteApp(App):
             self._set_status("Status: Error: assistant is not ready")
             return
 
-        text = prompt if prompt is not None else self._assistant_prompt_value()
-        text = text.strip()
+        text = (prompt or "").strip()
         if text == "":
             self._set_status("Status: Error: no assistant prompt")
             return
@@ -591,7 +592,10 @@ class VoiceNoteApp(App):
                 self.call_from_thread(self._set_status, f"Status: Error: {error}")
                 return
 
-            self.call_from_thread(self._on_assistant_response, result.response_message.message_id)
+            self.call_from_thread(
+                self._on_assistant_response,
+                result.response_message.message_id,
+            )
 
         self.run_worker(work, thread=True)
 
@@ -605,6 +609,10 @@ class VoiceNoteApp(App):
 
         def work() -> None:
             try:
+                if message.role == "user" and message.source_audio is not None:
+                    play_audio_file(message.source_audio)
+                    return
+
                 text = message.response if message.role != "user" else message.prompt
                 if text.strip() == "":
                     raise RuntimeError("assistant message has no text to play")
@@ -627,6 +635,12 @@ class VoiceNoteApp(App):
         self.push_screen(
             NoteEditorScreen(title="Edit assistant message", text=initial_text),
             callback=lambda result: self._on_assistant_editor_result(result, message),
+        )
+
+    def _open_assistant_prompt_editor(self, title: str) -> None:
+        self.push_screen(
+            NoteEditorScreen(title=title, text=""),
+            callback=self._on_assistant_prompt_editor_result,
         )
 
     def action_delete_assistant_message(self) -> None:
@@ -666,7 +680,7 @@ class VoiceNoteApp(App):
         else:
             self._set_status("Status: Transcribing...")
 
-        assistant_mode = self.active_tab == "assistant"
+        assistant_mode = self.recording_mode == "assistant"
 
         def work() -> None:
             try:
@@ -681,9 +695,14 @@ class VoiceNoteApp(App):
             if assistant_mode:
                 self.recording_started_at = None
                 self.stopping = False
+                if self.assistant_service is None:
+                    self.call_from_thread(self._set_status, "Status: Error: assistant is not ready")
+                    return
+
                 self.call_from_thread(
-                    self.action_send_assistant_prompt,
+                    self._generate_assistant_response_from_audio,
                     note.text,
+                    note.audio_file,
                 )
                 return
 
@@ -732,6 +751,7 @@ class VoiceNoteApp(App):
         if self.service is None or self.service.session_store is None:
             return
 
+        self.recording_mode = "notes"
         self.notes = self.service.session_store.load_notes()
         if self.notes:
             self.selected_note_id = self.notes[-1].note_id
@@ -804,29 +824,50 @@ class VoiceNoteApp(App):
             selected_message_bounds=selection_bounds,
         )
 
-    def _assistant_prompt_value(self) -> str:
-        try:
-            return self.query_one("#assistant-prompt", Input).value
-        except Exception:
-            return ""
-
-    def _focus_assistant_prompt(self) -> None:
-        try:
-            self.query_one("#assistant-prompt", Input).focus()
-        except Exception:
-            pass
-
     def _on_assistant_response(self, message_id: str) -> None:
-        try:
-            prompt_input = self.query_one("#assistant-prompt", Input)
-            prompt_input.value = ""
-        except Exception:
-            pass
-
+        self.recording_mode = "notes"
         self.recording_started_at = None
         self.stopping = False
         self._reload_assistant_messages(select_message_id=message_id)
         self._set_status("Status: Idle")
+
+    def _generate_assistant_response_from_audio(
+        self,
+        prompt: str,
+        source_audio: Path | None,
+    ) -> None:
+        if self.assistant_service is None:
+            self._set_status("Status: Error: assistant is not ready")
+            return
+
+        self._set_status("Status: Generating assistant response...")
+
+        def work() -> None:
+            try:
+                result = self.assistant_service.generate_response_from_audio(
+                    prompt,
+                    source_audio=source_audio,
+                )
+            except Exception as error:
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            self.call_from_thread(
+                self._on_assistant_response,
+                result.response_message.message_id,
+            )
+
+        self.run_worker(work, thread=True)
+
+    def _on_assistant_prompt_editor_result(
+        self,
+        result: NoteEditResult | None,
+        _original_prompt: SessionNote | None = None,
+    ) -> None:
+        if result is None or result.mode != "save" or result.text is None:
+            return
+
+        self.action_send_assistant_prompt(result.text)
 
     def _on_assistant_editor_result(
         self,
@@ -931,12 +972,22 @@ class VoiceNoteApp(App):
             pass
 
         if tab == "assistant":
-            self._focus_assistant_prompt()
+            try:
+                self.query_one("#assistant-messages", AssistantMessageView).focus()
+            except Exception:
+                pass
         elif tab == "notes":
             try:
                 self.query_one("#notes-content", NoteTranscriptView).focus()
             except Exception:
                 pass
+
+    def _workspace_tab(self) -> str:
+        try:
+            tabbed = self.query_one("#main-tabs", TabbedContent)
+            return getattr(tabbed, "active", None) or self.active_tab
+        except Exception:
+            return self.active_tab
 
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
@@ -950,7 +1001,10 @@ class VoiceNoteApp(App):
         if tab_id == "notes":
             self.query_one("#notes-content", NoteTranscriptView).focus()
         elif tab_id == "assistant":
-            self._focus_assistant_prompt()
+            try:
+                self.query_one("#assistant-messages", AssistantMessageView).focus()
+            except Exception:
+                pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "play-selected":
@@ -969,12 +1023,6 @@ class VoiceNoteApp(App):
             self.action_zoom_in()
         elif event.button.id == "zoom-out":
             self.action_zoom_out()
-        elif event.button.id == "assistant-send":
-            self.action_send_assistant_prompt()
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "assistant-prompt":
-            self.action_send_assistant_prompt(event.value)
 
     def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
         initial_text = note.text if note is not None else ""

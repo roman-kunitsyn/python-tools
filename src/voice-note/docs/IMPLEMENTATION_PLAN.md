@@ -170,7 +170,7 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Render prompt and response cards with different visual treatment so the chat
   flow is easy to scan.
 - Keep the same note-style navigation, edit, save, delete, and play controls for
-  assistant messages.
+  assistant messages, including replaying recorded prompt audio when available.
 - Add optional streaming text updates so the response can appear as it is being
   generated.
 - Add tests for assistant tab composition, prompt submission, response display,

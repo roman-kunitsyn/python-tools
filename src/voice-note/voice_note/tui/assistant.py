@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from textual.containers import Vertical
-from textual.widgets import Button, Input, Static
+from textual.widgets import Static
 
 from voice_note.tui.views import AssistantMessageView
 
@@ -14,13 +14,8 @@ class AssistantTab(Vertical):
             id="assistant-card",
         )
         yield AssistantMessageView(id="assistant-messages")
-        yield Input(
-            placeholder="Ask Ollama about this session...",
-            id="assistant-prompt",
-        )
-        yield Button("Send", variant="primary", id="assistant-send")
         yield Static(
-            "The session QR and assistant link remain available from the Session tab.",
+            "Use n to write a prompt, space to record one, and j/k or arrows to move through prompts and replies.",
             id="assistant-details",
         )
 

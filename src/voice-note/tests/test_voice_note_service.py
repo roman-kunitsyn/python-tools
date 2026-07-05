@@ -725,7 +725,9 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
                     )
 
             app.service = FakeService()  # type: ignore[assignment]
+            app.assistant_service = object()  # type: ignore[assignment]
             app.active_tab = "assistant"
+            app.recording_mode = "assistant"
             app.stopping = False
             app.recording = True
             app._stop_countdown_timers = lambda: None  # type: ignore[method-assign]
@@ -733,12 +735,42 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
             app._set_status = lambda status: calls.append(("status", (status,), {}))  # type: ignore[method-assign]
             app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
             app.call_from_thread = lambda fn, *args: fn(*args)  # type: ignore[method-assign]
-            app.action_send_assistant_prompt = lambda prompt=None: calls.append(("prompt", (prompt,), {}))  # type: ignore[method-assign]
+            app._generate_assistant_response_from_audio = lambda prompt, source_audio: calls.append(  # type: ignore[method-assign]
+                ("prompt", (prompt, source_audio), {})
+            )
 
+            app.active_tab = "notes"
             app._stop_recording()
 
         self.assertIn(("stop", (), {"persist": False}), calls)
-        self.assertIn(("prompt", ("assistant prompt",), {}), calls)
+        self.assertIn(("prompt", ("assistant prompt", Path("recording.wav")), {}), calls)
+
+    def test_assistant_message_playback_uses_source_audio_when_available(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+            message = AssistantMessage(
+                message_id="msg-1",
+                role="user",
+                prompt="recorded prompt",
+                response="",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+                source_audio=Path("recording.wav"),
+            )
+            app._selected_assistant_message = lambda: message  # type: ignore[method-assign]
+            app._set_status = lambda status: None  # type: ignore[method-assign]
+            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
+            app.call_from_thread = lambda fn, *args, **kwargs: fn(*args, **kwargs)  # type: ignore[method-assign]
+
+            with patch("voice_note.tui.app.play_audio_file") as play_mock, patch(
+                "voice_note.tui.app.speak_text"
+            ) as speak_mock:
+                app.action_play_assistant_message()
+
+            play_mock.assert_called_once_with(Path("recording.wav"))
+            speak_mock.assert_not_called()
 
     def test_assistant_selection_copies_text_without_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -795,7 +827,23 @@ class TuiComponentRefactorTest(unittest.TestCase):
         assistant_tab = build_assistant_tab()
 
         self.assertEqual(assistant_tab.id, "assistant-view")
-        self.assertEqual(len(list(assistant_tab.compose())), 6)
+        self.assertEqual(len(list(assistant_tab.compose())), 4)
+
+    def test_assistant_new_note_opens_prompt_editor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+            captured: list[str] = []
+            app._open_assistant_prompt_editor = (  # type: ignore[method-assign]
+                lambda title: captured.append(title)
+            )
+            app._workspace_tab = lambda: "assistant"  # type: ignore[method-assign]
+
+            app.action_new_note()
+
+        self.assertEqual(captured, ["New prompt"])
 
 
 class ClipboardAdapterTest(unittest.TestCase):
