@@ -919,6 +919,8 @@ class VoiceNoteApp(App):
                     original_message.message_id,
                     prompt=result.text,
                 )
+                self._regenerate_assistant_response(updated_message)
+                return
             else:
                 updated_message = self.assistant_store.update_message(
                     original_message.message_id,
@@ -930,6 +932,68 @@ class VoiceNoteApp(App):
 
         self._reload_assistant_messages(select_message_id=updated_message.message_id)
         self._set_status("Status: Saved")
+
+    def _regenerate_assistant_response(self, prompt_message: AssistantMessage) -> None:
+        if self.assistant_service is None or self.assistant_store is None:
+            self._set_status("Status: Error: assistant is not ready")
+            return
+
+        messages = self.assistant_store.load_messages()
+        prompt_index = next(
+            (
+                index
+                for index, message in enumerate(messages)
+                if message.message_id == prompt_message.message_id
+            ),
+            None,
+        )
+        if prompt_index is None:
+            self._set_status("Status: Error: assistant prompt not found")
+            return
+
+        next_message = messages[prompt_index + 1] if prompt_index + 1 < len(messages) else None
+        self._set_status("Status: Generating assistant response...")
+
+        def work() -> None:
+            try:
+                response_text = self.assistant_service.generate_response_text(
+                    prompt_message.prompt
+                )
+            except Exception as error:
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            try:
+                if next_message is not None and next_message.role == "assistant":
+                    updated_response = self.assistant_store.update_message(
+                        next_message.message_id,
+                        prompt=prompt_message.prompt,
+                        response=response_text,
+                        response_state="complete",
+                    )
+                    self.call_from_thread(
+                        self._reload_assistant_messages,
+                        updated_response.message_id,
+                    )
+                else:
+                    created_response = self.assistant_store.append_message(
+                        role="assistant",
+                        prompt=prompt_message.prompt,
+                        response=response_text,
+                        response_state="complete",
+                        source_audio=prompt_message.source_audio,
+                    )
+                    self.call_from_thread(
+                        self._reload_assistant_messages,
+                        created_response.message_id,
+                    )
+            except Exception as error:
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                return
+
+            self.call_from_thread(self._set_status, "Status: Saved")
+
+        self.run_worker(work, thread=True)
 
     def _set_status(self, status: str) -> None:
         status_widget = self.query_one("#status", Static)

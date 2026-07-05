@@ -28,6 +28,7 @@ from voice_note.tui.app import VoiceNoteApp
 from voice_note.tui.assistant import build_assistant_tab
 from voice_note.tui.components import render_assistant_message_card, render_note_card
 from voice_note.tui import clipboard as clipboard_module
+from voice_note.tui.screens import NoteEditResult
 from voice_note.tui.app import (
     _format_countdown,
     _editor_command,
@@ -933,6 +934,57 @@ class TuiComponentRefactorTest(unittest.TestCase):
         self.assertEqual([message.role for message in messages], ["user", "assistant"])
         self.assertEqual(messages[0].prompt, "give me summary")
         self.assertEqual(messages[1].response, "assistant response")
+
+    def test_editing_assistant_prompt_regenerates_response(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
+            assistant_store = AssistantMessageStore(
+                messages_file=session_dir / "assistant.json",
+                transcript_file=session_dir / "assistant.txt",
+                session="voice_note_2026_07_04-12_34_58",
+            )
+            prompt_message = assistant_store.append_message(
+                role="user",
+                prompt="original prompt",
+                response="",
+                response_state="sent",
+            )
+            assistant_store.append_message(
+                role="assistant",
+                prompt="original prompt",
+                response="original response",
+                response_state="complete",
+            )
+
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+            app.assistant_store = assistant_store
+
+            class FakeAssistantService:
+                def __init__(self) -> None:
+                    self.prompts: list[str] = []
+
+                def generate_response_text(self, prompt: str) -> str:
+                    self.prompts.append(prompt)
+                    return "regenerated response"
+
+            app.assistant_service = FakeAssistantService()  # type: ignore[assignment]
+            app._set_status = lambda status: None  # type: ignore[method-assign]
+            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
+            app.call_from_thread = lambda fn, *args: fn(*args)  # type: ignore[method-assign]
+
+            app._on_assistant_editor_result(
+                NoteEditResult(mode="save", text="updated prompt"),
+                prompt_message,
+            )
+
+            messages = assistant_store.load_messages()
+
+        self.assertEqual(app.assistant_service.prompts, ["updated prompt"])
+        self.assertEqual(messages[0].prompt, "updated prompt")
+        self.assertEqual(messages[1].response, "regenerated response")
 
 
 class ClipboardAdapterTest(unittest.TestCase):
