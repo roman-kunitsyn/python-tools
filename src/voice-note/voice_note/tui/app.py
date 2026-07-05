@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.containers import Container, Horizontal, Vertical
 from textual.timer import Timer
 from textual.widgets import (
     Button,
@@ -18,9 +18,6 @@ from textual.widgets import (
     TabbedContent,
     TabPane,
 )
-from rich.panel import Panel
-from rich.text import Text
-from rich import box
 
 from voice_note.audio.player import play_audio_file, speak_text
 from voice_note.models.session import VoiceNoteSession
@@ -30,6 +27,8 @@ from voice_note.services.runtime import build_service
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService
 from voice_note.tui.clipboard import copy_text_to_clipboard
+from voice_note.tui.assistant import build_assistant_tab
+from voice_note.tui.views import NoteTranscriptView
 from voice_note.tui.screens import (
     NoteEditResult,
     NoteEditorScreen,
@@ -274,18 +273,7 @@ class VoiceNoteApp(App):
                         id="notes-panel",
                     )
                 with TabPane("Assistant", id="assistant"):
-                    yield Vertical(
-                        Static("Assistant", id="assistant-title"),
-                        Static(
-                            "Use this tab for session assistance and future assistant workflows.",
-                            id="assistant-card",
-                        ),
-                        Static(
-                            "The session QR and assistant link remain available from the Session tab.",
-                            id="assistant-details",
-                        ),
-                        id="assistant-view",
-                    )
+                    yield build_assistant_tab()
                 with TabPane("Session", id="session"):
                     yield Vertical(
                         Horizontal(
@@ -1056,135 +1044,6 @@ def _render_qr_art(target: Path | str) -> str:
 
 def _qr_payload(session: VoiceNoteSession) -> str:
     return session.folder_name
-
-
-def _note_preview(text: str, width: int = 72) -> str:
-    cleaned = " ".join(text.split())
-    if len(cleaned) <= width:
-        return cleaned
-    return cleaned[: width - 1].rstrip() + "…"
-
-
-def _render_note_card(
-    note: SessionNote,
-    index: int,
-    selected: bool,
-    in_selection: bool,
-    zoom: int,
-) -> Panel:
-    timestamp = note.created_at.strftime("%Y-%m-%d %H:%M:%S")
-    header = f"{index:02d}. {timestamp}"
-    if note.audio_file is not None:
-        header += "  [audio]"
-
-    body = note.text.strip() or "(empty note)"
-    zoom_padding = {1: (0, 1), 2: (1, 2), 3: (1, 3)}.get(max(1, min(3, zoom)), (0, 1))
-    if selected:
-        title = f"▶ {header}"
-    elif in_selection:
-        title = f"▣ {header}"
-    else:
-        title = header
-
-    if selected:
-        panel_style = "black on white"
-        border_style = "black"
-        body_style = "bold black"
-    elif in_selection:
-        panel_style = "black on #dbeafe"
-        border_style = "#2563eb"
-        body_style = "black"
-    else:
-        panel_style = "default"
-        border_style = "grey70"
-        body_style = "default"
-    body_text = Text(body, style=body_style)
-
-    return Panel(
-        body_text,
-        title=title,
-        border_style=border_style,
-        style=panel_style,
-        box=box.ROUNDED,
-        padding=zoom_padding,
-        expand=True,
-    )
-
-
-class NoteTranscriptView(VerticalScroll):
-    def render_notes(
-        self,
-        notes: list[SessionNote],
-        selected_note_id: str | None = None,
-        selected_note_bounds: tuple[int, int] | None = None,
-        zoom: int = 1,
-    ) -> None:
-        self.remove_children()
-
-        if not notes:
-            self.mount(
-                NoteCard(
-                    note_id="empty-notes",
-                    renderable=Panel(
-                        Text("No notes yet."),
-                        border_style="grey37",
-                        box=box.ROUNDED,
-                        padding=(1, 2),
-                        expand=True,
-                    ),
-                )
-            )
-            self.call_after_refresh(self.scroll_home)
-            return
-
-        cards: list[NoteCard] = []
-        for index, note in enumerate(notes, start=1):
-            in_selection = False
-            if selected_note_bounds is not None:
-                start, end = selected_note_bounds
-                in_selection = start <= (index - 1) <= end
-
-            card = NoteCard(
-                note_id=note.note_id,
-                renderable=_render_note_card(
-                    note,
-                    index,
-                    note.note_id == selected_note_id,
-                    in_selection,
-                    zoom,
-                ),
-            )
-            cards.append(card)
-            self.mount(card)
-
-        if selected_note_id is not None:
-            self.call_after_refresh(self._scroll_to_note, selected_note_id)
-        else:
-            self.call_after_refresh(self.scroll_home)
-
-    def _scroll_to_note(self, note_id: str) -> None:
-        for child in self.children:
-            if isinstance(child, NoteCard) and child.note_id == note_id:
-                self.scroll_to_widget(child, center=True)
-                return
-
-        if self.children:
-            try:
-                self.scroll_to_widget(self.children[0], center=True)
-            except Exception:
-                pass
-            return
-
-        try:
-            self.scroll_home()
-        except Exception:
-            return
-
-
-class NoteCard(Static):
-    def __init__(self, note_id: str, renderable: Panel) -> None:
-        super().__init__(renderable)
-        self.note_id = note_id
 
 
 class SessionLink(Link):

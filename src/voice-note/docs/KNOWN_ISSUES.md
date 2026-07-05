@@ -47,3 +47,4 @@ through:
 4. Simplify tab switching if necessary so there is a single source of truth for
    tab state changes.
 
+FIXED

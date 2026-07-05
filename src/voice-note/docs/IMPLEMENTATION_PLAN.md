@@ -69,7 +69,12 @@ note store:
 - Notes should support independent updates so individual entries can be edited,
   saved, canceled, removed, and augmented with manual typing.
 - Assistant messages should support the same human-readable session storage
-  pattern, plus prompt/response metadata needed for chat history and playback.
+  pattern, plus prompt/response metadata needed for chat history, playback, and
+  streaming state.
+- The implementation should reuse shared widgets, models, and services instead
+  of duplicating the Notes workflow.
+- `voice_note/tui/app.py` should be split into smaller pieces before the
+  Assistant workflow grows further.
 
 ## Feature Plan
 
@@ -109,18 +114,57 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Add tests for playback selection and the text-to-speech fallback branch.
 - Leave a report in `docs/reports/` describing the playback change.
 
-### Task 6: Assistant chat model and Ollama client
-- Add a structured assistant message model with prompt, response, role, created
-  at, source audio, and response state fields.
-- Add a local Ollama client/service that can send the current session notes as
-  context and return streamed or non-streamed responses.
-- Decide the assistant session artifact layout, keeping it human-readable and
-  editable on disk.
-- Add tests for assistant message persistence, context assembly, and Ollama
-  request/response handling.
-- Leave a report in `docs/reports/` describing the assistant backend slice.
+### Task 6: Assistant message storage and prompt context
+- Add a structured assistant message model with role, prompt text, response
+  text, created_at, source audio, and generation state fields.
+- Decide the assistant artifact layout, keeping it human-readable and editable
+  on disk alongside the session folder.
+- Add a context builder that turns the current session notes into Ollama-ready
+  prompt context.
+- Add tests for assistant message persistence and context assembly.
+- Leave a report in `docs/reports/` describing the assistant storage and
+  context slice.
 
-### Task 7: Assistant TUI chat workspace
+### Task 7: Shared workspace components and app refactor
+- Extract reusable TUI pieces for note cards, message cards, transcript/message
+  lists, and detail panels so Notes and Assistant can share structure.
+- Split `voice_note/tui/app.py` into a thinner app shell plus focused helper or
+  widget modules.
+- Keep the existing Notes behavior unchanged while moving shared rendering
+  concerns out of the app body.
+- Add tests that cover the extracted widgets and confirm the Notes tab still
+  renders the same way.
+- Leave a report in `docs/reports/` describing the shared-component refactor.
+- Proposed module split:
+  - `voice_note/tui/app.py`: app wiring, tab switching, status updates, note
+    actions, assistant actions, and service orchestration.
+  - `voice_note/tui/components.py`: reusable note/message card renderers and
+    shared list helpers.
+  - `voice_note/tui/layouts.py`: shared panel and workspace layout builders for
+    Notes and Assistant tabs.
+  - `voice_note/tui/views.py`: scrollable transcript/chat views and selection
+    rendering logic.
+  - `voice_note/tui/panels.py`: detail cards, session summary cards, and
+    assistant response cards.
+  - `voice_note/tui/assistant.py`: assistant-specific actions, prompt
+    submission, and response state management.
+- Refactor order:
+  1. Extract shared card rendering used by Notes first.
+  2. Extract the scrollable list/view helpers.
+  3. Move Assistant-only logic into its own module.
+  4. Trim `app.py` to tab orchestration and cross-cutting commands only.
+
+### Task 8: Ollama client and response generation
+- Add a local Ollama client/service that can send assistant prompts and current
+  session context to the local server.
+- Support non-streaming responses first, then preserve the API shape needed for
+  later streaming support.
+- Keep the client isolated from the TUI so it can be tested with fake HTTP
+  responses.
+- Add tests for request construction, response parsing, and error handling.
+- Leave a report in `docs/reports/` describing the Ollama integration slice.
+
+### Task 9: Assistant TUI chat workspace
 - Turn the `Assistant` tab into a chat-like workspace that can record voice
   prompts, accept manual text prompts, and show Ollama responses inline.
 - Render prompt and response cards with different visual treatment so the chat

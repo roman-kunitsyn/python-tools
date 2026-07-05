@@ -18,6 +18,8 @@ from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
 from voice_note.tui.app import VoiceNoteApp
+from voice_note.tui.assistant import build_assistant_tab
+from voice_note.tui.components import render_note_card
 from voice_note.tui import clipboard as clipboard_module
 from voice_note.tui.app import (
     _format_countdown,
@@ -501,6 +503,33 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
                 app.action_copy_selection()
 
             self.assertEqual(copied, ["first note"])
+
+
+class TuiComponentRefactorTest(unittest.TestCase):
+    def test_render_note_card_preserves_note_header_and_styles(self) -> None:
+        note = SessionNote(
+            note_id="note-1",
+            text="Hello world",
+            created_at=datetime(2026, 7, 4, 12, 35, 16),
+            audio_file=Path("audio_1.wav"),
+        )
+
+        panel = render_note_card(
+            note=note,
+            index=1,
+            selected=True,
+            in_selection=False,
+            zoom=1,
+        )
+
+        self.assertEqual(panel.title, "▶ 01. 2026-07-04 12:35:16  [audio]")
+        self.assertEqual(panel.border_style, "black")
+
+    def test_assistant_tab_placeholder_is_present(self) -> None:
+        assistant_tab = build_assistant_tab()
+
+        self.assertEqual(assistant_tab.id, "assistant-view")
+        self.assertEqual(len(list(assistant_tab.compose())), 3)
 
 
 class ClipboardAdapterTest(unittest.TestCase):
