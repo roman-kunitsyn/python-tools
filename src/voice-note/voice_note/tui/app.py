@@ -223,6 +223,10 @@ class VoiceNoteApp(App):
         ("e", "edit_note", "Edit Note"),
         ("delete", "delete_note", "Delete Note"),
         ("p", "play_note", "Play Note"),
+        ("left", "previous_tab", "Previous Tab"),
+        ("right", "next_tab", "Next Tab"),
+        ("h", "previous_tab", "Previous Tab"),
+        ("l", "next_tab", "Next Tab"),
         ("j", "next_note", "Next Note"),
         ("k", "previous_note", "Previous Note"),
         ("down", "next_note", "Next Note"),
@@ -478,6 +482,12 @@ class VoiceNoteApp(App):
     def action_show_settings_tab(self) -> None:
         self._show_tab("settings")
 
+    def action_next_tab(self) -> None:
+        self._cycle_tab(1)
+
+    def action_previous_tab(self) -> None:
+        self._cycle_tab(-1)
+
     def action_next_note(self) -> None:
         self._move_note_selection(1)
 
@@ -673,7 +683,23 @@ class VoiceNoteApp(App):
 
     def _show_tab(self, tab: str) -> None:
         self.active_tab = tab
-        self.query_one("#main-tabs", TabbedContent).active = tab
+        try:
+            self.query_one("#main-tabs", TabbedContent).active = tab
+        except Exception:
+            pass
+
+    def _cycle_tab(self, delta: int) -> None:
+        tabs = self._tab_order()
+        if not tabs:
+            return
+
+        current_tab = self.active_tab if self.active_tab in tabs else tabs[0]
+        current_index = tabs.index(current_tab)
+        next_index = (current_index + delta) % len(tabs)
+        self._show_tab(tabs[next_index])
+
+    def _tab_order(self) -> list[str]:
+        return ["notes", "session", "help", "settings"]
 
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
@@ -704,6 +730,16 @@ class VoiceNoteApp(App):
             self.action_zoom_in()
         elif event.button.id == "zoom-out":
             self.action_zoom_out()
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key in {"h", "left"}:
+            self.action_previous_tab()
+            event.stop()
+            event.prevent_default()
+        elif event.key in {"l", "right"}:
+            self.action_next_tab()
+            event.stop()
+            event.prevent_default()
 
     def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
         initial_text = note.text if note is not None else ""
