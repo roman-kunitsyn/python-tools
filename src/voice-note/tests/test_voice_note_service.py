@@ -17,7 +17,7 @@ from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
-from voice_note.audio.player import speak_text
+from voice_note.audio.player import AudioPlaybackController, speak_text
 from voice_note.services.assistant_context import AssistantChatMessage, AssistantContextBuilder
 from voice_note.services.assistant_service import AssistantService
 from voice_note.services.ollama_client import OllamaClient
@@ -607,6 +607,7 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
         self.assertEqual(bindings["shift+up"], "extend_previous_note")
         self.assertEqual(bindings["y"], "copy_selection")
         self.assertEqual(bindings["ctrl+shift+c"], "copy_selection")
+        self.assertEqual(bindings["s"], "stop_playback")
 
     def test_play_note_falls_back_to_say_for_text_only_notes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -622,20 +623,29 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
                 audio_file=None,
             )
             captured: list[str] = []
+            playback_calls: list[tuple[str, str]] = []
+
+            class FakePlayer:
+                def speak_text(self, text: str) -> str:
+                    playback_calls.append(("speak", text))
+                    return "playing"
+
+                def play_audio_file(self, audio_file: Path) -> str:
+                    playback_calls.append(("play", str(audio_file)))
+                    return "playing"
+
+                def stop(self) -> str:
+                    playback_calls.append(("stop", ""))
+                    return "stopped"
+
             app._selected_note = lambda: note  # type: ignore[method-assign]
             app._set_status = lambda status: captured.append(status)  # type: ignore[method-assign]
-            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
-            app.call_from_thread = lambda fn, *args, **kwargs: fn(*args, **kwargs)  # type: ignore[method-assign]
+            app.audio_player = FakePlayer()  # type: ignore[assignment]
 
-            with patch("voice_note.tui.app.speak_text") as speak_mock, patch(
-                "voice_note.tui.app.play_audio_file"
-            ) as play_mock:
-                app.action_play_note()
+            app.action_play_note()
 
-            speak_mock.assert_called_once_with("text only note")
-            play_mock.assert_not_called()
-            self.assertEqual(captured[0], "Status: Playing...")
-            self.assertEqual(captured[-1], "Status: Saved")
+            self.assertEqual(playback_calls, [("speak", "text only note")])
+            self.assertEqual(captured[-1], "Status: Playing")
 
     def test_shift_navigation_extends_selection_and_copies_plain_text(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -761,18 +771,56 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
                 created_at=datetime(2026, 7, 4, 12, 35, 16),
                 source_audio=Path("recording.wav"),
             )
+            playback_calls: list[tuple[str, str]] = []
+
+            class FakePlayer:
+                def play_audio_file(self, audio_file: Path) -> str:
+                    playback_calls.append(("play", str(audio_file)))
+                    return "playing"
+
+                def speak_text(self, text: str) -> str:
+                    playback_calls.append(("speak", text))
+                    return "playing"
+
+                def stop(self) -> str:
+                    playback_calls.append(("stop", ""))
+                    return "stopped"
+
             app._selected_assistant_message = lambda: message  # type: ignore[method-assign]
             app._set_status = lambda status: None  # type: ignore[method-assign]
-            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
-            app.call_from_thread = lambda fn, *args, **kwargs: fn(*args, **kwargs)  # type: ignore[method-assign]
+            app.audio_player = FakePlayer()  # type: ignore[assignment]
 
-            with patch("voice_note.tui.app.play_audio_file") as play_mock, patch(
-                "voice_note.tui.app.speak_text"
-            ) as speak_mock:
-                app.action_play_assistant_message()
+            app.action_play_assistant_message()
 
-            play_mock.assert_called_once_with(Path("recording.wav"))
-            speak_mock.assert_not_called()
+            self.assertEqual(playback_calls, [("play", "recording.wav")])
+
+    def test_stop_playback_stops_current_audio(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+            calls: list[str] = []
+
+            class FakePlayer:
+                def play_audio_file(self, audio_file: Path) -> str:
+                    calls.append(f"play:{audio_file}")
+                    return "playing"
+
+                def speak_text(self, text: str) -> str:
+                    calls.append(f"speak:{text}")
+                    return "playing"
+
+                def stop(self) -> str:
+                    calls.append("stop")
+                    return "stopped"
+
+            app.audio_player = FakePlayer()  # type: ignore[assignment]
+            app._set_status = lambda status: calls.append(status)  # type: ignore[method-assign]
+
+            app.action_stop_playback()
+
+            self.assertEqual(calls, ["stop", "Status: Stopped"])
 
     def test_assistant_selection_copies_text_without_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1001,16 +1049,101 @@ class ClipboardAdapterTest(unittest.TestCase):
 
 
 class AudioPlayerTest(unittest.TestCase):
+    def test_play_audio_file_toggles_pause_resumes_and_stops_previous(self) -> None:
+        controller = AudioPlaybackController()
+        procs = []
+
+        class FakeProc:
+            def __init__(self, command: list[str]) -> None:
+                self.command = command
+                self.signals: list[object] = []
+                self.returncode: int | None = None
+
+            def poll(self) -> int | None:
+                return self.returncode
+
+            def send_signal(self, sig: object) -> None:
+                self.signals.append(sig)
+
+            def terminate(self) -> None:
+                self.signals.append("terminate")
+                self.returncode = 0
+
+            def wait(self, timeout: float | None = None) -> int:
+                self.returncode = 0
+                return 0
+
+            def kill(self) -> None:
+                self.signals.append("kill")
+                self.returncode = 0
+
+        def fake_popen(command: list[str], **kwargs):
+            proc = FakeProc(command)
+            procs.append(proc)
+            return proc
+
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "voice_note.audio.player.sys.platform", "darwin"
+        ), patch("voice_note.audio.player.subprocess.Popen", side_effect=fake_popen):
+            audio_one = Path(temp_dir) / "one.wav"
+            audio_two = Path(temp_dir) / "two.wav"
+            audio_one.write_text("audio")
+            audio_two.write_text("audio")
+
+            self.assertEqual(controller.play_audio_file(audio_one), "playing")
+            self.assertEqual(procs[0].command, ["afplay", str(audio_one.resolve())])
+
+            self.assertEqual(controller.play_audio_file(audio_one), "paused")
+            self.assertIn(controller.is_paused(), [True])
+
+            self.assertEqual(controller.play_audio_file(audio_one), "playing")
+            self.assertIn(controller.is_playing(), [True])
+
+            self.assertEqual(controller.play_audio_file(audio_two), "playing")
+            self.assertIn("terminate", procs[0].signals)
+            self.assertEqual(procs[1].command, ["afplay", str(audio_two.resolve())])
+
     def test_speak_text_uses_say_on_macos(self) -> None:
-        calls: list[list[str]] = []
+        procs = []
+
+        class FakeProc:
+            def __init__(self, command: list[str]) -> None:
+                self.command = command
+                self.signals: list[object] = []
+                self.returncode: int | None = None
+
+            def poll(self) -> int | None:
+                return self.returncode
+
+            def send_signal(self, sig: object) -> None:
+                self.signals.append(sig)
+
+            def terminate(self) -> None:
+                self.signals.append("terminate")
+                self.returncode = 0
+
+            def wait(self, timeout: float | None = None) -> int:
+                self.returncode = 0
+                return 0
+
+            def kill(self) -> None:
+                self.signals.append("kill")
+                self.returncode = 0
+
+        def fake_popen(command: list[str], **kwargs):
+            proc = FakeProc(command)
+            procs.append(proc)
+            return proc
 
         with patch("voice_note.audio.player.sys.platform", "darwin"), patch(
-            "voice_note.audio.player.subprocess.run"
-        ) as run_mock:
-            run_mock.side_effect = lambda command, **kwargs: calls.append(command)
-            speak_text("hello world")
+            "voice_note.audio.player.subprocess.Popen", side_effect=fake_popen
+        ):
+            controller = AudioPlaybackController()
+            self.assertEqual(controller.speak_text("hello world"), "playing")
+            self.assertEqual(procs[0].command, ["say", "hello world"])
 
-        self.assertEqual(calls, [["say", "hello world"]])
+            self.assertEqual(controller.speak_text("hello world"), "paused")
+            self.assertEqual(controller.speak_text("hello world"), "playing")
 
 
 class WhisperTranscriberTest(unittest.TestCase):

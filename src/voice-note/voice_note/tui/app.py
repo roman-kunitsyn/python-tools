@@ -19,7 +19,7 @@ from textual.widgets import (
     TabPane,
 )
 
-from voice_note.audio.player import play_audio_file, speak_text
+from voice_note.audio.player import AudioPlaybackController
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.session import VoiceNoteSession
 from voice_note.models.session_note import SessionNote
@@ -226,6 +226,7 @@ class VoiceNoteApp(App):
         ("e", "edit_note", "Edit Note"),
         ("delete", "delete_note", "Delete Note"),
         ("p", "play_note", "Play Note"),
+        ("s", "stop_playback", "Stop Playback"),
         ("j", "next_note", "Next Note"),
         ("k", "previous_note", "Previous Note"),
         ("down", "next_note", "Next Note"),
@@ -267,6 +268,7 @@ class VoiceNoteApp(App):
         self.assistant_selected_message_id: str | None = None
         self.assistant_selection_anchor_index: int | None = None
         self.assistant_selection_end_index: int | None = None
+        self.audio_player = AudioPlaybackController()
         self.recording_started_at: float | None = None
         self.countdown_timer: Timer | None = None
         self.status_blink_timer: Timer | None = None
@@ -483,21 +485,16 @@ class VoiceNoteApp(App):
             self._set_status("Status: Error: no note selected")
             return
 
-        self._set_status("Status: Playing...")
+        try:
+            if note.audio_file is not None:
+                state = self.audio_player.play_audio_file(note.audio_file)
+            else:
+                state = self.audio_player.speak_text(note.text)
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
 
-        def work() -> None:
-            try:
-                if note.audio_file is not None:
-                    play_audio_file(note.audio_file)
-                else:
-                    speak_text(note.text)
-            except Exception as error:
-                self.call_from_thread(self._set_status, f"Status: Error: {error}")
-                return
-
-            self.call_from_thread(self._set_status, "Status: Saved")
-
-        self.run_worker(work, thread=True)
+        self._set_status(_playback_status_message(state))
 
     def action_zoom_in(self) -> None:
         self._set_note_zoom(min(3, self.note_zoom + 1))
@@ -573,6 +570,13 @@ class VoiceNoteApp(App):
 
         self._set_status("Status: Copied")
 
+    def action_stop_playback(self) -> None:
+        state = self.audio_player.stop()
+        if state == "idle":
+            self._set_status("Status: Idle")
+        else:
+            self._set_status("Status: Stopped")
+
     def action_send_assistant_prompt(self, prompt: str | None = None) -> None:
         if self.assistant_service is None:
             self._set_status("Status: Error: assistant is not ready")
@@ -591,25 +595,19 @@ class VoiceNoteApp(App):
             self._set_status("Status: Error: no assistant message selected")
             return
 
-        self._set_status("Status: Playing...")
-
-        def work() -> None:
-            try:
-                if message.role == "user" and message.source_audio is not None:
-                    play_audio_file(message.source_audio)
-                    return
-
+        try:
+            if message.role == "user" and message.source_audio is not None:
+                state = self.audio_player.play_audio_file(message.source_audio)
+            else:
                 text = message.response if message.role != "user" else message.prompt
                 if text.strip() == "":
                     raise RuntimeError("assistant message has no text to play")
-                speak_text(text)
-            except Exception as error:
-                self.call_from_thread(self._set_status, f"Status: Error: {error}")
-                return
+                state = self.audio_player.speak_text(text)
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
 
-            self.call_from_thread(self._set_status, "Status: Saved")
-
-        self.run_worker(work, thread=True)
+        self._set_status(_playback_status_message(state))
 
     def action_edit_assistant_message(self) -> None:
         message = self._selected_assistant_message()
@@ -1445,6 +1443,16 @@ def _status_class(status: str) -> str:
         return "status-error"
 
     return "status-idle"
+
+
+def _playback_status_message(state: str) -> str:
+    if state == "paused":
+        return "Status: Paused"
+    if state == "playing":
+        return "Status: Playing"
+    if state == "stopped":
+        return "Status: Stopped"
+    return "Status: Idle"
 
 
 def _format_countdown(seconds: int) -> str:
