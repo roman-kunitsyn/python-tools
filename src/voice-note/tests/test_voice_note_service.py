@@ -6,16 +6,21 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+import httpx
+
 from voice_note.cli.parser import build_settings_from_args
+from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.note import VoiceNote
-from voice_note.models.session import slugify_session_title
+from voice_note.models.session import VoiceNoteSession, slugify_session_title
 from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
 from voice_note.audio.player import speak_text
-from voice_note.services.assistant_context import AssistantContextBuilder
+from voice_note.services.assistant_context import AssistantChatMessage, AssistantContextBuilder
+from voice_note.services.assistant_service import AssistantService
+from voice_note.services.ollama_client import OllamaClient
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
@@ -428,6 +433,129 @@ class AssistantContextBuilderTest(unittest.TestCase):
         self.assertNotIn("note-3", context.messages[0].content)
         self.assertEqual(context.messages[1].role, "user")
         self.assertEqual(context.messages[1].content, "give me summary")
+
+
+class OllamaClientTest(unittest.TestCase):
+    def test_chat_sends_messages_and_parses_response(self) -> None:
+        requests: list[dict] = []
+
+        class FakeResponse:
+            def __init__(self) -> None:
+                self.status_code = 200
+                self.request = httpx.Request("POST", "http://localhost:11434/api/chat")
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict:
+                return {
+                    "model": "llama3.2",
+                    "done": True,
+                    "message": {"role": "assistant", "content": "Summary output"},
+                }
+
+        class FakeClient:
+            def post(self, path: str, json: dict) -> FakeResponse:
+                requests.append({"path": path, "json": json})
+                return FakeResponse()
+
+        client = OllamaClient(
+            model="llama3.2",
+            client=FakeClient(),  # type: ignore[arg-type]
+        )
+
+        result = client.chat(
+            [
+                AssistantChatMessage(role="system", content="context"),
+                AssistantChatMessage(role="user", content="give me summary"),
+            ],
+            stream=False,
+        )
+
+        self.assertEqual(requests[0]["path"], "/api/chat")
+        self.assertEqual(requests[0]["json"]["model"], "llama3.2")
+        self.assertFalse(requests[0]["json"]["stream"])
+        self.assertEqual(result.content, "Summary output")
+        self.assertEqual(result.model, "llama3.2")
+        self.assertTrue(result.done)
+
+    def test_chat_raises_http_errors(self) -> None:
+        class FakeResponse:
+            def __init__(self) -> None:
+                self.request = httpx.Request("POST", "http://localhost:11434/api/chat")
+
+            def raise_for_status(self) -> None:
+                raise httpx.HTTPStatusError(
+                    "bad status",
+                    request=self.request,
+                    response=httpx.Response(500, request=self.request),
+                )
+
+        class FakeClient:
+            def post(self, path: str, json: dict) -> FakeResponse:
+                return FakeResponse()
+
+        client = OllamaClient(
+            model="llama3.2",
+            client=FakeClient(),  # type: ignore[arg-type]
+        )
+
+        with self.assertRaises(httpx.HTTPStatusError):
+            client.chat([AssistantChatMessage(role="user", content="hello")])
+
+
+class AssistantServiceTest(unittest.TestCase):
+    def test_generate_response_uses_notes_as_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
+            notes_store = SessionNoteStore(
+                notes_file=session_dir / "notes.json",
+                transcript_file=session_dir / "transcribe.txt",
+                session="voice_note_2026_07_04-12_34_58",
+            )
+            notes_store.append_note(
+                "first note",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+            )
+            assistant_store = AssistantMessageStore(
+                messages_file=session_dir / "assistant.json",
+                transcript_file=session_dir / "assistant.txt",
+                session="voice_note_2026_07_04-12_34_58",
+            )
+            captured_messages: list[list[AssistantChatMessage]] = []
+
+            class FakeOllamaClient:
+                def chat(self, messages: list[AssistantChatMessage], stream: bool = False):
+                    captured_messages.append(messages)
+
+                    class Result:
+                        content = "Summary output"
+                        done = True
+                        model = "llama3.2"
+                        raw = {"done": True}
+
+                    return Result()
+
+            service = AssistantService(
+                session=VoiceNoteSession(
+                    title="Project Review",
+                    slug="project_review",
+                    timestamp="2026_07_04-12_34_58",
+                    session_dir=session_dir,
+                ),
+                notes_store=notes_store,
+                assistant_store=assistant_store,
+                ollama_client=FakeOllamaClient(),
+            )
+
+            result = service.generate_response("give me summary")
+            messages = assistant_store.load_messages()
+
+        self.assertEqual(result.response_text, "Summary output")
+        self.assertEqual(len(captured_messages), 1)
+        self.assertEqual(captured_messages[0][0].role, "system")
+        self.assertIn("first note", captured_messages[0][0].content)
+        self.assertEqual([message.role for message in messages], ["user", "assistant"])
 
 
 class VoiceNoteAppNavigationTest(unittest.TestCase):
