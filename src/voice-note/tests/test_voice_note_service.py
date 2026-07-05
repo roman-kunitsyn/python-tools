@@ -435,8 +435,14 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
             app.action_next_tab()
             self.assertEqual(app.active_tab, "help")
 
+            app.action_next_tab()
+            self.assertEqual(app.active_tab, "assistant")
+
+            app.action_next_tab()
+            self.assertEqual(app.active_tab, "settings")
+
             app.action_previous_tab()
-            self.assertEqual(app.active_tab, "session")
+            self.assertEqual(app.active_tab, "assistant")
 
             app.active_tab = "settings"
             app.action_next_tab()

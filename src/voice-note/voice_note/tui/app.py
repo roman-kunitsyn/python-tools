@@ -314,6 +314,19 @@ class VoiceNoteApp(App):
                         ),
                         id="help-view",
                     )
+                with TabPane("Assistant", id="assistant"):
+                    yield Vertical(
+                        Static("Assistant", id="assistant-title"),
+                        Static(
+                            "Use this tab for session assistance and future assistant workflows.",
+                            id="assistant-card",
+                        ),
+                        Static(
+                            "The session QR and assistant link remain available from the Session tab.",
+                            id="assistant-details",
+                        ),
+                        id="assistant-view",
+                    )
                 with TabPane("Settings", id="settings"):
                     yield Vertical(
                         Static("Settings", id="settings-title"),
@@ -477,6 +490,9 @@ class VoiceNoteApp(App):
 
     def action_show_help_tab(self) -> None:
         self._show_tab("help")
+
+    def action_show_assistant_tab(self) -> None:
+        self._show_tab("assistant")
 
     def action_show_settings_tab(self) -> None:
         self._show_tab("settings")
@@ -698,7 +714,7 @@ class VoiceNoteApp(App):
         self._show_tab(tabs[next_index])
 
     def _tab_order(self) -> list[str]:
-        return ["notes", "session", "help", "settings"]
+        return ["notes", "session", "help", "assistant", "settings"]
 
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
