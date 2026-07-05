@@ -6,33 +6,44 @@ Implemented:
 
 - CLI entry point at `voice-note.py`.
 - Project script entry point for `uv run voice-note`.
-- Textual TUI mode with previous notes and status states.
+- CLI and TUI share the same recorder, transcriber, and output services.
+- Textual TUI mode with Notes, Assistant, Session, Help, and Settings tabs.
+- Notes are rendered oldest-to-newest, can be navigated with `j`/`k` and arrow
+  keys, and support shift-range selection plus clipboard copy.
+- Assistant messages use the same list-navigation, edit, delete, copy, and play
+  controls as Notes.
+- `p` toggles playback for the active note or assistant message, `s` stops
+  playback, and starting a new playback stops the previous one.
+- Text-only playback falls back to macOS `say` on supported systems.
+- Assistant prompts can be recorded from voice or typed in an editor, then sent
+  to Ollama as chat context over the current session notes.
+- Assistant prompts and responses are stored in a human-readable session file
+  alongside the note artifacts.
+- Assistant prompt edits regenerate the paired response.
 - TUI status is displayed in the footer with state-specific background colors.
-- TUI content header shows the session folder name and transcript file path.
 - TUI transcript link and `o` binding open the transcript in the configured
   editor.
-- Sessions are currently created implicitly at startup from a timestamped
-  folder under `logs/voice_notes`.
-- SPACE start/stop recording flow.
+- Sessions are created from timestamped folders under `logs/voice_notes`.
 - Per-recording duration limit defaults to 300 seconds and cannot exceed 300
   seconds.
 - CLI and TUI show countdown while recording and auto-stop on overflow.
 - Recorder adapter over the sibling `audio-record` package.
 - Whisper transcriber wrapper that returns transcript text.
 - Whisper runs in translate-to-English mode for all voice-note output.
-- Whisper transcription now reports a clear runtime error when the output
+- Whisper transcription reports a clear runtime error when the output
   transcript file is missing after `whisper-cli` completes.
 - Stdout and append-to-file output writers.
-- Structured JSON transcript output at `transcribe.json`.
+- Structured note artifacts in `notes.json` and `transcribe.txt`, plus
+  assistant artifacts in `assistant.json` and `assistant.txt`.
 - Default per-run storage under `logs/voice_notes/voice_note_{timestamp}` with
   audio in `audio/audio_{timestamp}.wav` and text in `transcribe.txt`.
 - Each recording within a session writes a new timestamped audio file.
 - Technical `ffmpeg` and `whisper-cli` output is routed to session `log.txt`.
+- Whisper transcription model and Ollama assistant model are now independent.
 - Default audio input is the built-in microphone; `--audio-device` can override
   the device name or id.
-- Optional timestamps.
 - JSON config loading.
-- Unit tests for service, timestamp formatting, config loading, and file output.
+- Unit tests for service, TUI, playback, assistant storage, and config loading.
 
 ## Target TUI Requirements
 

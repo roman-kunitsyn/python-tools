@@ -1,18 +1,19 @@
-# Task: Implement `voice-note` CLI/TUI Tool
+# voice-note
 
-## Objective
+`voice-note` is a terminal-first voice note tool with both CLI and Textual TUI
+modes.
 
-Implement a reusable Python utility named `voice-note` that provides push-to-talk voice capture, speech-to-text transcription, and optional note persistence.
+It supports:
 
-The tool should work as both:
+- push-to-talk audio capture
+- Whisper transcription
+- rewriteable session note storage
+- macOS text-to-speech fallback for text-only playback
+- an Assistant tab that chats with local Ollama using the current session notes
+  as context
 
-- CLI application
-- TUI application (Textual)
-
-The primary use case is rapid voice note taking while working in a terminal or editor.
-
-Implementation status: initial CLI, TUI, service layer, output layer, and unit
-tests are implemented in this directory.
+The TUI is the main workflow now. Notes and Assistant share the same keyboard
+patterns for navigation, selection, editing, playback, and clipboard copy.
 
 ---
 
@@ -282,6 +283,21 @@ medium
 large
 ```
 
+This `--model` value is the Whisper transcription model. Assistant chat uses a
+separate Ollama model.
+
+```bash
+--assistant-model qwen2.5:3b
+```
+
+Default:
+
+```text
+qwen2.5:3b
+```
+
+This is the model sent to local Ollama from the Assistant tab.
+
 ---
 
 # Operating Modes
@@ -382,19 +398,19 @@ Launch Textual application.
 ### Layout
 
 ```text
-┌───────────────────────────────────────┐
-│ Voice Note                            │
-├───────────────────────────────────────┤
-│                                       │
-│ voice_note_2026_06_23-14_35_10        │
-│ Transcript: logs/.../transcribe.txt   │
-│                                       │
-│ • First note                          │
-│ • Second note                         │
-│                                       │
-├───────────────────────────────────────┤
-│ Status: Idle                          │
-└───────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│ Header                                                    │
+├───────────────────────────────────────────────────────────┤
+│ Tabs: Notes | Assistant | Session | Help | Settings      │
+│                                                           │
+│ Notes: note cards oldest-to-newest with audio markers     │
+│ Assistant: prompt/response cards with chat context        │
+│ Session: folder path + QR                                 │
+│ Help/Settings: runtime info                               │
+│                                                           │
+├───────────────────────────────────────────────────────────┤
+│ Status bar + footer                                       │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -436,12 +452,38 @@ The transcript path is rendered as an editor-aware terminal link to
 
 ```text
 SPACE   Start/Stop Recording
+P       Play/Pause selected note or assistant message
+S       Stop playback
+N       New note / new assistant prompt
+E       Edit selected note / assistant message
+DELETE  Delete selected note / assistant message
+Y       Copy selected text only
+J/K     Move selection
+↑/↓     Move selection
+SHIFT+J/K or SHIFT+↑/↓  Extend selection
+H/L, ←/→  Move tabs
 CTRL+S  Save Notes
 CTRL+L  Insert Timestamp
 O       Open Transcript
 CTRL+C  Exit
 ESC     Exit
 ```
+
+Assistant notes:
+
+- `space` records a voice prompt in the Assistant tab and sends it to Ollama.
+- `n` opens the prompt editor so you can type a prompt instead of recording.
+- Editing a prompt regenerates the paired response.
+- `p` plays the selected prompt audio when available, otherwise it speaks the
+  selected text or response.
+- New playback stops the previous one, and `p` toggles play/pause for the
+  current selection.
+
+Session artifacts:
+
+- `notes.json` and `transcribe.txt` store note data.
+- `assistant.json` and `assistant.txt` store Assistant chat history.
+- `audio/` holds timestamped recordings when audio is retained.
 
 ---
 
