@@ -18,7 +18,10 @@ from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
 from voice_note.audio.player import AudioPlaybackController, speak_text
-from voice_note.services.assistant_context import AssistantChatMessage, AssistantContextBuilder
+from voice_note.services.assistant_context import (
+    AssistantChatMessage,
+    AssistantContextBuilder,
+)
 from voice_note.services.assistant_service import AssistantService
 from voice_note.services.ollama_client import OllamaClient
 from voice_note.services.session_service import SessionService
@@ -33,6 +36,7 @@ from voice_note.tui.app import (
     _format_countdown,
     _editor_command,
     _format_status,
+    _format_settings_sections,
     _normalize_editor,
     _session_name,
     _status_class,
@@ -173,7 +177,9 @@ class SettingsTest(unittest.TestCase):
             settings.audio_file,
             None,
         )
-        self.assertEqual(settings.text_output_file, settings.session_dir / "transcribe.txt")
+        self.assertEqual(
+            settings.text_output_file, settings.session_dir / "transcribe.txt"
+        )
         self.assertEqual(settings.json_output_file, settings.session_dir / "notes.json")
         self.assertEqual(settings.log_file, settings.session_dir / "log.txt")
         self.assertEqual(settings.audio_device, "built-in microphone")
@@ -280,7 +286,9 @@ class SessionServiceTest(unittest.TestCase):
     def test_creates_discovers_and_renames_sessions(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             service = SessionService(base_dir=Path(temp_dir) / "voice_notes")
-            session = service.create_session(title="Project Review", timestamp="2026_07_04-12_34_58")
+            session = service.create_session(
+                title="Project Review", timestamp="2026_07_04-12_34_58"
+            )
 
             self.assertEqual(session.title, "Project Review")
             self.assertEqual(session.slug, "project_review")
@@ -292,7 +300,9 @@ class SessionServiceTest(unittest.TestCase):
             self.assertTrue(session.log_file.exists())
 
             discovered = service.discover_sessions()
-            self.assertEqual([item.session_dir for item in discovered], [session.session_dir])
+            self.assertEqual(
+                [item.session_dir for item in discovered], [session.session_dir]
+            )
 
             renamed = service.rename_session(session, "Daily Standup")
             self.assertEqual(renamed.title, "Daily Standup")
@@ -332,7 +342,9 @@ class SessionNoteStoreTest(unittest.TestCase):
             payload = json.loads((session_dir / "notes.json").read_text())
             transcript_text = (session_dir / "transcribe.txt").read_text()
 
-        self.assertEqual([note.note_id for note in notes], [first.note_id, second.note_id])
+        self.assertEqual(
+            [note.note_id for note in notes], [first.note_id, second.note_id]
+        )
         self.assertEqual(payload["data"][0]["text"], "first")
         self.assertEqual(
             transcript_text,
@@ -393,7 +405,10 @@ class AssistantMessageStoreTest(unittest.TestCase):
             payload = json.loads((session_dir / "assistant.json").read_text())
             transcript_text = (session_dir / "assistant.txt").read_text()
 
-        self.assertEqual([message.message_id for message in messages], [first.message_id, second.message_id])
+        self.assertEqual(
+            [message.message_id for message in messages],
+            [first.message_id, second.message_id],
+        )
         self.assertEqual(payload["data"][0]["role"], "user")
         self.assertIn("Role: user", transcript_text)
         self.assertIn("Prompt: give me a summary", transcript_text)
@@ -430,8 +445,12 @@ class AssistantContextBuilderTest(unittest.TestCase):
         self.assertEqual(len(context.messages), 2)
         self.assertEqual(context.messages[0].role, "system")
         self.assertIn("Session title: project review", context.messages[0].content)
-        self.assertIn("1. [2026-07-04 12:35:16] first note", context.messages[0].content)
-        self.assertIn("2. [2026-07-04 12:36:12] second note", context.messages[0].content)
+        self.assertIn(
+            "1. [2026-07-04 12:35:16] first note", context.messages[0].content
+        )
+        self.assertIn(
+            "2. [2026-07-04 12:36:12] second note", context.messages[0].content
+        )
         self.assertNotIn("note-3", context.messages[0].content)
         self.assertEqual(context.messages[1].role, "user")
         self.assertEqual(context.messages[1].content, "give me summary")
@@ -527,7 +546,9 @@ class AssistantServiceTest(unittest.TestCase):
             captured_messages: list[list[AssistantChatMessage]] = []
 
             class FakeOllamaClient:
-                def chat(self, messages: list[AssistantChatMessage], stream: bool = False):
+                def chat(
+                    self, messages: list[AssistantChatMessage], stream: bool = False
+                ):
                     captured_messages.append(messages)
 
                     class Result:
@@ -728,7 +749,9 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
             calls: list[tuple[str, tuple, dict]] = []
 
             class FakeService:
-                def stop_recording_and_transcribe(self, persist: bool = True) -> VoiceNote:
+                def stop_recording_and_transcribe(
+                    self, persist: bool = True
+                ) -> VoiceNote:
                     calls.append(("stop", (), {"persist": persist}))
                     return VoiceNote(
                         text="assistant prompt",
@@ -738,8 +761,10 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
 
             app.service = FakeService()  # type: ignore[assignment]
             app.assistant_service = object()  # type: ignore[assignment]
-            app._submit_assistant_prompt = lambda prompt, source_audio=None: calls.append(  # type: ignore[method-assign]
-                ("prompt", (prompt, source_audio), {})
+            app._submit_assistant_prompt = lambda prompt, source_audio=None: (
+                calls.append(  # type: ignore[method-assign]
+                    ("prompt", (prompt, source_audio), {})
+                )
             )
             app.active_tab = "assistant"
             app.recording_mode = "assistant"
@@ -755,7 +780,9 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
             app._stop_recording()
 
         self.assertIn(("stop", (), {"persist": False}), calls)
-        self.assertIn(("prompt", ("assistant prompt", Path("recording.wav")), {}), calls)
+        self.assertIn(
+            ("prompt", ("assistant prompt", Path("recording.wav")), {}), calls
+        )
 
     def test_assistant_message_playback_uses_source_audio_when_available(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -935,6 +962,57 @@ class TuiComponentRefactorTest(unittest.TestCase):
 
         self.assertEqual(captured, ["New prompt"])
 
+    def test_settings_sections_list_all_config_variables_with_descriptions(
+        self,
+    ) -> None:
+        settings = VoiceNoteSettings(
+            mode="tui",
+            audio_output_folder=Path("/tmp/audio"),
+            keep_audio=True,
+            text_output_file=Path("/tmp/transcribe.txt"),
+            json_output_file=Path("/tmp/notes.json"),
+            append_timestamp=True,
+            language="en",
+            model="small",
+            assistant_model="qwen3.5:0.8b",
+            verbose=True,
+            session_dir=Path("/tmp/session"),
+            session_title="project review",
+            audio_file=Path("/tmp/audio.wav"),
+            log_file=Path("/tmp/log.txt"),
+            audio_device="microphone-1",
+            editor="nvim",
+            max_recording_seconds=60,
+        )
+
+        sections = _format_settings_sections(settings, current_tab="settings")
+
+        combined = "\n".join(sections.values())
+        for keyword in [
+            "mode:",
+            "verbose:",
+            "audio_device:",
+            "language:",
+            "model:",
+            "assistant_model:",
+            "max_recording_seconds:",
+            "audio_output_folder:",
+            "keep_audio:",
+            "text_output_file:",
+            "json_output_file:",
+            "append_timestamp:",
+            "editor:",
+            "log_file:",
+            "session_title:",
+            "session_dir:",
+            "audio_file:",
+            "current_tab:",
+        ]:
+            self.assertIn(keyword, combined)
+        self.assertIn("Run mode for the app", combined)
+        self.assertIn("Ollama model used by the Assistant tab", combined)
+        self.assertIn("Session and runtime", combined)
+
     def test_assistant_prompt_is_stored_before_response_generation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
@@ -1039,9 +1117,13 @@ class ClipboardAdapterTest(unittest.TestCase):
     def test_copy_text_to_clipboard_uses_pbcopy_on_macos(self) -> None:
         calls: list[list[str]] = []
 
-        with patch("voice_note.tui.clipboard.platform.system", return_value="Darwin"), patch(
-            "voice_note.tui.clipboard.shutil.which", return_value="/usr/bin/pbcopy"
-        ), patch("voice_note.tui.clipboard.subprocess.run") as run_mock:
+        with (
+            patch("voice_note.tui.clipboard.platform.system", return_value="Darwin"),
+            patch(
+                "voice_note.tui.clipboard.shutil.which", return_value="/usr/bin/pbcopy"
+            ),
+            patch("voice_note.tui.clipboard.subprocess.run") as run_mock,
+        ):
             run_mock.side_effect = lambda command, **kwargs: calls.append(command)
             clipboard_module.copy_text_to_clipboard("hello world")
 
@@ -1082,9 +1164,11 @@ class AudioPlayerTest(unittest.TestCase):
             procs.append(proc)
             return proc
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch(
-            "voice_note.audio.player.sys.platform", "darwin"
-        ), patch("voice_note.audio.player.subprocess.Popen", side_effect=fake_popen):
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            patch("voice_note.audio.player.sys.platform", "darwin"),
+            patch("voice_note.audio.player.subprocess.Popen", side_effect=fake_popen),
+        ):
             audio_one = Path(temp_dir) / "one.wav"
             audio_two = Path(temp_dir) / "two.wav"
             audio_one.write_text("audio")
@@ -1135,8 +1219,9 @@ class AudioPlayerTest(unittest.TestCase):
             procs.append(proc)
             return proc
 
-        with patch("voice_note.audio.player.sys.platform", "darwin"), patch(
-            "voice_note.audio.player.subprocess.Popen", side_effect=fake_popen
+        with (
+            patch("voice_note.audio.player.sys.platform", "darwin"),
+            patch("voice_note.audio.player.subprocess.Popen", side_effect=fake_popen),
         ):
             controller = AudioPlaybackController()
             self.assertEqual(controller.speak_text("hello world"), "playing")
@@ -1251,7 +1336,9 @@ class TuiStatusTest(unittest.TestCase):
         self.assertEqual(_format_status("Status: Error"), "Status: Error")
         self.assertEqual(_status_class("Status: Idle"), "status-idle")
         self.assertEqual(_status_class("Status: Recording..."), "status-recording")
-        self.assertEqual(_status_class("Status: Transcribing..."), "status-transcribing")
+        self.assertEqual(
+            _status_class("Status: Transcribing..."), "status-transcribing"
+        )
         self.assertEqual(_status_class("Status: Saved"), "status-saved")
         self.assertEqual(
             _status_class("Status: Record Stop by time overflow"),
@@ -1270,7 +1357,9 @@ class TuiStatusTest(unittest.TestCase):
             / "transcribe.txt"
         )
 
-        self.assertEqual(_session_name(transcript_file), "voice_note_2026_06_23-22_15_00")
+        self.assertEqual(
+            _session_name(transcript_file), "voice_note_2026_06_23-22_15_00"
+        )
         self.assertEqual(
             _transcript_link(transcript_file),
             f"Session: {transcript_file.parent}",

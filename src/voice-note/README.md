@@ -287,13 +287,13 @@ This `--model` value is the Whisper transcription model. Assistant chat uses a
 separate Ollama model.
 
 ```bash
---assistant-model qwen2.5:3b
+--assistant-model qwen3.5:0.8b
 ```
 
 Default:
 
 ```text
-qwen2.5:3b
+qwen3.5:0.8b
 ```
 
 This is the model sent to local Ollama from the Assistant tab.

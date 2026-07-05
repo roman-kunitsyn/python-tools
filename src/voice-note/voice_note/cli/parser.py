@@ -59,18 +59,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write a timestamp before each transcription.",
     )
-    parser.add_argument("--language", default=None, help="Whisper language. Default: auto.")
-    parser.add_argument("--model", default=None, help="Whisper model name or file path.")
+    parser.add_argument(
+        "--language", default=None, help="Whisper language. Default: auto."
+    )
+    parser.add_argument(
+        "--model", default=None, help="Whisper model name or file path."
+    )
     parser.add_argument(
         "--assistant-model",
         default=None,
-        help="Ollama model used by the Assistant tab. Default: qwen2.5:3b.",
+        help="Ollama model used by the Assistant tab. Default: qwen3.5:0.8b.",
     )
     return parser
 
 
 def build_settings_from_args(args) -> VoiceNoteSettings:
-    settings = VoiceNoteSettings.from_file(args.config) if args.config else VoiceNoteSettings()
+    settings = (
+        VoiceNoteSettings.from_file(args.config) if args.config else VoiceNoteSettings()
+    )
 
     updates = {
         "mode": args.mode or settings.mode,

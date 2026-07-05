@@ -1024,40 +1024,10 @@ class VoiceNoteApp(App):
         self.query_one("#notes-content", NoteTranscriptView).focus()
 
     def _refresh_settings_widgets(self) -> None:
-        self.query_one("#settings-inputs", Static).update(
-            "\n".join(
-                [
-                    "Input sources",
-                    f"Audio device: {self.settings.audio_device or 'default'}",
-                    f"Language: {self.settings.language}",
-                    f"Model: {self.settings.model}",
-                    f"Assistant model: {self.settings.assistant_model}",
-                    f"Max recording seconds: {self.settings.max_recording_seconds}",
-                ]
-            )
-        )
-        self.query_one("#settings-outputs", Static).update(
-            "\n".join(
-                [
-                    "Output sources",
-                    f"Editor: {self.settings.editor}",
-                    f"Keep audio: {self.settings.keep_audio}",
-                    f"Append timestamps: {self.settings.append_timestamp}",
-                    f"Audio folder: {self.settings.audio_output_folder or 'session/audio'}",
-                    f"Text file: {self.settings.text_output_file or 'session/transcribe.txt'}",
-                    f"JSON file: {self.settings.json_output_file or 'session/notes.json'}",
-                ]
-            )
-        )
-        self.query_one("#settings-runtime", Static).update(
-            "\n".join(
-                [
-                    "Session runtime",
-                    f"Base title: {self.settings.session_title}",
-                    f"Current tab: {self.active_tab}",
-                ]
-            )
-        )
+        sections = _format_settings_sections(self.settings, self.active_tab)
+        self.query_one("#settings-inputs", Static).update(sections["inputs"])
+        self.query_one("#settings-outputs", Static).update(sections["outputs"])
+        self.query_one("#settings-runtime", Static).update(sections["runtime"])
 
     def _show_tab(self, tab: str) -> None:
         self.active_tab = tab
@@ -1453,6 +1423,122 @@ def _playback_status_message(state: str) -> str:
     if state == "stopped":
         return "Status: Stopped"
     return "Status: Idle"
+
+
+def _format_settings_sections(
+    settings: VoiceNoteSettings,
+    current_tab: str,
+) -> dict[str, str]:
+    inputs = "\n".join(
+        [
+            "Input settings",
+            _setting_line(
+                "mode",
+                settings.mode,
+                "Run mode for the app: cli or tui.",
+            ),
+            _setting_line(
+                "verbose",
+                settings.verbose,
+                "Enable debug logging and extra runtime output.",
+            ),
+            _setting_line(
+                "audio_device",
+                settings.audio_device or "default",
+                "Microphone name or device id used by recording.",
+            ),
+            _setting_line(
+                "language",
+                settings.language,
+                "Whisper language hint for transcription.",
+            ),
+            _setting_line(
+                "model",
+                settings.model,
+                "Whisper transcription model or direct model file path.",
+            ),
+            _setting_line(
+                "assistant_model",
+                settings.assistant_model,
+                "Ollama model used by the Assistant tab.",
+            ),
+            _setting_line(
+                "max_recording_seconds",
+                settings.max_recording_seconds,
+                "Maximum length of one push-to-talk recording.",
+            ),
+        ]
+    )
+    outputs = "\n".join(
+        [
+            "Output and storage",
+            _setting_line(
+                "audio_output_folder",
+                settings.audio_output_folder or "session/audio",
+                "Folder where recorded audio is saved when audio is kept.",
+            ),
+            _setting_line(
+                "keep_audio",
+                settings.keep_audio,
+                "Keep or delete recorded audio after transcription.",
+            ),
+            _setting_line(
+                "text_output_file",
+                settings.text_output_file or "session/transcribe.txt",
+                "Human-readable transcript file for note text.",
+            ),
+            _setting_line(
+                "json_output_file",
+                settings.json_output_file or "session/notes.json",
+                "Rewriteable JSON store for note entries.",
+            ),
+            _setting_line(
+                "append_timestamp",
+                settings.append_timestamp,
+                "Write timestamps into the rendered transcript text.",
+            ),
+            _setting_line(
+                "editor",
+                settings.editor,
+                "Editor used when opening transcript files from the TUI.",
+            ),
+            _setting_line(
+                "log_file",
+                settings.log_file or "session/log.txt",
+                "Session log for Whisper, ffmpeg, and other technical output.",
+            ),
+        ]
+    )
+    runtime = "\n".join(
+        [
+            "Session and runtime",
+            _setting_line(
+                "session_title",
+                settings.session_title,
+                "Human-friendly title used when creating a new session folder.",
+            ),
+            _setting_line(
+                "session_dir",
+                settings.session_dir or "derived from session title and timestamp",
+                "Explicit session folder override when loading or creating a session.",
+            ),
+            _setting_line(
+                "audio_file",
+                settings.audio_file or "auto-generated per recording",
+                "Explicit output path for a recording if you want to override the default.",
+            ),
+            _setting_line(
+                "current_tab",
+                current_tab,
+                "Currently active TUI tab.",
+            ),
+        ]
+    )
+    return {"inputs": inputs, "outputs": outputs, "runtime": runtime}
+
+
+def _setting_line(name: str, value: object, description: str) -> str:
+    return f"{name}: {value} — {description}"
 
 
 def _format_countdown(seconds: int) -> str:

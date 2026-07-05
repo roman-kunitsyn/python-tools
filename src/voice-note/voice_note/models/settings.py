@@ -11,7 +11,7 @@ TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
 DEFAULT_AUDIO_DEVICE = "built-in microphone"
 DEFAULT_EDITOR = "code"
 DEFAULT_MAX_RECORDING_SECONDS = 90
-DEFAULT_ASSISTANT_MODEL = "qwen2.5:3b"
+DEFAULT_ASSISTANT_MODEL = "qwen3.5:0.8b"
 
 
 @dataclass(frozen=True)
