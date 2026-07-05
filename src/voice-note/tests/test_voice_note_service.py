@@ -12,8 +12,10 @@ from voice_note.models.session import slugify_session_title
 from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import VoiceNoteSettings
 from voice_note.output.session_store import SessionNoteStore
+from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
 from voice_note.audio.player import speak_text
+from voice_note.services.assistant_context import AssistantContextBuilder
 from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
@@ -354,6 +356,78 @@ class SessionNoteStoreTest(unittest.TestCase):
         self.assertEqual(updated_note.text, "edited text")
         self.assertEqual(payload["data"], [])
         self.assertEqual(transcript_text, "")
+
+
+class AssistantMessageStoreTest(unittest.TestCase):
+    def test_appends_messages_oldest_first_and_renders_transcript(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
+            store = AssistantMessageStore(
+                messages_file=session_dir / "assistant.json",
+                transcript_file=session_dir / "assistant.txt",
+                session="voice_note_2026_07_04-12_34_58",
+            )
+
+            first = store.append_message(
+                role="user",
+                prompt="give me a summary",
+                response="",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+            )
+            second = store.append_message(
+                role="assistant",
+                prompt="give me a summary",
+                response="Summary output",
+                created_at=datetime(2026, 7, 4, 12, 36, 12),
+                response_state="complete",
+            )
+
+            messages = store.load_messages()
+            payload = json.loads((session_dir / "assistant.json").read_text())
+            transcript_text = (session_dir / "assistant.txt").read_text()
+
+        self.assertEqual([message.message_id for message in messages], [first.message_id, second.message_id])
+        self.assertEqual(payload["data"][0]["role"], "user")
+        self.assertIn("Role: user", transcript_text)
+        self.assertIn("Prompt: give me a summary", transcript_text)
+        self.assertIn("Response: Summary output", transcript_text)
+        self.assertIn("State: complete", transcript_text)
+
+
+class AssistantContextBuilderTest(unittest.TestCase):
+    def test_builds_session_summary_from_notes(self) -> None:
+        notes = [
+            SessionNote(
+                note_id="note-1",
+                text="first note",
+                created_at=datetime(2026, 7, 4, 12, 35, 16),
+            ),
+            SessionNote(
+                note_id="note-2",
+                text="second note",
+                created_at=datetime(2026, 7, 4, 12, 36, 12),
+            ),
+            SessionNote(
+                note_id="note-3",
+                text="",
+                created_at=datetime(2026, 7, 4, 12, 37, 8),
+            ),
+        ]
+
+        context = AssistantContextBuilder().build(
+            notes=notes,
+            prompt="give me summary",
+            session_title="project review",
+        )
+
+        self.assertEqual(len(context.messages), 2)
+        self.assertEqual(context.messages[0].role, "system")
+        self.assertIn("Session title: project review", context.messages[0].content)
+        self.assertIn("1. [2026-07-04 12:35:16] first note", context.messages[0].content)
+        self.assertIn("2. [2026-07-04 12:36:12] second note", context.messages[0].content)
+        self.assertNotIn("note-3", context.messages[0].content)
+        self.assertEqual(context.messages[1].role, "user")
+        self.assertEqual(context.messages[1].content, "give me summary")
 
 
 class VoiceNoteAppNavigationTest(unittest.TestCase):

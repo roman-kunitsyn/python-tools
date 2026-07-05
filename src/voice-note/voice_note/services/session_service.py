@@ -99,6 +99,8 @@ class SessionService:
         session.audio_dir.mkdir(parents=True, exist_ok=True)
         self._write_metadata(session)
         session.notes_file.touch(exist_ok=True)
+        session.assistant_file.touch(exist_ok=True)
+        session.assistant_transcript_file.touch(exist_ok=True)
         session.transcript_file.touch(exist_ok=True)
         session.log_file.touch(exist_ok=True)
 

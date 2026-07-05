@@ -35,6 +35,14 @@ class VoiceNoteSession:
         return self.session_dir / "notes.json"
 
     @property
+    def assistant_file(self) -> Path:
+        return self.session_dir / "assistant.json"
+
+    @property
+    def assistant_transcript_file(self) -> Path:
+        return self.session_dir / "assistant.txt"
+
+    @property
     def log_file(self) -> Path:
         return self.session_dir / "log.txt"
 
