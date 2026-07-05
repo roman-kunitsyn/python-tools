@@ -26,7 +26,7 @@ from voice_note.services.voice_note_service import VoiceNoteService, format_note
 from voice_note.audio.recorder import PushToTalkRecorder
 from voice_note.tui.app import VoiceNoteApp
 from voice_note.tui.assistant import build_assistant_tab
-from voice_note.tui.components import render_note_card
+from voice_note.tui.components import render_assistant_message_card, render_note_card
 from voice_note.tui import clipboard as clipboard_module
 from voice_note.tui.app import (
     _format_countdown,
@@ -726,6 +726,9 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
 
             app.service = FakeService()  # type: ignore[assignment]
             app.assistant_service = object()  # type: ignore[assignment]
+            app._submit_assistant_prompt = lambda prompt, source_audio=None: calls.append(  # type: ignore[method-assign]
+                ("prompt", (prompt, source_audio), {})
+            )
             app.active_tab = "assistant"
             app.recording_mode = "assistant"
             app.stopping = False
@@ -735,9 +738,6 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
             app._set_status = lambda status: calls.append(("status", (status,), {}))  # type: ignore[method-assign]
             app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
             app.call_from_thread = lambda fn, *args: fn(*args)  # type: ignore[method-assign]
-            app._generate_assistant_response_from_audio = lambda prompt, source_audio: calls.append(  # type: ignore[method-assign]
-                ("prompt", (prompt, source_audio), {})
-            )
 
             app.active_tab = "notes"
             app._stop_recording()
@@ -823,6 +823,26 @@ class TuiComponentRefactorTest(unittest.TestCase):
         self.assertEqual(panel.title, "▶ 01. 2026-07-04 12:35:16  [audio]")
         self.assertEqual(panel.border_style, "black")
 
+    def test_render_assistant_message_card_uses_green_selection_style(self) -> None:
+        message = AssistantMessage(
+            message_id="msg-1",
+            role="assistant",
+            prompt="give me summary",
+            response="Summary output",
+            created_at=datetime(2026, 7, 4, 12, 36, 12),
+        )
+
+        panel = render_assistant_message_card(
+            message=message,
+            index=2,
+            selected=True,
+            in_selection=False,
+            zoom=1,
+        )
+
+        self.assertEqual(panel.title, "▶ Response: 02. 2026-07-04 12:36:12")
+        self.assertEqual(panel.border_style, "#16a34a")
+
     def test_assistant_tab_placeholder_is_present(self) -> None:
         assistant_tab = build_assistant_tab()
 
@@ -844,6 +864,54 @@ class TuiComponentRefactorTest(unittest.TestCase):
             app.action_new_note()
 
         self.assertEqual(captured, ["New prompt"])
+
+    def test_assistant_prompt_is_stored_before_response_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
+            assistant_store = AssistantMessageStore(
+                messages_file=session_dir / "assistant.json",
+                transcript_file=session_dir / "assistant.txt",
+                session="voice_note_2026_07_04-12_34_58",
+            )
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+            )
+            app.assistant_store = assistant_store
+            app.assistant_service = type(
+                "FakeAssistantService",
+                (),
+                {
+                    "generate_response_text": lambda self, prompt: (
+                        self.assert_prompt_visible(prompt)
+                    ),
+                    "assert_prompt_visible": lambda self, prompt: (
+                        self._assert_prompt_visible(prompt)
+                    ),
+                },
+            )()
+
+            def assert_prompt_visible(prompt: str) -> str:
+                messages = assistant_store.load_messages()
+                self.assertEqual(len(messages), 1)
+                self.assertEqual(messages[0].role, "user")
+                self.assertEqual(messages[0].prompt, prompt)
+                self.assertEqual(messages[0].response_state, "sent")
+                return "assistant response"
+
+            app.assistant_service._assert_prompt_visible = assert_prompt_visible  # type: ignore[attr-defined]
+            app._reload_assistant_messages = lambda select_message_id=None: None  # type: ignore[method-assign]
+            app._set_status = lambda status: None  # type: ignore[method-assign]
+            app.run_worker = lambda work, thread=True: work()  # type: ignore[method-assign]
+            app.call_from_thread = lambda fn, *args: fn(*args)  # type: ignore[method-assign]
+
+            app._submit_assistant_prompt("give me summary")
+
+            messages = assistant_store.load_messages()
+
+        self.assertEqual([message.role for message in messages], ["user", "assistant"])
+        self.assertEqual(messages[0].prompt, "give me summary")
+        self.assertEqual(messages[1].response, "assistant response")
 
 
 class ClipboardAdapterTest(unittest.TestCase):

@@ -36,11 +36,10 @@ class AssistantService:
     def generate_response(self, prompt: str) -> AssistantGenerationResult:
         return self.generate_response_from_audio(prompt, source_audio=None)
 
-    def generate_response_from_audio(
+    def generate_response_text(
         self,
         prompt: str,
-        source_audio: Path | None = None,
-    ) -> AssistantGenerationResult:
+    ) -> str:
         notes = self.notes_store.load_notes()
         context = self.context_builder.build(
             notes=notes,
@@ -48,6 +47,14 @@ class AssistantService:
             session_title=self.session.title,
         )
         ollama_result = self.ollama_client.chat(context.messages, stream=False)
+        return ollama_result.content
+
+    def generate_response_from_audio(
+        self,
+        prompt: str,
+        source_audio: Path | None = None,
+    ) -> AssistantGenerationResult:
+        response_text = self.generate_response_text(prompt)
 
         prompt_message = self.assistant_store.append_message(
             role="user",
@@ -59,12 +66,12 @@ class AssistantService:
         response_message = self.assistant_store.append_message(
             role="assistant",
             prompt=prompt,
-            response=ollama_result.content,
-            response_state="complete" if ollama_result.done else "partial",
+            response=response_text,
+            response_state="complete",
             source_audio=source_audio,
         )
         return AssistantGenerationResult(
             prompt_message=prompt_message,
             response_message=response_message,
-            response_text=ollama_result.content,
+            response_text=response_text,
         )

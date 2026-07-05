@@ -583,21 +583,7 @@ class VoiceNoteApp(App):
             self._set_status("Status: Error: no assistant prompt")
             return
 
-        self._set_status("Status: Generating assistant response...")
-
-        def work() -> None:
-            try:
-                result = self.assistant_service.generate_response(text)
-            except Exception as error:
-                self.call_from_thread(self._set_status, f"Status: Error: {error}")
-                return
-
-            self.call_from_thread(
-                self._on_assistant_response,
-                result.response_message.message_id,
-            )
-
-        self.run_worker(work, thread=True)
+        self._submit_assistant_prompt(text)
 
     def action_play_assistant_message(self) -> None:
         message = self._selected_assistant_message()
@@ -700,7 +686,7 @@ class VoiceNoteApp(App):
                     return
 
                 self.call_from_thread(
-                    self._generate_assistant_response_from_audio,
+                    self._submit_assistant_prompt,
                     note.text,
                     note.audio_file,
                 )
@@ -824,28 +810,66 @@ class VoiceNoteApp(App):
             selected_message_bounds=selection_bounds,
         )
 
-    def _on_assistant_response(self, message_id: str) -> None:
-        self.recording_mode = "notes"
-        self.recording_started_at = None
-        self.stopping = False
-        self._reload_assistant_messages(select_message_id=message_id)
-        self._set_status("Status: Idle")
-
-    def _generate_assistant_response_from_audio(
+    def _submit_assistant_prompt(
         self,
         prompt: str,
-        source_audio: Path | None,
+        source_audio: Path | None = None,
     ) -> None:
-        if self.assistant_service is None:
+        if self.assistant_service is None or self.assistant_store is None:
             self._set_status("Status: Error: assistant is not ready")
             return
 
+        prompt = prompt.strip()
+        if prompt == "":
+            self._set_status("Status: Error: no assistant prompt")
+            return
+
+        self.recording_mode = "assistant"
+        self.recording_started_at = None
+        self.stopping = False
+
+        prompt_message = self.assistant_store.append_message(
+            role="user",
+            prompt=prompt,
+            response="",
+            response_state="sent",
+            source_audio=source_audio,
+        )
+        self._reload_assistant_messages(select_message_id=prompt_message.message_id)
         self._set_status("Status: Generating assistant response...")
 
         def work() -> None:
             try:
-                result = self.assistant_service.generate_response_from_audio(
-                    prompt,
+                response_text = self.assistant_service.generate_response_text(prompt)
+            except Exception as error:
+                try:
+                    error_message = self.assistant_store.append_message(
+                        role="assistant",
+                        prompt=prompt,
+                        response=f"Error: {error}",
+                        response_state="error",
+                        source_audio=source_audio,
+                    )
+                    self.call_from_thread(
+                        self._reload_assistant_messages,
+                        error_message.message_id,
+                    )
+                except Exception as store_error:
+                    self.call_from_thread(
+                        self._set_status,
+                        f"Status: Error: {store_error}",
+                    )
+                    return
+                self.call_from_thread(self._set_status, f"Status: Error: {error}")
+                self.call_from_thread(self._reset_assistant_recording_state, None)
+                return
+
+            try:
+                response_message = self.assistant_store.append_message(
+                    role="assistant",
+                    prompt=prompt,
+                    response=response_text,
+                    response_state="complete",
                     source_audio=source_audio,
                 )
             except Exception as error:
@@ -853,9 +877,10 @@ class VoiceNoteApp(App):
                 return
 
             self.call_from_thread(
-                self._on_assistant_response,
-                result.response_message.message_id,
+                self._reload_assistant_messages,
+                response_message.message_id,
             )
+            self.call_from_thread(self._reset_assistant_recording_state, "Status: Idle")
 
         self.run_worker(work, thread=True)
 
@@ -867,7 +892,14 @@ class VoiceNoteApp(App):
         if result is None or result.mode != "save" or result.text is None:
             return
 
-        self.action_send_assistant_prompt(result.text)
+        self._submit_assistant_prompt(result.text)
+
+    def _reset_assistant_recording_state(self, status: str | None = "Status: Idle") -> None:
+        self.recording_mode = "notes"
+        self.recording_started_at = None
+        self.stopping = False
+        if status is not None:
+            self._set_status(status)
 
     def _on_assistant_editor_result(
         self,

@@ -78,12 +78,12 @@ def render_assistant_message_card(
         title = f"{label}: {header}"
 
     if message.role == "user":
-        panel_style = "black on #fef3c7" if not selected else "black on white"
-        border_style = "#d97706" if not selected else "black"
+        panel_style = "black on #fef3c7" if not selected else "black on #dcfce7"
+        border_style = "#d97706" if not selected else "#16a34a"
         body_style = "black" if not selected else "bold black"
     else:
-        panel_style = "black on #dbeafe" if not selected else "black on white"
-        border_style = "#2563eb" if not selected else "black"
+        panel_style = "black on #dbeafe" if not selected else "black on #dcfce7"
+        border_style = "#2563eb" if not selected else "#16a34a"
         body_style = "black" if not selected else "bold black"
     body_text = Text(body, style=body_style)
 
