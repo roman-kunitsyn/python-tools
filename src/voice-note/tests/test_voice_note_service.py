@@ -291,7 +291,7 @@ class SessionServiceTest(unittest.TestCase):
 
 
 class SessionNoteStoreTest(unittest.TestCase):
-    def test_appends_notes_newest_first_and_renders_transcript(self) -> None:
+    def test_appends_notes_oldest_first_and_renders_transcript(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             session_dir = Path(temp_dir) / "voice_note_2026_07_04-12_34_58"
             store = SessionNoteStore(
@@ -316,11 +316,11 @@ class SessionNoteStoreTest(unittest.TestCase):
             payload = json.loads((session_dir / "notes.json").read_text())
             transcript_text = (session_dir / "transcribe.txt").read_text()
 
-        self.assertEqual([note.note_id for note in notes], [second.note_id, first.note_id])
-        self.assertEqual(payload["data"][0]["text"], "second")
+        self.assertEqual([note.note_id for note in notes], [first.note_id, second.note_id])
+        self.assertEqual(payload["data"][0]["text"], "first")
         self.assertEqual(
             transcript_text,
-            "[2026-07-04 12:36:12]\n\nsecond\n\n[2026-07-04 12:35:16]\n\nfirst\n",
+            "[2026-07-04 12:35:16]\n\nfirst\n\n[2026-07-04 12:36:12]\n\nsecond\n",
         )
 
     def test_updates_and_deletes_notes(self) -> None:

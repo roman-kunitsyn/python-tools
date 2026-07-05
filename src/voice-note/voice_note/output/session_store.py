@@ -23,7 +23,7 @@ class SessionNoteStore:
         payload = self._read_payload()
         data = payload.get("data", [])
         notes = [self._note_from_payload(item) for item in data]
-        return sorted(notes, key=lambda note: note.created_at, reverse=True)
+        return sorted(notes, key=lambda note: note.created_at)
 
     def get_note(self, note_id: str) -> SessionNote | None:
         for note in self.load_notes():
@@ -45,7 +45,7 @@ class SessionNoteStore:
             audio_file=audio_file,
         )
         notes = self.load_notes()
-        notes.insert(0, note)
+        notes.append(note)
         self._write(notes)
         return note
 
@@ -81,7 +81,7 @@ class SessionNoteStore:
         self._write(filtered_notes)
 
     def replace_notes(self, notes: list[SessionNote]) -> None:
-        ordered_notes = sorted(notes, key=lambda note: note.created_at, reverse=True)
+        ordered_notes = sorted(notes, key=lambda note: note.created_at)
         self._write(ordered_notes)
 
     def _read_payload(self) -> dict:

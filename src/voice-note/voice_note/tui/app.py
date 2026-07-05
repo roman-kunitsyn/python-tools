@@ -545,7 +545,7 @@ class VoiceNoteApp(App):
 
         self.notes = self.service.session_store.load_notes()
         if self.notes:
-            self.selected_note_id = self.notes[0].note_id
+            self.selected_note_id = self.notes[-1].note_id
         self._render_notes()
         self.recording_started_at = None
         self.stopping = False
@@ -708,7 +708,7 @@ class VoiceNoteApp(App):
 
         self.notes = self.service.session_store.load_notes()
         self.selected_note_id = select_note_id or (
-            self.notes[0].note_id if self.notes else None
+            self.notes[-1].note_id if self.notes else None
         )
         self._render_notes()
 
@@ -727,14 +727,14 @@ class VoiceNoteApp(App):
             return
 
         if self.selected_note_id is None:
-            self.selected_note_id = self.notes[0].note_id
+            self.selected_note_id = self.notes[-1].note_id
             return
 
         for index, note in enumerate(self.notes):
             if note.note_id == self.selected_note_id:
                 return
 
-        self.selected_note_id = self.notes[0].note_id
+        self.selected_note_id = self.notes[-1].note_id
 
     def _set_selected_note_by_index(self, index: int) -> None:
         if not self.notes:
