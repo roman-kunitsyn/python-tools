@@ -827,7 +827,7 @@ class TuiComponentRefactorTest(unittest.TestCase):
         assistant_tab = build_assistant_tab()
 
         self.assertEqual(assistant_tab.id, "assistant-view")
-        self.assertEqual(len(list(assistant_tab.compose())), 4)
+        self.assertEqual(len(list(assistant_tab.compose())), 5)
 
     def test_assistant_new_note_opens_prompt_editor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

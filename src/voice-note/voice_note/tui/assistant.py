@@ -10,13 +10,17 @@ class AssistantTab(Vertical):
     def compose(self):
         yield Static("Assistant", id="assistant-title")
         yield Static(
-            "Prompt Ollama with session context and review generated replies.",
+            "Assistant messages are stored oldest to newest and use the current session as Ollama context.",
             id="assistant-card",
         )
         yield AssistantMessageView(id="assistant-messages")
         yield Static(
-            "Use n to write a prompt, space to record one, and j/k or arrows to move through prompts and replies.",
+            "Use n to write a prompt, space to record one, p to play the selected prompt or response, and e/delete/y to edit, remove, or copy plain text.",
             id="assistant-details",
+        )
+        yield Static(
+            "Navigate prompts and responses with j/k or the arrow keys. Use shift+j/k or shift+up/down to extend selection.",
+            id="assistant-shortcuts",
         )
 
 
