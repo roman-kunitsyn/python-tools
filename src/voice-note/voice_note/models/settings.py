@@ -11,6 +11,7 @@ TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
 DEFAULT_AUDIO_DEVICE = "built-in microphone"
 DEFAULT_EDITOR = "code"
 DEFAULT_MAX_RECORDING_SECONDS = 90
+DEFAULT_ASSISTANT_MODEL = "qwen2.5:3b"
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class VoiceNoteSettings:
     append_timestamp: bool = False
     language: str = "auto"
     model: str = "small"
+    assistant_model: str = DEFAULT_ASSISTANT_MODEL
     verbose: bool = False
     session_dir: Path | None = None
     session_title: str = DEFAULT_SESSION_TITLE
@@ -44,6 +46,7 @@ class VoiceNoteSettings:
             append_timestamp=bool(payload.get("append_timestamp", False)),
             language=payload.get("language", "auto"),
             model=payload.get("model", "small"),
+            assistant_model=payload.get("assistant_model", DEFAULT_ASSISTANT_MODEL),
             verbose=bool(payload.get("verbose", False)),
             session_dir=_optional_path(payload.get("session_dir")),
             session_title=payload.get("session_title", DEFAULT_SESSION_TITLE),
@@ -80,6 +83,7 @@ class VoiceNoteSettings:
             append_timestamp=self.append_timestamp,
             language=self.language,
             model=self.model,
+            assistant_model=self.assistant_model,
             verbose=self.verbose,
             session_dir=session_dir,
             session_title=self.session_title,

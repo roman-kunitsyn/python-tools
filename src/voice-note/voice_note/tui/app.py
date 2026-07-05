@@ -382,7 +382,7 @@ class VoiceNoteApp(App):
             session=self.session,
             notes_store=self.service.session_store,
             assistant_store=self.assistant_store,
-            ollama_client=OllamaClient(model=self.settings.model),
+            ollama_client=OllamaClient(model=self.settings.assistant_model),
         )
         self._reload_assistant_messages()
         self._refresh_session_widgets()
@@ -969,6 +969,7 @@ class VoiceNoteApp(App):
                     f"Audio device: {self.settings.audio_device or 'default'}",
                     f"Language: {self.settings.language}",
                     f"Model: {self.settings.model}",
+                    f"Assistant model: {self.settings.assistant_model}",
                     f"Max recording seconds: {self.settings.max_recording_seconds}",
                 ]
             )

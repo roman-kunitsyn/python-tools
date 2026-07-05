@@ -61,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--language", default=None, help="Whisper language. Default: auto.")
     parser.add_argument("--model", default=None, help="Whisper model name or file path.")
+    parser.add_argument(
+        "--assistant-model",
+        default=None,
+        help="Ollama model used by the Assistant tab. Default: qwen2.5:3b.",
+    )
     return parser
 
 
@@ -77,6 +82,7 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "append_timestamp": args.append_timestamp or settings.append_timestamp,
         "language": args.language or settings.language,
         "model": args.model or settings.model,
+        "assistant_model": args.assistant_model or settings.assistant_model,
         "session_dir": settings.session_dir,
         "audio_file": settings.audio_file,
         "log_file": settings.log_file,

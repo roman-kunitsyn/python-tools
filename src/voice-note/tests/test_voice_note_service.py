@@ -220,6 +220,7 @@ class SettingsTest(unittest.TestCase):
             append_timestamp=False,
             language=None,
             model=None,
+            assistant_model=None,
             audio_device=None,
             editor=None,
             max_recording_seconds=0,
