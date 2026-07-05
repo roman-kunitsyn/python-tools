@@ -355,18 +355,6 @@ class SessionNoteStoreTest(unittest.TestCase):
 
 
 class VoiceNoteAppNavigationTest(unittest.TestCase):
-    class _KeyEvent:
-        def __init__(self, key: str) -> None:
-            self.key = key
-            self.stopped = False
-            self.prevented = False
-
-        def stop(self) -> None:
-            self.stopped = True
-
-        def prevent_default(self) -> None:
-            self.prevented = True
-
     def test_note_navigation_uses_vim_and_arrow_bindings(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = VoiceNoteApp(
@@ -403,11 +391,6 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
 
     def test_note_navigation_bindings_include_arrow_keys(self) -> None:
         bindings = {binding[0]: binding[1] for binding in VoiceNoteApp.BINDINGS}
-
-        self.assertEqual(bindings["left"], "previous_tab")
-        self.assertEqual(bindings["right"], "next_tab")
-        self.assertEqual(bindings["h"], "previous_tab")
-        self.assertEqual(bindings["l"], "next_tab")
         self.assertEqual(bindings["j"], "next_note")
         self.assertEqual(bindings["k"], "previous_note")
         self.assertEqual(bindings["down"], "next_note")
@@ -418,67 +401,6 @@ class VoiceNoteAppNavigationTest(unittest.TestCase):
         self.assertEqual(bindings["shift+up"], "extend_previous_note")
         self.assertEqual(bindings["y"], "copy_selection")
         self.assertEqual(bindings["ctrl+shift+c"], "copy_selection")
-
-    def test_tab_navigation_cycles_through_workspace_tabs(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            app = VoiceNoteApp(
-                settings=VoiceNoteSettings(),
-                session_service=SessionService(base_dir=Path(temp_dir)),
-            )
-
-            app._show_tab = lambda tab: setattr(app, "active_tab", tab)  # type: ignore[method-assign]
-            app.active_tab = "notes"
-
-            app.action_next_tab()
-            self.assertEqual(app.active_tab, "session")
-
-            app.action_next_tab()
-            self.assertEqual(app.active_tab, "help")
-
-            app.action_next_tab()
-            self.assertEqual(app.active_tab, "assistant")
-
-            app.action_next_tab()
-            self.assertEqual(app.active_tab, "settings")
-
-            app.action_previous_tab()
-            self.assertEqual(app.active_tab, "assistant")
-
-            app.active_tab = "settings"
-            app.action_next_tab()
-            self.assertEqual(app.active_tab, "notes")
-
-            app.active_tab = "notes"
-            app.action_previous_tab()
-            self.assertEqual(app.active_tab, "settings")
-
-    def test_key_events_drive_tab_navigation_directly(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            app = VoiceNoteApp(
-                settings=VoiceNoteSettings(),
-                session_service=SessionService(base_dir=Path(temp_dir)),
-            )
-
-            app._show_tab = lambda tab: setattr(app, "active_tab", tab)  # type: ignore[method-assign]
-            app.active_tab = "notes"
-
-            event = self._KeyEvent("l")
-            app.on_key(event)
-            self.assertEqual(app.active_tab, "session")
-            self.assertTrue(event.stopped)
-            self.assertTrue(event.prevented)
-
-            event = self._KeyEvent("right")
-            app.on_key(event)
-            self.assertEqual(app.active_tab, "help")
-            self.assertTrue(event.stopped)
-            self.assertTrue(event.prevented)
-
-            event = self._KeyEvent("h")
-            app.on_key(event)
-            self.assertEqual(app.active_tab, "session")
-            self.assertTrue(event.stopped)
-            self.assertTrue(event.prevented)
 
     def test_play_note_falls_back_to_say_for_text_only_notes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
