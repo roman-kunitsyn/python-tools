@@ -117,6 +117,7 @@ Each report should include:
 - behavior added or changed
 - checks run
 - remaining risks or follow-up work
+- `commit_name` for git tracking
 
 ## Recommended Part Sequence
 

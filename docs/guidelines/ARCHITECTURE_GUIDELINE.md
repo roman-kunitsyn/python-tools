@@ -115,9 +115,12 @@ Responsibilities:
 
 - expose stable command-line options
 - parse paths as `Path`
+- read primary input from arguments or stdin when the tool is used in a pipe
 - provide defaults
 - build the shared config model
 - keep CLI-only validation at the command boundary
+- write the main result to stdout
+- write diagnostics, warnings, and errors to stderr
 
 The CLI layer should not:
 
@@ -125,6 +128,15 @@ The CLI layer should not:
 - inspect output files
 - own domain behavior
 - know about Textual widgets or screens
+
+When a tool is intended to compose with shell pipelines, treat stdin, stdout,
+and stderr as the normal interface:
+
+- stdin carries input data when the caller pipes content into the tool
+- stdout carries the primary result
+- stderr carries logs, warnings, progress, and failures
+- avoid hiding parseable output in stderr unless the caller explicitly asks for
+  it
 
 ## Service Layer
 
@@ -150,6 +162,8 @@ For a command-line tool wrapper:
 - use `subprocess.run(command, check=True)`
 - avoid shell invocation unless there is a specific, reviewed need
 - let stdout/stderr stream unless the application needs to parse output
+- prefer stdin/stdout/stderr over temporary files when the workflow stays
+  composable
 - keep external tool flags isolated in one place
 
 This makes future replacements possible. For example, `whisper-cli` can be replaced by another transcription engine without rewriting the TUI.
