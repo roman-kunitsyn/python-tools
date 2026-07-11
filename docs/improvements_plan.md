@@ -50,7 +50,7 @@ Done when:
 - [x] Update `docs/guidelines/PROJECT_DOCUMENTATION_GUIDELINE.md`
 - [x] Add Unix-style stdin/stdout/stderr expectations to
   `docs/guidelines/ARCHITECTURE_GUIDELINE.md`
-- [ ] Decide whether additional shared docs need the same I/O convention
+- [x] Decide whether additional shared docs need the same I/O convention
   language
 
 Done when:
@@ -60,9 +60,9 @@ Done when:
 
 ### Step 3: Standardize report tracking
 
-- [ ] Define the report fields that every update report should include
-- [ ] Add `commit_name` to the report convention
-- [ ] Update any report templates or examples that still omit commit tracking
+- [x] Define the report fields that every update report should include
+- [x] Add `commit_name` to the report convention
+- [x] Update any report templates or examples that still omit commit tracking
 
 Done when:
 
@@ -85,10 +85,10 @@ Done when:
 
 ### Step 5: Close the loop
 
-- [ ] Write a documentation report in the appropriate `docs/reports/`
+- [x] Write a documentation report in the appropriate `docs/reports/`
   directory
-- [ ] Include the changed files, checks performed, risks, and `commit_name`
-- [ ] Update this plan to reflect completed work
+- [x] Include the changed files, checks performed, risks, and `commit_name`
+- [x] Update this plan to reflect completed work
 
 Done when:
 

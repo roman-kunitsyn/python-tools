@@ -55,3 +55,23 @@ Full machine-readable role profile:
 - Long-running work must not block the TUI thread.
 - Every task should leave the product runnable.
 - Every implementation task should update docs and create a report.
+- New tools should follow Unix-style I/O by default:
+  - `--input` overrides `stdin`
+  - `--output` overrides `stdout`
+  - `--logs` or `--log-file` adds persistent logs but does not replace
+    `stderr`
+  - the main result goes to `stdout`
+  - diagnostics, warnings, and errors go to `stderr`
+- New tools should include a predictable baseline flag set when it makes sense:
+  - `--help`
+  - `--version`
+  - `--input`
+  - `--output`
+  - `--logs` or `--log-file`
+  - `--verbose`
+  - `--quiet`
+  - `--force` or `--overwrite`
+  - `--dry-run`
+  - `--config` when configuration files are supported
+  - `--format` when output formats vary
+  - `--json` when machine-readable output is useful

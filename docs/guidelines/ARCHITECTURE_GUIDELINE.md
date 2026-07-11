@@ -122,6 +122,13 @@ Responsibilities:
 - write the main result to stdout
 - write diagnostics, warnings, and errors to stderr
 
+Standard I/O priority:
+
+- `--input` has priority over `stdin`
+- `--output` has priority over `stdout`
+- `--logs` or `--log-file` adds persistent logs but does not replace `stderr`
+- explicit flags always win over implicit defaults
+
 The CLI layer should not:
 
 - call subprocesses
@@ -137,6 +144,21 @@ and stderr as the normal interface:
 - stderr carries logs, warnings, progress, and failures
 - avoid hiding parseable output in stderr unless the caller explicitly asks for
   it
+
+Common default flags for a new tool:
+
+- `-h`, `--help`
+- `--version`
+- `-i`, `--input`
+- `-o`, `--output`
+- `--logs` or `--log-file`
+- `--verbose`
+- `--quiet`
+- `--force` or `--overwrite`
+- `--dry-run`
+- `--config` when the tool supports a config file
+- `--format` when the output format can vary
+- `--json` when machine-readable output is useful
 
 ## Service Layer
 
