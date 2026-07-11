@@ -436,39 +436,149 @@ in /Users/user/workspace/tools/python/logs/<app_name>/<title>-<YYYY_MM_DD-HH_MM
 
 # Project Structure
 
-Current:
-
-```text
-rewrite.py
-
-dictate.py
-
-tts.py
-```
-
-Future:
-
-```text
-tools/
-├── rewrite/
-│   ├── cli.py
-│   ├── core.py
-│   └── prompts.py
-│
-├── dictate/
-│   ├── cli.py
-│   ├── recorder.py
-│   └── whisper.py
-│
-├── tts/
-│
-└── shared/
-    ├── io.py
-    ├── logging.py
-    ├── config.py
-    ├── adapters.py
-    └── cli.py
-```
+/Users/user/workspace/tools/python
+├── README.md
+├── docs
+│   ├── guidelines
+│   │   ├── ARCHITECTURE_GUIDELINE.md
+│   │   ├── IMPLEMENTATION_GUIDELINE.md
+│   │   ├── INVESTIGATION_REVIEW_PLANNING_PROTOTYPING.md
+│   │   ├── PROJECT_DOCUMENTATION_GUIDELINE.md
+│   │   ├── TELEGRAM_BOT_GUIDELINE.md
+│   │   ├── TESTING_GUIDELINE.md
+│   │   └── UX_UI_DESIGN_GUIDELINE.md
+│   ├── prompts
+│   │   ├── create_audio_record.md
+│   │   ├── create_browser_automation.md
+│   │   ├── create_new_modular_app.md
+│   │   ├── create_telegram_bot.md
+│   │   ├── create_tools_api.md
+│   │   └── create_voice_note.md
+│   └── roles
+│       ├── PRODUCT_OWNER.md
+│       ├── TECHNICAL_LEAD.md
+│       ├── TELEGRAM_ENGINEER.md
+│       ├── TESTING_ENGINEER.md
+│       ├── TOOL_ENGINEER.md
+│       ├── UI_UX_DESIGNER.md
+│       └── profiles
+├── logs
+│   ├── browser-automation
+│   │   ├── boat_rental_samui-2026_06_28-13_01_11
+│   │   ├── boat_rental_samui-2026_06_28-13_08_59
+│   │   ├── boat_rental_samui-2026_06_28-13_25_14
+│   │   ├── how_to_run.md
+│   │   └── www_sontera-2026_06_28-18_22_12
+│   ├── voice-generator
+│   │   ├── 2026_06_30-05_52_00.wav
+│   │   ├── 2026_06_30-05_53_02.wav
+│   │   ├── 2026_06_30-05_53_32.wav
+│   │   ├── 2026_06_30-05_53_45.wav
+│   │   ├── 2026_06_30-08_10_12.wav
+│   │   ├── 2026_06_30-08_12_32.wav
+│   │   ├── 2026_07_01-03_23_17.wav
+│   │   ├── 2026_07_01-03_27_16.wav
+│   │   ├── 2026_07_01-03_31_06.wav
+│   │   ├── 2026_07_01-03_35_24.wav
+│   │   ├── 2026_07_01-03_37_34.wav
+│   │   └── 2026_07_01-05_08_14.wav
+│   └── voice_notes
+│       ├── mercor_2026_07_07-12_15_11
+│       ├── test_2026_07_05-23_33_52
+│       ├── voice_note_2026_07_05-15_18_56
+│       ├── voice_note_2026_07_06-09_44_22
+│       ├── voice_note_2026_07_06-09_58_57
+│       ├── voice_note_2026_07_08-10_14_55
+│       ├── voice_note_2026_07_08-17_21_32
+│       └── voice_note_2026_07_08-23_40_44
+├── project.code-workspace
+├── pyproject.toml
+├── src
+│   ├── api-server
+│   │   ├── README.md
+│   │   ├── api-server.py
+│   │   ├── docs
+│   │   ├── src
+│   │   └── tests
+│   ├── audio-record
+│   │   ├── README.md
+│   │   ├── audio-record.py
+│   │   ├── audio_record
+│   │   └── docs
+│   ├── audio-transcribe
+│   │   ├── README.md
+│   │   ├── audio-transcribe.py
+│   │   ├── docs
+│   │   └── src
+│   ├── browser-automation
+│   │   ├── README.md
+│   │   ├── browser-automation.py
+│   │   ├── browser_automation
+│   │   ├── docs
+│   │   └── tests
+│   ├── dictate
+│   │   ├── README.md
+│   │   ├── dictate.py
+│   │   └── docs
+│   ├── meeting-record
+│   │   ├── README.md
+│   │   ├── docs
+│   │   ├── meeting-record.py
+│   │   ├── meeting-split.py
+│   │   ├── meeting-transcribe.py
+│   │   └── src
+│   ├── note-manager
+│   │   ├── README.md
+│   │   ├── docs
+│   │   ├── note_manager.py
+│   │   ├── notes.sqlite3
+│   │   ├── project.code-workspace
+│   │   └── task.md
+│   ├── rewrite
+│   │   └── rewrite.py
+│   ├── schedule-manager
+│   │   ├── README.md
+│   │   ├── config
+│   │   ├── docs
+│   │   ├── graphvizs
+│   │   ├── logs
+│   │   ├── project.code-workspace
+│   │   ├── schedule-engine.py
+│   │   ├── schedules
+│   │   └── sounds
+│   ├── telegram-bot
+│   │   ├── README.md
+│   │   ├── docs
+│   │   ├── telegram-bot.py
+│   │   ├── telegram_bot
+│   │   └── tests
+│   ├── time-manager
+│   │   ├── README.md
+│   │   ├── audio
+│   │   ├── docs
+│   │   ├── project.code-workspace
+│   │   └── time-manager.py
+│   ├── voice-generator
+│   │   ├── README.md
+│   │   ├── docs
+│   │   ├── tests
+│   │   ├── voice-generator.py
+│   │   └── voice_generator
+│   └── voice-note
+│       ├── README.md
+│       ├── docs
+│       ├── tests
+│       ├── voice-note.py
+│       └── voice_note
+├── uv.lock
+├── voice_generator
+│   ├── __init__.py
+│   └── __pycache__
+│       └── __init__.cpython-314.pyc
+└── voice_note
+    ├── __init__.py
+    └── __pycache__
+        └── __init__.cpython-314.pyc
 
 The first implementations may remain single-file scripts.
 
