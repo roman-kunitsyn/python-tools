@@ -9,6 +9,7 @@ from rich.console import Console
 from unittest.mock import patch
 
 import httpx
+from textual.widgets import Select
 
 from voice_note.cli.cli_app import VoiceNoteCliApp, choose_cli_session, prompt_session_title
 from voice_note.cli.parser import build_settings_from_args
@@ -51,6 +52,7 @@ from voice_note.tui.app import (
     _vscode_url,
     discover_local_audio_devices,
     discover_local_ollama_models,
+    RefreshingSelect,
 )
 from voice_note.transcription.whisper_transcriber import WhisperTranscriber
 
@@ -1322,6 +1324,27 @@ class TuiComponentRefactorTest(unittest.TestCase):
 
         self.assertEqual(app.settings.audio_device, "BlackHole 2ch")
         self.assertEqual(app.service.recorder.audio_device, "BlackHole 2ch")
+
+    def test_refreshing_select_rebuilds_options_on_refresh(self) -> None:
+        calls: list[int] = []
+
+        def provider() -> list[tuple[str, str]]:
+            calls.append(1)
+            return [("Built-in Mic [0]", "built-in"), ("BlackHole [1]", "blackhole")]
+
+        widget = RefreshingSelect(
+            [("Built-in Mic [0]", "built-in")],
+            options_provider=provider,
+            value="built-in",
+        )
+
+        widget.refresh_options()
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            [value for _, value in widget._options],  # type: ignore[attr-defined]
+            [Select.NULL, "built-in", "blackhole"],
+        )
 
     def test_settings_sections_list_all_config_variables_with_descriptions(
         self,

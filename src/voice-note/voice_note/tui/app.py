@@ -3,6 +3,7 @@ import hashlib
 import re
 import subprocess
 import time
+from typing import Callable
 from pathlib import Path
 from urllib.parse import quote
 
@@ -60,6 +61,51 @@ STATUS_CLASSES = (
     "status-overflow",
     "status-error",
 )
+
+
+class RefreshingSelect(Select[str]):
+    def __init__(
+        self,
+        options: list[tuple[str, str]],
+        *,
+        options_provider: Callable[[], list[tuple[str, str]]],
+        prompt: str = "Select",
+        allow_blank: bool = True,
+        value: str | Select.NoSelection = Select.NULL,
+        type_to_search: bool = True,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+        disabled: bool = False,
+        tooltip=None,
+        compact: bool = False,
+    ) -> None:
+        super().__init__(
+            options,
+            prompt=prompt,
+            allow_blank=allow_blank,
+            value=value,
+            type_to_search=type_to_search,
+            name=name,
+            id=id,
+            classes=classes,
+            disabled=disabled,
+            tooltip=tooltip,
+            compact=compact,
+        )
+        self._options_provider = options_provider
+
+    def refresh_options(self) -> None:
+        options = self._options_provider()
+        if not self.is_mounted:
+            self._setup_variables_for_options(options)
+            return
+
+        self.set_options(options)
+
+    def action_show_overlay(self) -> None:
+        self.refresh_options()
+        super().action_show_overlay()
 
 
 class VoiceNoteApp(App):
@@ -400,8 +446,11 @@ class VoiceNoteApp(App):
                             ),
                             self._settings_row(
                                 "Audio device",
-                                Select(
+                                RefreshingSelect(
                                     self._audio_device_options(
+                                        self.settings.audio_device or "default"
+                                    ),
+                                    options_provider=lambda: self._audio_device_options(
                                         self.settings.audio_device or "default"
                                     ),
                                     prompt="Choose device",

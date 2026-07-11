@@ -80,6 +80,8 @@ The Ollama model select pulls from `ollama list` on the local machine and shows
 the model name plus size for each installed entry.
 The audio device select pulls from `ffmpeg` device discovery and shows the
 available local input devices.
+It re-probes the device list each time you open the select, so newly connected
+devices can appear without restarting the session.
 Changing the audio device in Settings updates the live recorder for the next
 recording without leaving the session.
 

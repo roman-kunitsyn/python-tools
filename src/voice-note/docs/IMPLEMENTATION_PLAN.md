@@ -41,6 +41,8 @@ Implemented:
   displays model name plus size for installed entries.
 - The audio device select is populated from local `ffmpeg` device discovery and
   displays available input devices.
+- The audio device select re-probes the local device list each time it opens,
+  so newly connected devices can appear without restarting.
 - Changing the audio device in Settings updates the live recorder for the next
   recording without reloading the session.
 - TUI status is displayed in the footer with state-specific background colors.
