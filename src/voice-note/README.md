@@ -49,7 +49,8 @@ Typical session contents:
 ## User Workflow
 
 CLI mode is the lightweight terminal workflow for starting and stopping a
-recording session.
+recording session. Before recording starts, it asks for a session name and
+shows the default in gray so you can press Enter to accept it.
 
 TUI mode is the main interactive workflow and provides:
 
@@ -59,6 +60,9 @@ TUI mode is the main interactive workflow and provides:
 - note playback
 - macOS `say` fallback for text-only playback
 - session folder access from inside the app
+
+The CLI also uses colorized timestamped status lines while recording and when
+transcription starts, so the terminal output stays readable in longer sessions.
 
 ## Development Docs
 

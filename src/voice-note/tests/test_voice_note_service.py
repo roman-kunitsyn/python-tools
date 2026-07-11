@@ -1,13 +1,16 @@
 import json
+import io
 import tempfile
 import unittest
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
+from rich.console import Console
 from unittest.mock import patch
 
 import httpx
 
+from voice_note.cli.cli_app import VoiceNoteCliApp, prompt_session_title
 from voice_note.cli.parser import build_settings_from_args
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.note import VoiceNote
@@ -235,6 +238,54 @@ class SettingsTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             build_settings_from_args(args)
+
+
+class CliPromptTest(unittest.TestCase):
+    def test_prompt_session_title_uses_default_when_blank(self) -> None:
+        buffer = io.StringIO()
+        console = Console(file=buffer, force_terminal=True, color_system="standard")
+
+        title = prompt_session_title(
+            "voice_note",
+            console=console,
+            input_func=lambda: "",
+        )
+
+        self.assertEqual(title, "voice_note")
+        self.assertIn("default: voice_note", buffer.getvalue())
+
+
+class CliStatusRenderingTest(unittest.TestCase):
+    def test_render_countdown_emits_clear_line_and_timestamp(self) -> None:
+        buffer = io.StringIO()
+        console = Console(file=buffer, force_terminal=True, color_system="standard")
+
+        class FakeService:
+            writes_to_file = False
+
+            def start_recording(self) -> None:
+                return None
+
+            def stop_recording_and_transcribe(self):
+                raise AssertionError("not used")
+
+        app = VoiceNoteCliApp(
+            service=FakeService(),
+            console=console,
+            session_title="voice_note",
+        )
+        app.recording = True
+        app.recording_started_at = 100.0
+
+        with patch("voice_note.cli.cli_app.time.monotonic", return_value=100.0):
+            with patch("voice_note.cli.cli_app._timestamp", return_value="12:34:56"):
+                app._render_countdown(force=True)
+
+        output = buffer.getvalue()
+        self.assertIn("\x1b[2K", output)
+        self.assertIn("12:34:56", output)
+        self.assertIn("Recording", output)
+        self.assertIn("05:00", output)
 
 
 class FileWriterTest(unittest.TestCase):

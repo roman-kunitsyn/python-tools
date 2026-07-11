@@ -4,12 +4,15 @@ import sys
 import termios
 import time
 import tty
+from datetime import datetime
+
+from rich.console import Console
 
 from voice_note.services.voice_note_service import VoiceNoteService
 
 
 HELP_TEXT = """SPACE = start/stop recording
-ESC   = exit
+ESC    = exit
 CTRL+C = exit"""
 
 
@@ -18,16 +21,19 @@ class VoiceNoteCliApp:
         self,
         service: VoiceNoteService,
         max_recording_seconds: int = 300,
+        console: Console | None = None,
+        session_title: str = "voice_note",
     ) -> None:
         self.service = service
         self.max_recording_seconds = max_recording_seconds
+        self.console = console or Console()
+        self.session_title = session_title
         self.recording = False
         self.recording_started_at: float | None = None
         self.last_remaining_seconds: int | None = None
 
     def run(self) -> int:
-        print(HELP_TEXT)
-        print("Press SPACE to start recording, SPACE again to stop.")
+        self._print_header()
 
         file_descriptor = sys.stdin.fileno()
         old_settings = termios.tcgetattr(file_descriptor)
@@ -63,6 +69,15 @@ class VoiceNoteCliApp:
         finally:
             termios.tcsetattr(file_descriptor, termios.TCSADRAIN, old_settings)
 
+    def _print_header(self) -> None:
+        self.console.print("[bold cyan]SPACE[/bold cyan] = start/stop recording")
+        self.console.print("[bold cyan]ESC[/bold cyan]    = exit")
+        self.console.print("[bold cyan]CTRL+C[/bold cyan] = exit")
+        self.console.print("Press SPACE to start recording, SPACE again to stop.")
+        self.console.print(
+            f"[dim]{_timestamp()}[/dim] Session: [bold]{self.session_title}[/bold]"
+        )
+
     def _start_recording(self) -> None:
         self.service.start_recording()
         self.recording = True
@@ -74,13 +89,15 @@ class VoiceNoteCliApp:
         self.recording = False
         self.recording_started_at = None
         self.last_remaining_seconds = None
-        print()
+        self._clear_status_line()
         if time_overflow:
-            print("Record Stop by time overflow")
-        print("Transcribe...")
+            self.console.print(
+                f"[dim]{_timestamp()}[/dim] [yellow]Record Stop by time overflow[/yellow]"
+            )
+        self.console.print(f"[dim]{_timestamp()}[/dim] [magenta]Transcribing...[/magenta]")
         note = self.service.stop_recording_and_transcribe()
         if self.service.writes_to_file:
-            print(note.text)
+            self.console.print(f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] {note.text}")
 
     def _recording_overflowed(self) -> bool:
         if self.recording_started_at is None:
@@ -94,10 +111,11 @@ class VoiceNoteCliApp:
             return
 
         self.last_remaining_seconds = remaining_seconds
-        print(
-            f"\rRecording... {_format_countdown(remaining_seconds)}",
+        self._clear_status_line()
+        self.console.print(
+            f"[dim]{_timestamp()}[/dim] [bold yellow]Recording...[/bold yellow] "
+            + f"[bold]{_format_countdown(remaining_seconds)}[/bold]",
             end="",
-            flush=True,
         )
 
     def _remaining_seconds(self) -> int:
@@ -106,6 +124,11 @@ class VoiceNoteCliApp:
 
         elapsed = time.monotonic() - self.recording_started_at
         return max(0, math.ceil(self.max_recording_seconds - elapsed))
+
+    def _clear_status_line(self) -> None:
+        self.console.file.write("\r\033[2K")
+        if hasattr(self.console.file, "flush"):
+            self.console.file.flush()
 
 
 def read_key(timeout: float) -> str | None:
@@ -119,3 +142,21 @@ def read_key(timeout: float) -> str | None:
 def _format_countdown(seconds: int) -> str:
     minutes, remaining_seconds = divmod(max(0, seconds), 60)
     return f"{minutes:02d}:{remaining_seconds:02d}"
+
+
+def _timestamp() -> str:
+    return datetime.now().strftime("%H:%M:%S")
+
+
+def prompt_session_title(
+    default_title: str,
+    console: Console | None = None,
+    input_func=input,
+) -> str:
+    console = console or Console()
+    console.print(
+        f"Session name [dim](default: {default_title})[/dim]: ",
+        end="",
+    )
+    response = input_func().strip()
+    return response or default_title

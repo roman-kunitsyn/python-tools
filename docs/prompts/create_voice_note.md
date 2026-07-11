@@ -45,3 +45,24 @@ I need you to update implementation plan of the project.
 split it in the featured task, each task should add one feature to app.
 
 And be ready, for implementation. I hope we will build useful voice-note tui app :)
+
+need to fix
+voice-note --mode cli
+
+it should ask session name, default is gray click enter
+
+right now it works fine but strange intendation
+
+voice-note
+SPACE = start/stop recording
+ESC = exit
+CTRL+C = exit
+Press SPACE to start recording, SPACE again to stop.
+Recording... 01:26
+Transcribe...
+Hello, my name is Roman, I'm Senior Full Stack Developer.
+Recording... 01:25
+Transcribe...
+I like reading books and watch TV.
+
+need to fix it, use rich colors, add timestamps.
