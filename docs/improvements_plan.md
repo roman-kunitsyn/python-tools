@@ -26,6 +26,24 @@ Secondary targets:
 - make reports easier to track with a commit name
 - keep Unix-style stdin/stdout/stderr conventions explicit in tool docs
 
+## Global Docs Expansion
+
+The shared documentation now needs one more pass to make the reusable rules
+obvious to agents:
+
+- add a simple documentation map that says where global vs local information
+  belongs
+- keep the config precedence rule explicit in the shared architecture docs
+- document the standard tool contract in one place
+- define a lightweight role responsibility matrix
+- give one or two canonical tool examples so new modules have a model to copy
+- keep the report template and `commit_name` rule easy to find
+
+Done when:
+
+- a new agent can tell where to document a rule without guessing
+- the shared docs describe the common tool shape and the core precedence rules
+
 ## Work Plan
 
 ### Step 1: Review shared docs
@@ -57,6 +75,23 @@ Done when:
 
 - the shared docs describe how to read, update, and keep docs in sync
 - the CLI and adapter I/O conventions are explicit
+
+### Step 2b: Expand global docs coverage
+
+- [x] Add the global documentation targets to
+  `docs/guidelines/PROJECT_DOCUMENTATION_GUIDELINE.md`
+- [ ] Add a concise documentation map to any other root doc that needs one
+- [ ] Add a lightweight role responsibility matrix if the role docs remain too
+  vague
+- [ ] Add canonical tool examples to the shared architecture docs if the
+  current examples are still too generic
+- [ ] Re-check the report template after the new global doc targets are in
+  place
+
+Done when:
+
+- the root docs say what belongs globally and what stays local
+- the shared examples are concrete enough for new modules to follow
 
 ### Step 3: Standardize report tracking
 

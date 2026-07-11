@@ -66,6 +66,51 @@ Keep module-local docs for details that only apply to one tool:
 If a rule is shared across tools, document the general rule globally and keep
 the module doc focused on the local example or exception.
 
+## Global Documentation Targets
+
+The next shared documentation improvements should focus on:
+
+- config conventions
+  - config keys should match CLI option names
+  - CLI option values override config file values
+  - config file values override built-in defaults
+- standard tool contract
+  - thin entry point
+  - CLI parser
+  - shared config model
+  - service layer
+  - external wrapper
+  - optional TUI or adapter layer
+- report template
+  - summary
+  - files changed
+  - checks run
+  - risks
+  - `commit_name`
+- role responsibility matrix
+  - `TOOL_ENGINEER`
+  - `TECHNICAL_LEAD`
+  - `TESTING_ENGINEER`
+  - `PRODUCT_OWNER`
+  - `TELEGRAM_ENGINEER`
+- global adapter rules
+  - adapters stay thin
+  - business logic stays in services
+  - adapters only translate input and output
+- documentation map
+  - shared rules in root guidelines
+  - module behavior in module implementation plans
+  - user-facing usage in module READMEs
+  - completed work in reports
+- common tool examples
+  - pipeline CLI tool
+  - TUI-backed tool
+  - config-file-backed tool
+  - tool with both CLI and TUI modes
+
+Keep these targets in shared docs only when the rule applies to multiple
+modules. Keep module-specific examples in the module docs.
+
 ## Required Documentation Updates
 
 When a task changes behavior, check whether these docs need to change:

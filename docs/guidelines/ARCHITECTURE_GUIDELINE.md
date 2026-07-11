@@ -135,6 +135,8 @@ Configuration priority:
 - `--config` file values win over built-in defaults
 - if a value can come from both config and a CLI option, the CLI option is the override
   layer
+- config file keys should use the same names as the CLI option settings when
+  practical
 
 The CLI layer should not:
 
