@@ -9,6 +9,8 @@ Implemented:
 - CLI mode shows a session selector before recording starts so you can create a
   new session or open an existing one, then uses colorized timestamped status
   lines while recording and transcribing.
+- CLI accepts `--session` to open an existing session directory directly and
+  bypass the selector.
 - CLI session header links to the full session folder name instead of the short
   session title.
 - Existing CLI sessions are listed in newest-first order with the full folder

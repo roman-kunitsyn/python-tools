@@ -198,6 +198,7 @@ class SettingsTest(unittest.TestCase):
                 '{"mode":"tui","language":"en","model":"small",'
                 '"append_timestamp":true,"keep_audio":true,'
                 '"session_title":"project review",'
+                '"session_dir":"./from-config",'
                 '"audio_output_folder":"./audio","text_output_file":"./notes.md"}'
             )
 
@@ -209,10 +210,41 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(settings.append_timestamp)
         self.assertTrue(settings.keep_audio)
         self.assertEqual(settings.session_title, "project review")
+        self.assertEqual(settings.session_dir, Path("./from-config"))
         self.assertEqual(settings.audio_output_folder, Path("./audio"))
         self.assertEqual(settings.text_output_file, Path("./notes.md"))
         self.assertEqual(settings.audio_device, "built-in microphone")
         self.assertEqual(settings.editor, "code")
+
+    def test_session_flag_overrides_config_session_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "config.json"
+            config_file.write_text(
+                '{"session_dir":"./from-config","session_title":"from config"}'
+            )
+
+            args = Namespace(
+                mode=None,
+                config=config_file,
+                session=Path(temp_dir) / "from-cli",
+                verbose=False,
+                audio_output_folder=None,
+                keep_audio=False,
+                text_output_file=None,
+                json_output_file=None,
+                append_timestamp=False,
+                language=None,
+                model=None,
+                assistant_model=None,
+                audio_device=None,
+                editor=None,
+                max_recording_seconds=None,
+            )
+
+            settings = build_settings_from_args(args)
+
+        self.assertEqual(settings.session_dir, Path(temp_dir) / "from-cli")
+        self.assertEqual(settings.session_title, "from config")
 
     def test_rejects_recording_limit_over_five_minutes(self) -> None:
         with self.assertRaises(ValueError):
@@ -222,6 +254,7 @@ class SettingsTest(unittest.TestCase):
         args = Namespace(
             mode=None,
             config=None,
+            session=None,
             verbose=False,
             audio_output_folder=None,
             keep_audio=False,

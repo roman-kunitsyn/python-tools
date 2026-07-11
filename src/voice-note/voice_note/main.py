@@ -25,7 +25,7 @@ def main() -> int:
             return 0
 
         session_service = SessionService()
-        if sys.stdin.isatty():
+        if sys.stdin.isatty() and settings.session_dir is None:
             session = choose_cli_session(
                 session_service=session_service,
                 default_title=settings.session_title,

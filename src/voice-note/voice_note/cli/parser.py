@@ -16,6 +16,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run in command-line mode or Textual TUI mode.",
     )
     parser.add_argument("--config", type=Path, help="Optional JSON configuration file.")
+    parser.add_argument(
+        "--session",
+        type=Path,
+        help="Open an existing session directory directly. Overrides config session_dir.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging.")
     parser.add_argument(
         "--audio-output-folder",
@@ -89,7 +94,8 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "language": args.language or settings.language,
         "model": args.model or settings.model,
         "assistant_model": args.assistant_model or settings.assistant_model,
-        "session_dir": settings.session_dir,
+        "session_dir": args.session or settings.session_dir,
+        "session_title": settings.session_title,
         "audio_file": settings.audio_file,
         "log_file": settings.log_file,
         "audio_device": args.audio_device or settings.audio_device,

@@ -28,6 +28,12 @@ uv run voice-note --mode cli
 uv run voice-note --mode tui
 ```
 
+To open a specific existing CLI session directly:
+
+```bash
+uv run voice-note --mode cli --session logs/voice_notes/voice_note_2026_07_12-00_00_00
+```
+
 If you want the script entry point directly:
 
 ```bash
@@ -53,6 +59,8 @@ recording session. Before recording starts, it shows a session selector so you
 can create a new session or open an existing one. If you create a new session,
 it asks for a session name and shows the default in gray so you can press Enter
 to accept it.
+If you pass `--session`, CLI opens that session directory directly and skips
+the selector.
 
 TUI mode is the main interactive workflow and provides:
 
