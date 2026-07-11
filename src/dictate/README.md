@@ -44,7 +44,7 @@ Microphone
 record_audio()
       │
       ▼
-temporary .wav
+session audio file
       │
       ▼
 transcribe()
@@ -64,7 +64,7 @@ It simply receives microphone input and prints text.
 Current MVP:
 
 - microphone recording
-- temporary WAV file
+- session WAV file under `logs/dictate/`
 - Whisper transcription
 - stdout output
 - optional file output
@@ -72,6 +72,7 @@ Current MVP:
 - configurable language
 - configurable input device
 - optional recording duration
+- per-run technical log file under `logs/dictate/`
 
 Future:
 
@@ -124,6 +125,27 @@ Record for a fixed duration:
 dictate --duration 5
 ```
 
+If the command has no controlling terminal, use `--duration` instead of
+waiting for ENTER.
+
+Each run writes technical output to a session log such as:
+
+```text
+logs/dictate/dictate-YYYY_MM_DD-HH_MM_SS/log.txt
+```
+
+The audio and transcript files stay in the same session folder:
+
+```text
+logs/dictate/dictate-YYYY_MM_DD-HH_MM_SS/
+├── audio/audio_YYYY_MM_DD-HH_MM_SS.wav
+├── log.txt
+└── transcribe.txt
+```
+
+On macOS, the default input picker prefers a real microphone over virtual
+devices like `BlackHole` or `OBS Virtual Camera`.
+
 Version:
 
 ```bash
@@ -145,13 +167,13 @@ No plugin is required.
 Insert transcript at the cursor:
 
 ```vim
-:r !dictate --duration 5
+:r !dictate
 ```
 
 or
 
 ```vim
-:read !dictate --duration 5
+:read !dictate
 ```
 
 Replace selected text (future workflow):
@@ -351,7 +373,7 @@ Insert into buffer
 
 - [ ] Create CLI using `argparse`
 - [ ] Implement microphone recording using `ffmpeg`
-- [ ] Save audio to a temporary WAV file
+- [ ] Save audio to a session WAV file under `logs/dictate/`
 - [ ] Invoke `whisper-cli`
 - [ ] Print transcript to `stdout`
 - [ ] Support `--output`
