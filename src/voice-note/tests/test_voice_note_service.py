@@ -221,6 +221,33 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.audio_device, "built-in microphone")
         self.assertEqual(settings.editor, "code")
 
+    def test_loads_default_config_when_present(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "config.json"
+            config_file.write_text('{"session_title":"default config"}')
+            args = Namespace(
+                mode=None,
+                config=None,
+                session=None,
+                verbose=False,
+                audio_output_folder=None,
+                keep_audio=False,
+                text_output_file=None,
+                json_output_file=None,
+                append_timestamp=False,
+                language=None,
+                model=None,
+                assistant_model=None,
+                audio_device=None,
+                editor=None,
+                max_recording_seconds=None,
+            )
+
+            with patch("voice_note.cli.parser.DEFAULT_CONFIG_FILE", config_file):
+                settings = build_settings_from_args(args)
+
+        self.assertEqual(settings.session_title, "default config")
+
     def test_session_flag_overrides_config_session_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_file = Path(temp_dir) / "config.json"
@@ -1273,6 +1300,28 @@ class TuiComponentRefactorTest(unittest.TestCase):
             app.action_new_note()
 
         self.assertEqual(captured, ["New prompt"])
+
+    def test_audio_device_change_updates_live_recorder(self) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(audio_device="built-in microphone"),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+        app.service = type(
+            "FakeService",
+            (),
+            {
+                "recorder": type(
+                    "FakeRecorder",
+                    (),
+                    {"audio_device": "built-in microphone"},
+                )(),
+            },
+        )()
+
+        app._update_audio_device("BlackHole 2ch")
+
+        self.assertEqual(app.settings.audio_device, "BlackHole 2ch")
+        self.assertEqual(app.service.recorder.audio_device, "BlackHole 2ch")
 
     def test_settings_sections_list_all_config_variables_with_descriptions(
         self,

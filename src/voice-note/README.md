@@ -74,10 +74,14 @@ TUI mode is the main interactive workflow and provides:
 The Settings tab is now an editable form. It can save and reload JSON config
 files, and the default save location is `src/voice-note/config/config.json`.
 You can pass that file back in with `--config` on future runs.
+If that default config file exists, `voice-note` loads it before the TUI starts
+recording so the form opens with the saved values already filled in.
 The Ollama model select pulls from `ollama list` on the local machine and shows
 the model name plus size for each installed entry.
 The audio device select pulls from `ffmpeg` device discovery and shows the
 available local input devices.
+Changing the audio device in Settings updates the live recorder for the next
+recording without leaving the session.
 
 The CLI also uses colorized timestamped status lines while recording and when
 transcription starts, so the terminal output stays readable in longer sessions.

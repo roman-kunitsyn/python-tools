@@ -27,7 +27,14 @@ from voice_note.audio.player import AudioPlaybackController
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.session import VoiceNoteSession
 from voice_note.models.session_note import SessionNote
-from voice_note.models.settings import VoiceNoteSettings
+from voice_note.models.settings import (
+    DEFAULT_ASSISTANT_MODEL,
+    DEFAULT_AUDIO_DEVICE,
+    DEFAULT_EDITOR,
+    DEFAULT_MAX_RECORDING_SECONDS,
+    DEFAULT_SESSION_TITLE,
+    VoiceNoteSettings,
+)
 from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.services.runtime import build_service
 from voice_note.services.assistant_service import AssistantService
@@ -1222,35 +1229,41 @@ class VoiceNoteApp(App):
         self._set_select_value("setting-verbose", self.settings.verbose)
         self._set_select_value(
             "setting-audio-device",
-            self.settings.audio_device or "default",
-            options=self._audio_device_options(self.settings.audio_device or "default"),
+            self._audio_device_value(),
+            options=self._audio_device_options(self._audio_device_value()),
         )
-        self._set_input_value("setting-language", self.settings.language)
+        self._set_input_value("setting-language", self._language_value())
         self._set_select_value(
             "setting-model",
-            self.settings.model,
-            options=self._model_options(self.settings.model),
+            self._model_value(),
+            options=self._model_options(self._model_value()),
         )
         self._set_select_value(
             "setting-assistant-model",
-            self.settings.assistant_model,
-            options=self._assistant_model_options(self.settings.assistant_model),
+            self._assistant_model_value(),
+            options=self._assistant_model_options(self._assistant_model_value()),
         )
         self._set_select_value(
             "setting-max-recording-seconds",
-            self.settings.max_recording_seconds,
+            self._max_recording_seconds_value(),
         )
         self._set_select_value("setting-keep-audio", self.settings.keep_audio)
         self._set_select_value(
             "setting-append-timestamp",
             self.settings.append_timestamp,
         )
-        self._set_select_value("setting-editor", self.settings.editor)
-        self._set_input_value("setting-audio-output-folder", self.settings.audio_output_folder)
-        self._set_input_value("setting-text-output-file", self.settings.text_output_file)
-        self._set_input_value("setting-json-output-file", self.settings.json_output_file)
-        self._set_input_value("setting-log-file", self.settings.log_file)
-        self._set_input_value("setting-session-title", self.settings.session_title)
+        self._set_select_value("setting-editor", self._editor_value())
+        self._set_input_value(
+            "setting-audio-output-folder", self._audio_output_folder_value()
+        )
+        self._set_input_value(
+            "setting-text-output-file", self._text_output_file_value()
+        )
+        self._set_input_value(
+            "setting-json-output-file", self._json_output_file_value()
+        )
+        self._set_input_value("setting-log-file", self._log_file_value())
+        self._set_input_value("setting-session-title", self._session_title_value())
 
     def _settings_row(self, label: str, widget) -> Horizontal:
         return Horizontal(
@@ -1273,6 +1286,55 @@ class VoiceNoteApp(App):
         if current_value not in {value for _, value in options}:
             options.insert(0, (current_value, current_value))
         return options
+
+    def _audio_device_value(self) -> str:
+        return self.settings.audio_device or DEFAULT_AUDIO_DEVICE
+
+    def _language_value(self) -> str:
+        return self.settings.language or "auto"
+
+    def _model_value(self) -> str:
+        return self.settings.model or "small"
+
+    def _assistant_model_value(self) -> str:
+        return self.settings.assistant_model or DEFAULT_ASSISTANT_MODEL
+
+    def _max_recording_seconds_value(self) -> int:
+        return self.settings.max_recording_seconds or DEFAULT_MAX_RECORDING_SECONDS
+
+    def _editor_value(self) -> str:
+        return self.settings.editor or DEFAULT_EDITOR
+
+    def _session_title_value(self) -> str:
+        return self.settings.session_title or DEFAULT_SESSION_TITLE
+
+    def _audio_output_folder_value(self) -> str:
+        if self.settings.audio_output_folder is not None:
+            return str(self.settings.audio_output_folder)
+        if self.session is not None:
+            return str(self.session.audio_dir)
+        return "logs/voice_notes/<session>/audio"
+
+    def _text_output_file_value(self) -> str:
+        if self.settings.text_output_file is not None:
+            return str(self.settings.text_output_file)
+        if self.session is not None:
+            return str(self.session.transcript_file)
+        return "logs/voice_notes/<session>/transcribe.txt"
+
+    def _json_output_file_value(self) -> str:
+        if self.settings.json_output_file is not None:
+            return str(self.settings.json_output_file)
+        if self.session is not None:
+            return str(self.session.notes_file)
+        return "logs/voice_notes/<session>/notes.json"
+
+    def _log_file_value(self) -> str:
+        if self.settings.log_file is not None:
+            return str(self.settings.log_file)
+        if self.session is not None:
+            return str(self.session.log_file)
+        return "logs/voice_notes/<session>/log.txt"
 
     def _assistant_model_options(self, current_value: str) -> list[tuple[str, str]]:
         models = discover_local_ollama_models()
@@ -1447,7 +1509,7 @@ class VoiceNoteApp(App):
         elif widget_id == "setting-verbose":
             self.settings = self._replace_settings(verbose=bool(event.value))
         elif widget_id == "setting-audio-device":
-            self.settings = self._replace_settings(audio_device=str(event.value))
+            self._update_audio_device(str(event.value))
         elif widget_id == "setting-model":
             self.settings = self._replace_settings(model=str(event.value))
         elif widget_id == "setting-assistant-model":
@@ -1464,6 +1526,13 @@ class VoiceNoteApp(App):
             )
         elif widget_id == "setting-editor":
             self.settings = self._replace_settings(editor=str(event.value))
+
+    def _update_audio_device(self, audio_device: str) -> None:
+        self.settings = self._replace_settings(audio_device=audio_device)
+        if self.service is not None and hasattr(self.service, "recorder"):
+            recorder = self.service.recorder
+            if hasattr(recorder, "audio_device"):
+                recorder.audio_device = audio_device
 
     def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
         initial_text = note.text if note is not None else ""

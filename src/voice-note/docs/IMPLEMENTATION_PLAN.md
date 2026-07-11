@@ -34,10 +34,15 @@ Implemented:
 - Assistant prompt edits regenerate the paired response.
 - The Settings tab is an editable form that can save and reload JSON config
   files.
+- When the default config file exists, `voice-note` loads it before TUI
+  recording starts so the Settings form opens with saved values already filled
+  in.
 - The Ollama model select is populated from the local `ollama list` output and
   displays model name plus size for installed entries.
 - The audio device select is populated from local `ffmpeg` device discovery and
   displays available input devices.
+- Changing the audio device in Settings updates the live recorder for the next
+  recording without reloading the session.
 - TUI status is displayed in the footer with state-specific background colors.
 - TUI transcript link and `o` binding open the transcript in the configured
   editor.

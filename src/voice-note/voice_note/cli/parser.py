@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from voice_note.config import DEFAULT_CONFIG_FILE
 from voice_note.models.settings import VoiceNoteSettings
 
 
@@ -79,9 +80,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_settings_from_args(args) -> VoiceNoteSettings:
-    settings = (
-        VoiceNoteSettings.from_file(args.config) if args.config else VoiceNoteSettings()
-    )
+    settings = VoiceNoteSettings()
+    if DEFAULT_CONFIG_FILE.exists():
+        settings = VoiceNoteSettings.from_file(DEFAULT_CONFIG_FILE)
+    if args.config:
+        settings = VoiceNoteSettings.from_file(args.config)
 
     updates = {
         "mode": args.mode or settings.mode,
