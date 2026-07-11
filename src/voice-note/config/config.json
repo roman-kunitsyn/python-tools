@@ -12,7 +12,7 @@
   "session_title": "voice_note",
   "timestamp_format": "%Y_%m_%d-%H_%M_%S",
   "log_file": "logs/voice_notes/voice_note_2026_07_12-02_30_20/log.txt",
-  "audio_device": "USB-C to 3.5mm Headphone Jack Adapter",
+  "audio_device": "MacBook Pro Microphone",
   "editor": "code",
   "max_recording_seconds": 90
 }

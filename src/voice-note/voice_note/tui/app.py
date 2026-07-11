@@ -347,10 +347,7 @@ class VoiceNoteApp(App):
         ("shift+up", "extend_previous_note", "Extend Selection"),
         ("y", "copy_selection", "Copy Selection"),
         ("ctrl+shift+c", "copy_selection", "Copy Selection"),
-        ("+", "zoom_in", "Zoom In"),
-        ("-", "zoom_out", "Zoom Out"),
         ("ctrl+s", "save_notes", "Save"),
-        ("ctrl+l", "insert_timestamp", "Timestamp"),
         ("escape", "quit", "Exit"),
         ("ctrl+c", "quit", "Exit"),
     ]
