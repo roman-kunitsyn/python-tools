@@ -974,7 +974,7 @@ class TuiComponentRefactorTest(unittest.TestCase):
             append_timestamp=True,
             language="en",
             model="small",
-            assistant_model="qwen3.5:0.8b",
+            assistant_model="qwen2.5:3b",
             verbose=True,
             session_dir=Path("/tmp/session"),
             session_title="project review",

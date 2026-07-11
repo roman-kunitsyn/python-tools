@@ -68,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--assistant-model",
         default=None,
-        help="Ollama model used by the Assistant tab. Default: qwen3.5:0.8b.",
+        help="Ollama model used by the Assistant tab. Default: qwen2.5:3b.",
     )
     return parser
 
