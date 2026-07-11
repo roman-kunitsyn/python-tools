@@ -99,6 +99,7 @@ def build_settings_from_args(args) -> VoiceNoteSettings:
         "assistant_model": args.assistant_model or settings.assistant_model,
         "session_dir": args.session or settings.session_dir,
         "session_title": settings.session_title,
+        "timestamp_format": settings.timestamp_format,
         "audio_file": settings.audio_file,
         "log_file": settings.log_file,
         "audio_device": args.audio_device or settings.audio_device,

@@ -20,12 +20,12 @@ def main() -> int:
         if settings.mode == "tui":
             VoiceNoteApp(
                 settings=settings,
-                session_service=SessionService(),
+                session_service=SessionService(timestamp_format=settings.timestamp_format),
                 config_file=args.config,
             ).run()
             return 0
 
-        session_service = SessionService()
+        session_service = SessionService(timestamp_format=settings.timestamp_format)
         if sys.stdin.isatty() and settings.session_dir is None:
             session = choose_cli_session(
                 session_service=session_service,

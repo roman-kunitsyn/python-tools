@@ -1198,6 +1198,7 @@ class VoiceNoteApp(App):
         )
         self._set_input_value("setting-log-file", self._log_file_value())
         self._set_input_value("setting-session-title", self._session_title_value())
+        self._set_input_value("setting-timestamp-format", self.settings.timestamp_format)
 
     def _settings_row(self, label: str, widget) -> Horizontal:
         return Horizontal(
@@ -1348,6 +1349,13 @@ class VoiceNoteApp(App):
                 Input(
                     value=self.settings.session_title,
                     id="setting-session-title",
+                ),
+            ),
+            self._settings_row(
+                "Timestamp format",
+                Input(
+                    value=self.settings.timestamp_format,
+                    id="setting-timestamp-format",
                 ),
             ),
             Static(
@@ -1590,6 +1598,10 @@ class VoiceNoteApp(App):
         elif widget_id == "setting-session-title":
             self.settings = self._replace_settings(
                 session_title=event.value or self.settings.session_title
+            )
+        elif widget_id == "setting-timestamp-format":
+            self.settings = self._replace_settings(
+                timestamp_format=event.value or self.settings.timestamp_format
             )
 
     def on_select_changed(self, event: Select.Changed) -> None:
@@ -2058,6 +2070,11 @@ def _format_settings_sections(
                 "session_title",
                 settings.session_title,
                 "Human-friendly title used when creating a new session folder.",
+            ),
+            _setting_line(
+                "timestamp_format",
+                settings.timestamp_format,
+                "strftime format used when generating new session timestamps.",
             ),
             _setting_line(
                 "session_dir",

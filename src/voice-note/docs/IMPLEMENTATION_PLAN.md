@@ -39,6 +39,8 @@ Implemented:
 - When the default config file exists, `voice-note` loads it before TUI
   recording starts so the Settings form opens with saved values already filled
   in.
+- The Session sub-tab includes a timestamp format string field, and the value
+  is used when creating new session folders.
 - The Whisper model select is populated from local `~/whisper/models` files and
   displays model name plus size for installed entries.
 - The Ollama model select is populated from the local `ollama list` output and

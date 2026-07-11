@@ -78,6 +78,8 @@ You can press `Ctrl+S` while Settings is active to save the config file, or
 use the Save Config button.
 If that default config file exists, `voice-note` loads it before the TUI starts
 recording so the form opens with the saved values already filled in.
+The Session sub-tab now includes the timestamp format string used for new
+session folders, with the current default prefilled.
 The Whisper model select pulls from `~/whisper/models` on the local machine and
 shows the model name plus size for each installed entry.
 The Ollama model select pulls from `ollama list` on the local machine and shows

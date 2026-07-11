@@ -198,6 +198,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.audio_device, "built-in microphone")
         self.assertEqual(settings.editor, "code")
         self.assertEqual(settings.max_recording_seconds, 90)
+        self.assertEqual(settings.timestamp_format, "%Y_%m_%d-%H_%M_%S")
         self.assertTrue(settings.keep_audio)
         self.assertEqual(settings.session_title, "voice_note")
 
@@ -208,6 +209,7 @@ class SettingsTest(unittest.TestCase):
                 '{"mode":"tui","language":"en","model":"small",'
                 '"append_timestamp":true,"keep_audio":true,'
                 '"session_title":"project review",'
+                '"timestamp_format":"%Y-%m-%d_%H",'
                 '"session_dir":"./from-config",'
                 '"audio_output_folder":"./audio","text_output_file":"./notes.md"}'
             )
@@ -220,6 +222,7 @@ class SettingsTest(unittest.TestCase):
         self.assertTrue(settings.append_timestamp)
         self.assertTrue(settings.keep_audio)
         self.assertEqual(settings.session_title, "project review")
+        self.assertEqual(settings.timestamp_format, "%Y-%m-%d_%H")
         self.assertEqual(settings.session_dir, Path("./from-config"))
         self.assertEqual(settings.audio_output_folder, Path("./audio"))
         self.assertEqual(settings.text_output_file, Path("./notes.md"))
@@ -304,6 +307,7 @@ class SettingsTest(unittest.TestCase):
                 audio_device="microphone-1",
                 editor="nvim",
                 max_recording_seconds=60,
+                timestamp_format="%Y-%m-%d_%H",
             )
 
             saved_path = settings.save_to_file(config_file)
@@ -314,8 +318,10 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(loaded.mode, "tui")
             self.assertEqual(loaded.audio_output_folder, Path("/tmp/audio"))
             self.assertEqual(loaded.session_title, "project review")
+            self.assertEqual(loaded.timestamp_format, "%Y-%m-%d_%H")
             self.assertIsNone(payload.get("session_dir"))
             self.assertIsNone(payload.get("audio_file"))
+            self.assertEqual(payload.get("timestamp_format"), "%Y-%m-%d_%H")
             self.assertEqual(DEFAULT_CONFIG_FILE.name, "config.json")
             self.assertEqual(
                 VoiceNoteConfigStore(config_file).load().session_title, "project review"
@@ -1449,6 +1455,7 @@ class TuiComponentRefactorTest(unittest.TestCase):
             "editor:",
             "log_file:",
             "session_title:",
+            "timestamp_format:",
             "session_dir:",
             "audio_file:",
             "current_tab:",

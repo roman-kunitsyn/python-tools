@@ -13,8 +13,13 @@ from voice_note.models.settings import DEFAULT_VOICE_NOTES_DIR, TIMESTAMP_FORMAT
 
 
 class SessionService:
-    def __init__(self, base_dir: Path = DEFAULT_VOICE_NOTES_DIR) -> None:
+    def __init__(
+        self,
+        base_dir: Path = DEFAULT_VOICE_NOTES_DIR,
+        timestamp_format: str = TIMESTAMP_FORMAT,
+    ) -> None:
         self.base_dir = base_dir
+        self.timestamp_format = timestamp_format
 
     def discover_sessions(self) -> list[VoiceNoteSession]:
         if not self.base_dir.exists():
@@ -36,7 +41,7 @@ class SessionService:
         title: str | None = None,
         timestamp: str | None = None,
     ) -> VoiceNoteSession:
-        timestamp = timestamp or datetime.now().strftime(TIMESTAMP_FORMAT)
+        timestamp = timestamp or datetime.now().strftime(self.timestamp_format)
         title = (title or DEFAULT_SESSION_TITLE).strip() or DEFAULT_SESSION_TITLE
         slug = slugify_session_title(title)
         session_dir = self.base_dir / build_session_folder_name(title, timestamp)
@@ -121,7 +126,11 @@ class SessionService:
         timestamp = str(payload.get("timestamp", "")).strip()
         if not timestamp:
             parsed = parse_session_folder_name(session_dir.name)
-            timestamp = parsed[1] if parsed is not None else datetime.now().strftime(TIMESTAMP_FORMAT)
+            timestamp = (
+                parsed[1]
+                if parsed is not None
+                else datetime.now().strftime(self.timestamp_format)
+            )
 
         return VoiceNoteSession(
             title=title,

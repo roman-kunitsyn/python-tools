@@ -12,6 +12,7 @@ DEFAULT_AUDIO_DEVICE = "built-in microphone"
 DEFAULT_EDITOR = "code"
 DEFAULT_MAX_RECORDING_SECONDS = 90
 DEFAULT_ASSISTANT_MODEL = "qwen2.5:3b"
+DEFAULT_TIMESTAMP_FORMAT = TIMESTAMP_FORMAT
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class VoiceNoteSettings:
     verbose: bool = False
     session_dir: Path | None = None
     session_title: str = DEFAULT_SESSION_TITLE
+    timestamp_format: str = DEFAULT_TIMESTAMP_FORMAT
     audio_file: Path | None = None
     log_file: Path | None = None
     audio_device: str | None = DEFAULT_AUDIO_DEVICE
@@ -50,6 +52,7 @@ class VoiceNoteSettings:
             verbose=bool(payload.get("verbose", False)),
             session_dir=_optional_path(payload.get("session_dir")),
             session_title=payload.get("session_title", DEFAULT_SESSION_TITLE),
+            timestamp_format=payload.get("timestamp_format", DEFAULT_TIMESTAMP_FORMAT),
             audio_file=_optional_path(payload.get("audio_file")),
             log_file=_optional_path(payload.get("log_file")),
             audio_device=payload.get("audio_device", DEFAULT_AUDIO_DEVICE),
@@ -72,6 +75,7 @@ class VoiceNoteSettings:
             "assistant_model": self.assistant_model,
             "verbose": self.verbose,
             "session_title": self.session_title,
+            "timestamp_format": self.timestamp_format,
             "log_file": _path_or_none(self.log_file),
             "audio_device": self.audio_device,
             "editor": self.editor,
@@ -91,7 +95,7 @@ class VoiceNoteSettings:
         timestamp: str | None = None,
         base_dir: Path = DEFAULT_VOICE_NOTES_DIR,
     ) -> "VoiceNoteSettings":
-        timestamp = timestamp or build_timestamp()
+        timestamp = timestamp or build_timestamp(self.timestamp_format)
         session_dir = self.session_dir or base_dir / build_session_folder_name(
             self.session_title,
             timestamp,
@@ -114,6 +118,7 @@ class VoiceNoteSettings:
             verbose=self.verbose,
             session_dir=session_dir,
             session_title=self.session_title,
+            timestamp_format=self.timestamp_format,
             audio_file=self.audio_file,
             log_file=log_file,
             audio_device=self.audio_device,
@@ -134,8 +139,8 @@ def validate_max_recording_seconds(max_recording_seconds: int) -> None:
         )
 
 
-def build_timestamp() -> str:
-    return datetime.now().strftime(TIMESTAMP_FORMAT)
+def build_timestamp(timestamp_format: str = TIMESTAMP_FORMAT) -> str:
+    return datetime.now().strftime(timestamp_format)
 
 
 def _optional_path(value: str | None) -> Path | None:
