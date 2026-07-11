@@ -8,6 +8,8 @@ Implemented:
 - Project script entry point for `uv run voice-note`.
 - CLI mode asks for a session name before recording starts and uses colorized
   timestamped status lines while recording and transcribing.
+- Transcript text is written plainly on its own line so the CLI output stays
+  flush left without hanging indentation.
 - CLI and TUI share the same recorder, transcriber, and output services.
 - Textual TUI mode with Notes, Assistant, Session, Help, and Settings tabs.
 - Notes are rendered oldest-to-newest, can be navigated with `j`/`k` and arrow

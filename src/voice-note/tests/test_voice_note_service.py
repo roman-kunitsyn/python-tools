@@ -288,6 +288,39 @@ class CliStatusRenderingTest(unittest.TestCase):
         self.assertIn("05:00", output)
 
 
+class CliStopRecordingTest(unittest.TestCase):
+    def test_stop_recording_writes_plain_transcript_body(self) -> None:
+        buffer = io.StringIO()
+        console = Console(file=buffer, force_terminal=True, color_system="standard")
+
+        class FakeService:
+            writes_to_file = True
+
+            def start_recording(self) -> None:
+                return None
+
+            def stop_recording_and_transcribe(self):
+                return VoiceNote(
+                    text="Hello, my name is Roman and I write long notes.",
+                    created_at=datetime(2026, 7, 11, 23, 30, 0),
+                    audio_file=Path("note.wav"),
+                )
+
+        app = VoiceNoteCliApp(
+            service=FakeService(),
+            console=console,
+            session_title="voice_note",
+        )
+
+        app._stop_recording()
+
+        output = buffer.getvalue()
+        self.assertIn("Transcribing...", output)
+        self.assertIn("voice_note", output)
+        self.assertIn("Hello, my name is Roman and I write long notes.", output)
+        self.assertNotIn("    Hello, my name", output)
+
+
 class FileWriterTest(unittest.TestCase):
     def test_appends_text_to_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
