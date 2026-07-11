@@ -60,7 +60,7 @@ Global docs should mention:
   - `--output` overrides `stdout`
   - `--logs` or `--log-file` adds persistent logs but does not replace
     `stderr`
-  - `--[flag]` values override `--config` values
+  - named CLI option values override `--config` values
 - the report convention, including `commit_name`
 - the role of `TOOL_ENGINEER` for implementation work
 

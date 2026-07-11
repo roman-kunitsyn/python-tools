@@ -11,7 +11,7 @@ It should compose lower-level tools instead of replacing them:
 - `whisper-cli` / `audio-transcribe` conventions own transcription.
 - `voice-note` owns workflow orchestration and note persistence.
 
-## Architecture
+## Architecture Boundaries
 
 - `voice-note.py` is a thin script entry point.
 - `voice_note.cli` owns CLI arguments and terminal key handling.
@@ -26,7 +26,10 @@ It should compose lower-level tools instead of replacing them:
 - Do not put subprocess commands in UI code.
 - Do not put file persistence rules in UI code.
 - Keep recorder, transcriber, writer, and controller testable with fakes.
-- Do not add summarization, formatting, LLM processing, or note management here.
+- Do not add summarization, formatting, LLM processing, or note management
+  here.
+- Keep module-specific behavior details in `docs/IMPLEMENTATION_PLAN.md`.
+- Keep reusable conventions in the shared root docs.
 
 ## Terminal Behavior
 

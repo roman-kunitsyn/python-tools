@@ -131,9 +131,9 @@ Standard I/O priority:
 
 Configuration priority:
 
-- `--flag` values win over `--config` file values
+- named CLI option values win over `--config` file values
 - `--config` file values win over built-in defaults
-- if a value can come from both config and a flag, the flag is the override
+- if a value can come from both config and a CLI option, the CLI option is the override
   layer
 
 The CLI layer should not:
