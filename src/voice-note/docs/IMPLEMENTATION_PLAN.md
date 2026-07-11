@@ -10,8 +10,9 @@ Implemented:
   timestamped status lines while recording and transcribing.
 - CLI session header links to the full session folder name instead of the short
   session title.
-- Transcript text is written as plain text on its own line after the timestamped
-  note header so the CLI output stays flush left without hanging indentation.
+- Each transcript entry uses a timestamped note header with a clickable
+  full-session-folder link, a blank separator line, and then a plain text body
+  that stays flush left without hanging indentation.
 - CLI and TUI share the same recorder, transcriber, and output services.
 - Textual TUI mode with Notes, Assistant, Session, Help, and Settings tabs.
 - Notes are rendered oldest-to-newest, can be navigated with `j`/`k` and arrow

@@ -337,7 +337,9 @@ class CliStopRecordingTest(unittest.TestCase):
         output = buffer.getvalue()
         self.assertIn("Transcribing...", output)
         self.assertIn("Note:", output)
+        self.assertIn("voice_note_2026_07_11-23_31_13", output)
         self.assertIn("Hello, my name is Roman and I write long notes.", output)
+        self.assertIn("\n\nHello, my name is Roman and I write long notes.", output)
         self.assertNotIn("    Hello, my name", output)
 
 

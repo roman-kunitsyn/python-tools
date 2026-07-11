@@ -9,6 +9,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from voice_note.models.note import VoiceNote
 from voice_note.services.voice_note_service import VoiceNoteService
 
 
@@ -98,12 +99,7 @@ class VoiceNoteCliApp:
         self.console.print(f"[dim]{_timestamp()}[/dim] [magenta]Transcribing...[/magenta]")
         note = self.service.stop_recording_and_transcribe()
         if self.service.writes_to_file:
-            self.console.print(
-                f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] Note:"
-            )
-            self.console.file.write(f"{note.text}\n")
-            if hasattr(self.console.file, "flush"):
-                self.console.file.flush()
+            self._write_transcript_entry(note)
 
     def _recording_overflowed(self) -> bool:
         if self.recording_started_at is None:
@@ -146,6 +142,22 @@ class VoiceNoteCliApp:
             f"[dim]{_timestamp()}[/dim] Session: "
             f"[link={session_path.resolve().as_uri()}][bold]{session_name}[/bold][/link]"
         )
+
+    def _write_transcript_entry(self, note: VoiceNote) -> None:
+        session_path = self.session_dir
+        if session_path is None:
+            self.console.print(
+                f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] Note:"
+            )
+        else:
+            self.console.print(
+                f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] Note: "
+                f"[link={session_path.resolve().as_uri()}][bold]{session_path.name}[/bold][/link]"
+            )
+        self.console.print()
+        self.console.file.write(f"{note.text.rstrip()}\n\n")
+        if hasattr(self.console.file, "flush"):
+            self.console.file.flush()
 
 
 def read_key(timeout: float) -> str | None:
