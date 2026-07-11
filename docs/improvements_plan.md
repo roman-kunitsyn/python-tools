@@ -81,7 +81,7 @@ Done when:
 - [x] Add the global documentation targets to
   `docs/guidelines/PROJECT_DOCUMENTATION_GUIDELINE.md`
 - [ ] Add a concise documentation map to any other root doc that needs one
-- [ ] Add a lightweight role responsibility matrix if the role docs remain too
+- [x] Add a lightweight role responsibility matrix if the role docs remain too
   vague
 - [ ] Add canonical tool examples to the shared architecture docs if the
   current examples are still too generic
