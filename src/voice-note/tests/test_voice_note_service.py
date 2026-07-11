@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import httpx
 
-from voice_note.cli.cli_app import VoiceNoteCliApp, prompt_session_title
+from voice_note.cli.cli_app import VoiceNoteCliApp, choose_cli_session, prompt_session_title
 from voice_note.cli.parser import build_settings_from_args
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.note import VoiceNote
@@ -271,6 +271,51 @@ class CliPromptTest(unittest.TestCase):
         self.assertIn("voice_note_2026_07_11-23_31_13", line)
         self.assertIn(session_dir.resolve().as_uri(), line)
         self.assertIn("Session:", line)
+
+    def test_choose_cli_session_returns_existing_session(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = SessionService(base_dir=Path(temp_dir) / "voice_notes")
+            older = service.create_session(
+                title="Daily Standup",
+                timestamp="2026_07_11-22_00_00",
+            )
+            newer = service.create_session(
+                title="Project Review",
+                timestamp="2026_07_11-23_00_00",
+            )
+            buffer = io.StringIO()
+            console = Console(file=buffer, force_terminal=True, color_system="standard")
+
+            session = choose_cli_session(
+                session_service=service,
+                default_title="voice_note",
+                console=console,
+                input_func=lambda: "2",
+            )
+
+            self.assertEqual(session.session_dir, newer.session_dir)
+            output = buffer.getvalue()
+            self.assertIn("Select session", output)
+            self.assertIn("Create new session", output)
+            self.assertIn(newer.folder_name, output)
+            self.assertIn(older.folder_name, output)
+
+    def test_choose_cli_session_creates_default_session_when_no_sessions_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = SessionService(base_dir=Path(temp_dir) / "voice_notes")
+            buffer = io.StringIO()
+            console = Console(file=buffer, force_terminal=True, color_system="standard")
+
+            session = choose_cli_session(
+                session_service=service,
+                default_title="voice_note",
+                console=console,
+                input_func=lambda: "",
+            )
+
+            self.assertEqual(session.title, "voice_note")
+            self.assertTrue(session.session_dir.exists())
+            self.assertEqual(session.session_dir.parent, service.base_dir)
 
 
 class CliStatusRenderingTest(unittest.TestCase):

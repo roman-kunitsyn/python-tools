@@ -2,8 +2,7 @@ import logging
 import sys
 from dataclasses import replace
 
-from voice_note.cli.cli_app import VoiceNoteCliApp
-from voice_note.cli.cli_app import prompt_session_title
+from voice_note.cli.cli_app import VoiceNoteCliApp, choose_cli_session
 from voice_note.cli.parser import build_parser, build_settings_from_args
 from voice_note.services.runtime import build_service
 from voice_note.services.session_service import SessionService
@@ -25,10 +24,16 @@ def main() -> int:
             ).run()
             return 0
 
+        session_service = SessionService()
         if sys.stdin.isatty():
+            session = choose_cli_session(
+                session_service=session_service,
+                default_title=settings.session_title,
+            )
             settings = replace(
                 settings,
-                session_title=prompt_session_title(settings.session_title),
+                session_dir=session.session_dir,
+                session_title=session.title,
             )
         session = settings.with_default_storage()
         service = build_service(settings, session.session_dir)

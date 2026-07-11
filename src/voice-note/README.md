@@ -49,8 +49,10 @@ Typical session contents:
 ## User Workflow
 
 CLI mode is the lightweight terminal workflow for starting and stopping a
-recording session. Before recording starts, it asks for a session name and
-shows the default in gray so you can press Enter to accept it.
+recording session. Before recording starts, it shows a session selector so you
+can create a new session or open an existing one. If you create a new session,
+it asks for a session name and shows the default in gray so you can press Enter
+to accept it.
 
 TUI mode is the main interactive workflow and provides:
 

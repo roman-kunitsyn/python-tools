@@ -10,6 +10,8 @@ from pathlib import Path
 from rich.console import Console
 
 from voice_note.models.note import VoiceNote
+from voice_note.models.session import DEFAULT_SESSION_TITLE, VoiceNoteSession
+from voice_note.services.session_service import SessionService
 from voice_note.services.voice_note_service import VoiceNoteService
 
 
@@ -158,6 +160,50 @@ class VoiceNoteCliApp:
         self.console.file.write(f"{note.text.rstrip()}\n\n")
         if hasattr(self.console.file, "flush"):
             self.console.file.flush()
+
+
+def choose_cli_session(
+    session_service: SessionService,
+    default_title: str = DEFAULT_SESSION_TITLE,
+    console: Console | None = None,
+    input_func=input,
+) -> VoiceNoteSession:
+    console = console or Console()
+    sessions = session_service.discover_sessions()
+    if not sessions:
+        title = prompt_session_title(default_title, console=console, input_func=input_func)
+        return session_service.create_session(title)
+
+    console.print("[bold]Select session[/bold]")
+    console.print("[cyan]1[/cyan]. Create new session")
+    for index, session in enumerate(sessions, start=2):
+        console.print(
+            f"[cyan]{index}[/cyan]. "
+            f"[bold]{session.folder_name}[/bold] "
+            f"[dim]({session.title})[/dim]"
+        )
+
+    while True:
+        console.print("Choice [dim](default: 1)[/dim]: ", end="")
+        response = input_func().strip()
+        if not response:
+            choice = 1
+        else:
+            try:
+                choice = int(response)
+            except ValueError:
+                console.print("[red]Invalid choice.[/red]")
+                continue
+
+        if choice == 1:
+            title = prompt_session_title(default_title, console=console, input_func=input_func)
+            return session_service.create_session(title)
+
+        session_index = choice - 2
+        if 0 <= session_index < len(sessions):
+            return sessions[session_index]
+
+        console.print("[red]Invalid choice.[/red]")
 
 
 def read_key(timeout: float) -> str | None:

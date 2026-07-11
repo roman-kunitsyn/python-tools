@@ -6,10 +6,13 @@ Implemented:
 
 - CLI entry point at `voice-note.py`.
 - Project script entry point for `uv run voice-note`.
-- CLI mode asks for a session name before recording starts and uses colorized
-  timestamped status lines while recording and transcribing.
+- CLI mode shows a session selector before recording starts so you can create a
+  new session or open an existing one, then uses colorized timestamped status
+  lines while recording and transcribing.
 - CLI session header links to the full session folder name instead of the short
   session title.
+- Existing CLI sessions are listed in newest-first order with the full folder
+  name so the open action matches the on-disk session path.
 - Each transcript entry uses a timestamped note header with a clickable
   full-session-folder link, a blank separator line, and then a plain text body
   that stays flush left without hanging indentation.
