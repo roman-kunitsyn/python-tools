@@ -1507,6 +1507,17 @@ class VoiceNoteApp(App):
     def _replace_settings(self, **updates: object) -> VoiceNoteSettings:
         return self.settings.__class__(**{**self.settings.__dict__, **updates})
 
+    def _focus_settings_tabs(self) -> None:
+        try:
+            tabs = self.query_one("#settings-tabs", TabbedContent)
+        except Exception:
+            return
+
+        try:
+            tabs.focus()
+        except Exception:
+            self.call_after_refresh(tabs.focus)
+
     def action_save_config(self) -> None:
         try:
             saved_file = self.config_store.save(self.settings)
@@ -1549,10 +1560,7 @@ class VoiceNoteApp(App):
             except Exception:
                 pass
         elif tab == "settings":
-            try:
-                self.query_one("#setting-mode", Select).focus()
-            except Exception:
-                pass
+            self._focus_settings_tabs()
 
     def _workspace_tab(self) -> str:
         try:
@@ -1580,10 +1588,7 @@ class VoiceNoteApp(App):
             except Exception:
                 pass
         elif tab_id == "settings":
-            try:
-                self.query_one("#setting-mode", Select).focus()
-            except Exception:
-                pass
+            self._focus_settings_tabs()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "play-selected":

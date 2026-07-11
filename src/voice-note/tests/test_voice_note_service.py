@@ -1394,6 +1394,18 @@ class TuiComponentRefactorTest(unittest.TestCase):
         self.assertIn("logs/voice_notes/project_review_", hint)
         self.assertTrue(hint.endswith("/audio"))
 
+    def test_show_settings_tab_focuses_nested_tabs(self) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+        called: list[str] = []
+        app._focus_settings_tabs = lambda: called.append("tabs")  # type: ignore[method-assign]
+
+        app._show_tab("settings")
+
+        self.assertEqual(called, ["tabs"])
+
     def test_assistant_new_note_opens_prompt_editor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = VoiceNoteApp(
