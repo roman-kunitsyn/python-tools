@@ -11,7 +11,7 @@
   "verbose": false,
   "session_title": "voice_note",
   "log_file": "logs/voice_notes/<session>/log.txt",
-  "audio_device": "JBL TUNE720BT",
+  "audio_device": "MacBook Pro Microphone",
   "editor": "code",
   "max_recording_seconds": 90
 }
