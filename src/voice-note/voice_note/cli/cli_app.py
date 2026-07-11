@@ -101,7 +101,9 @@ class VoiceNoteCliApp:
             self.console.print(
                 f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] Note:"
             )
-            self.console.print(note.text)
+            self.console.file.write(f"{note.text}\n")
+            if hasattr(self.console.file, "flush"):
+                self.console.file.flush()
 
     def _recording_overflowed(self) -> bool:
         if self.recording_started_at is None:
