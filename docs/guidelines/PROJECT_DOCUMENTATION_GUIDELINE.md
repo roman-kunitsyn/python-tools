@@ -41,6 +41,31 @@ When updating documentation, read the shared docs first:
 - Avoid duplicating the same rule in multiple files unless that makes the docs
   easier for agents to use.
 
+## Global vs Local Scope
+
+Use the shared docs for reusable rules that apply to every tool:
+
+- architecture shape
+- CLI, TUI, service, and wrapper boundaries
+- stdin, stdout, stderr, and flag precedence rules
+- config precedence rules
+- report format and tracking rules
+- testing and validation conventions
+- role responsibilities
+
+Keep module-local docs for details that only apply to one tool:
+
+- file and folder layout
+- command examples and exact flags
+- storage formats and session structures
+- TUI behavior and keyboard shortcuts
+- feature order and implementation slices
+- runtime dependencies and platform-specific notes
+- module-specific reports and status
+
+If a rule is shared across tools, document the general rule globally and keep
+the module doc focused on the local example or exception.
+
 ## Required Documentation Updates
 
 When a task changes behavior, check whether these docs need to change:

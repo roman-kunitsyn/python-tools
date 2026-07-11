@@ -45,6 +45,47 @@ Implemented:
 - JSON config loading.
 - Unit tests for service, TUI, playback, assistant storage, and config loading.
 
+## Global Architecture Alignment
+
+`voice-note` should stay aligned with the shared repository architecture while
+keeping its module-specific details local.
+
+Global docs should mention:
+
+- `voice-note` as an example of a tool that has both CLI and TUI modes.
+- the reusable tool shape: thin script entry point, shared config model,
+  service layer, and presentation layers.
+- Unix-style I/O expectations for CLI automation:
+  - `--input` overrides `stdin`
+  - `--output` overrides `stdout`
+  - `--logs` or `--log-file` adds persistent logs but does not replace
+    `stderr`
+  - `--[flag]` values override `--config` values
+- the report convention, including `commit_name`
+- the role of `TOOL_ENGINEER` for implementation work
+
+Local `voice-note` docs should keep:
+
+- session storage layout and file names
+- TUI navigation, bindings, and workspace behavior
+- assistant/Ollama workflow details
+- playback behavior, including macOS `say`
+- note ordering, editing, selection, and clipboard rules
+- module-specific runtime dependencies
+
+Alignment plan:
+
+1. Keep `README.md` focused on how to run `voice-note` and what modes it
+   supports.
+2. Keep `docs/IMPLEMENTATION_PLAN.md` focused on current behavior and feature
+   slices.
+3. Keep `docs/DEVELOPMENT_GUIDELINE.md` focused on module boundaries and
+   implementation rules.
+4. Use shared root docs for reusable conventions only.
+5. Add or update module reports when behavior changes.
+6. Split reusable code into CLI, services, and TUI components so local docs can
+   refer to stable layers instead of one large app file.
+
 ## Target TUI Requirements
 
 The TUI should evolve from a transcript viewer into a session workspace that is
@@ -93,6 +134,7 @@ Each task below adds one user-visible feature and leaves the app runnable.
 Tests and docs are part of the same slice so the behavior stays documented.
 
 ### Task 1: Oldest-first transcript ordering
+
 - Change the transcript rendering and file regeneration so notes appear from
   oldest to newest.
 - Keep the structured note store and `transcribe.txt` output in the same order.
@@ -100,12 +142,14 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Leave a report in `docs/reports/` describing the ordering change.
 
 ### Task 2: Note navigation with arrows and vim keys
+
 - Add note selection movement with `j`/`k` and the up/down arrow keys.
 - Keep the focused note visible while navigating long transcripts.
 - Add tests for key binding registration and selection movement.
 - Leave a report in `docs/reports/` describing the navigation change.
 
 ### Task 3: Text selection and clipboard copy
+
 - Add shift plus vertical navigation to extend a contiguous note selection.
 - Copy selected note text to the clipboard as plain text only.
 - Exclude timestamps, audio markers, and other metadata from copied output.
@@ -113,12 +157,14 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Leave a report in `docs/reports/` describing the copy workflow.
 
 ### Task 4: Tab navigation with `h` and `l`
+
 - Add `h` and `l` bindings for moving between tabs.
 - Keep left/right arrow tab switching intact.
 - Add tests that verify all tab-switching bindings route to the same action.
 - Leave a report in `docs/reports/` describing the tab-navigation change.
 
 ### Task 5: Playback for text-only notes
+
 - Make `p` play note audio when a source file exists.
 - Fall back to macOS built-in `say` for notes that have text but no audio.
 - Keep the existing audio playback path for recorded notes.
@@ -126,6 +172,7 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Leave a report in `docs/reports/` describing the playback change.
 
 ### Task 6: Assistant message storage and prompt context
+
 - Add a structured assistant message model with role, prompt text, response
   text, created_at, source audio, and generation state fields.
 - Decide the assistant artifact layout, keeping it human-readable and editable
@@ -137,6 +184,7 @@ Tests and docs are part of the same slice so the behavior stays documented.
   context slice.
 
 ### Task 7: Shared workspace components and app refactor
+
 - Extract reusable TUI pieces for note cards, message cards, transcript/message
   lists, and detail panels so Notes and Assistant can share structure.
 - Split `voice_note/tui/app.py` into a thinner app shell plus focused helper or
@@ -166,6 +214,7 @@ Tests and docs are part of the same slice so the behavior stays documented.
   4. Trim `app.py` to tab orchestration and cross-cutting commands only.
 
 ### Task 8: Ollama client and response generation
+
 - Add a local Ollama client/service that can send assistant prompts and current
   session context to the local server.
 - Support non-streaming responses first, then preserve the API shape needed for
@@ -176,6 +225,7 @@ Tests and docs are part of the same slice so the behavior stays documented.
 - Leave a report in `docs/reports/` describing the Ollama integration slice.
 
 ### Task 9: Assistant TUI chat workspace
+
 - Turn the `Assistant` tab into a chat-like workspace that can record voice
   prompts, accept manual text prompts, and show Ollama responses inline.
 - Render prompt and response cards with different visual treatment so the chat
