@@ -37,6 +37,7 @@ from voice_note.tui.components import render_assistant_message_card, render_note
 from voice_note.tui import clipboard as clipboard_module
 from voice_note.tui.screens import NoteEditResult
 from voice_note.tui.app import (
+    _parse_ollama_list_line,
     _format_countdown,
     _editor_command,
     _format_status,
@@ -47,6 +48,7 @@ from voice_note.tui.app import (
     _transcript_link,
     _transcript_url,
     _vscode_url,
+    discover_local_ollama_models,
 )
 from voice_note.transcription.whisper_transcriber import WhisperTranscriber
 
@@ -284,6 +286,44 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(
                 VoiceNoteConfigStore(config_file).load().session_title, "project review"
             )
+
+    def test_parses_ollama_list_line(self) -> None:
+        self.assertEqual(
+            _parse_ollama_list_line("llama3.2:3b  123456  2.0 GB  2 weeks ago"),
+            ("llama3.2:3b (2.0 GB)", "llama3.2:3b"),
+        )
+        self.assertIsNone(_parse_ollama_list_line("NAME ID SIZE MODIFIED"))
+        self.assertIsNone(_parse_ollama_list_line(""))
+
+    def test_ollama_model_options_use_local_models_and_keep_current_value(
+        self,
+    ) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(assistant_model="custom:latest"),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+
+        with patch(
+            "voice_note.tui.app.discover_local_ollama_models",
+            return_value=[
+                ("llama3.2:3b (2.0 GB)", "llama3.2:3b"),
+                ("mistral:7b (4.1 GB)", "mistral:7b"),
+            ],
+        ):
+            options = app._assistant_model_options("custom:latest")
+
+        self.assertEqual(
+            options,
+            [
+                ("custom:latest", "custom:latest"),
+                ("llama3.2:3b (2.0 GB)", "llama3.2:3b"),
+                ("mistral:7b (4.1 GB)", "mistral:7b"),
+            ],
+        )
+
+    def test_ollama_model_discovery_handles_missing_command(self) -> None:
+        with patch("voice_note.tui.app.subprocess.run", side_effect=FileNotFoundError):
+            self.assertEqual(discover_local_ollama_models(), [])
 
     def test_rejects_recording_limit_over_five_minutes(self) -> None:
         with self.assertRaises(ValueError):

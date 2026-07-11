@@ -34,6 +34,8 @@ Implemented:
 - Assistant prompt edits regenerate the paired response.
 - The Settings tab is an editable form that can save and reload JSON config
   files.
+- The Ollama model select is populated from the local `ollama list` output and
+  displays model name plus size for installed entries.
 - TUI status is displayed in the footer with state-specific background colors.
 - TUI transcript link and `o` binding open the transcript in the configured
   editor.

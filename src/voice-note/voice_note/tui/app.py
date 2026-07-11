@@ -1,5 +1,6 @@
 import math
 import hashlib
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -1256,9 +1257,14 @@ class VoiceNoteApp(App):
         return [(value, value) for value in values]
 
     def _assistant_model_options(self, current_value: str) -> list[tuple[str, str]]:
-        presets = ["qwen2.5:3b", "llama3.2:3b", "mistral:7b"]
-        values = [current_value] + [preset for preset in presets if preset != current_value]
-        return [(value, value) for value in values]
+        models = discover_local_ollama_models()
+        if not models:
+            return [(current_value, current_value)]
+
+        options = [(label, value) for label, value in models]
+        if current_value not in {value for _, value in options}:
+            options.insert(0, (current_value, current_value))
+        return options
 
     def _recording_limit_options(self, current_value: int) -> list[tuple[str, int]]:
         presets = [30, 60, 90, 120, 180, 300]
@@ -1978,6 +1984,42 @@ def _editor_command(target: Path, editor: str) -> list[str]:
         return ["code", str(target)]
 
     return [normalized_editor, str(target)]
+
+
+def discover_local_ollama_models() -> list[tuple[str, str]]:
+    try:
+        completed = subprocess.run(
+            ["ollama", "list"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return []
+
+    models: list[tuple[str, str]] = []
+    for line in completed.stdout.splitlines():
+        parsed = _parse_ollama_list_line(line)
+        if parsed is not None:
+            models.append(parsed)
+    return models
+
+
+def _parse_ollama_list_line(line: str) -> tuple[str, str] | None:
+    normalized = line.strip()
+    if not normalized or normalized.upper().startswith("NAME "):
+        return None
+
+    parts = re.split(r"\s{2,}", normalized)
+    if len(parts) < 3:
+        return None
+
+    name = parts[0].strip()
+    size = parts[2].strip()
+    if not name or not size:
+        return None
+
+    return (f"{name} ({size})", name)
 
 
 def _render_qr_art(target: Path | str) -> str:
