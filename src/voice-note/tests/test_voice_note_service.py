@@ -40,6 +40,8 @@ from voice_note.tui.screens import NoteEditResult
 from voice_note.tui.app import (
     _parse_ffmpeg_audio_devices,
     _parse_ollama_list_line,
+    _format_file_size,
+    _whisper_model_name,
     _format_countdown,
     _editor_command,
     _format_status,
@@ -52,6 +54,7 @@ from voice_note.tui.app import (
     _vscode_url,
     discover_local_audio_devices,
     discover_local_ollama_models,
+    discover_local_whisper_models,
     RefreshingSelect,
 )
 from voice_note.transcription.whisper_transcriber import WhisperTranscriber
@@ -402,6 +405,48 @@ class SettingsTest(unittest.TestCase):
     def test_audio_device_discovery_handles_missing_ffmpeg(self) -> None:
         with patch("voice_note.tui.app.subprocess.run", side_effect=FileNotFoundError):
             self.assertEqual(discover_local_audio_devices(), [])
+
+    def test_parses_whisper_model_name_and_format_size(self) -> None:
+        self.assertEqual(_whisper_model_name(Path("/tmp/whisper/models/ggml-base.bin")), "base")
+        self.assertEqual(_whisper_model_name(Path("/tmp/whisper/models/custom.bin")), "custom")
+        self.assertEqual(_format_file_size(1024), "1 KB")
+        self.assertEqual(_format_file_size(1536), "1.5 KB")
+
+    def test_whisper_model_discovery_uses_local_model_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            models_dir = Path(temp_dir) / "whisper" / "models"
+            models_dir.mkdir(parents=True)
+            base_model = models_dir / "ggml-base.bin"
+            small_model = models_dir / "ggml-small.bin"
+            base_model.write_bytes(b"a" * 1024)
+            small_model.write_bytes(b"b" * 1536)
+
+            with patch("voice_note.tui.app.DEFAULT_MODEL_DIR", models_dir):
+                options = discover_local_whisper_models()
+
+        self.assertEqual(
+            options,
+            [("base (1 KB)", "base"), ("small (1.5 KB)", "small")],
+        )
+
+    def test_whisper_model_options_keep_current_value_when_missing(self) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(model="custom-model"),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            models_dir = Path(temp_dir) / "whisper" / "models"
+            models_dir.mkdir(parents=True)
+            (models_dir / "ggml-base.bin").write_bytes(b"a" * 1024)
+
+            with patch("voice_note.tui.app.DEFAULT_MODEL_DIR", models_dir):
+                options = app._model_options("custom-model")
+
+        self.assertEqual(
+            options,
+            [("custom-model", "custom-model"), ("base (1 KB)", "base")],
+        )
 
     def test_rejects_recording_limit_over_five_minutes(self) -> None:
         with self.assertRaises(ValueError):

@@ -37,6 +37,8 @@ Implemented:
 - When the default config file exists, `voice-note` loads it before TUI
   recording starts so the Settings form opens with saved values already filled
   in.
+- The Whisper model select is populated from local `~/whisper/models` files and
+  displays model name plus size for installed entries.
 - The Ollama model select is populated from the local `ollama list` output and
   displays model name plus size for installed entries.
 - The audio device select is populated from local `ffmpeg` device discovery and

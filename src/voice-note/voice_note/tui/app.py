@@ -51,6 +51,7 @@ from voice_note.tui.screens import (
     SessionChooserScreen,
     SessionChoice,
 )
+from voice_note.transcription.whisper_transcriber import DEFAULT_MODEL_DIR
 
 
 STATUS_CLASSES = (
@@ -467,10 +468,13 @@ class VoiceNoteApp(App):
                             ),
                             self._settings_row(
                                 "Whisper model",
-                                Select(
+                                RefreshingSelect(
                                     self._model_options(self.settings.model),
+                                    options_provider=lambda: self._model_options(
+                                        self._model_value()
+                                    ),
                                     prompt="Choose model",
-                                    value=self.settings.model,
+                                    value=self._model_value(),
                                     id="setting-model",
                                 ),
                             ),
@@ -1322,9 +1326,14 @@ class VoiceNoteApp(App):
         )
 
     def _model_options(self, current_value: str) -> list[tuple[str, str]]:
-        presets = ["small", "base", "medium", "large-v3"]
-        values = [current_value] + [preset for preset in presets if preset != current_value]
-        return [(value, value) for value in values]
+        models = discover_local_whisper_models()
+        if not models:
+            return [(current_value, current_value)]
+
+        options = [(label, value) for label, value in models]
+        if current_value not in {value for _, value in options}:
+            options.insert(0, (current_value, current_value))
+        return options
 
     def _audio_device_options(self, current_value: str) -> list[tuple[str, str]]:
         devices = discover_local_audio_devices()
@@ -1560,7 +1569,7 @@ class VoiceNoteApp(App):
         elif widget_id == "setting-audio-device":
             self._update_audio_device(str(event.value))
         elif widget_id == "setting-model":
-            self.settings = self._replace_settings(model=str(event.value))
+            self._update_whisper_model(str(event.value))
         elif widget_id == "setting-assistant-model":
             self.settings = self._replace_settings(assistant_model=str(event.value))
         elif widget_id == "setting-max-recording-seconds":
@@ -1582,6 +1591,13 @@ class VoiceNoteApp(App):
             recorder = self.service.recorder
             if hasattr(recorder, "audio_device"):
                 recorder.audio_device = audio_device
+
+    def _update_whisper_model(self, model: str) -> None:
+        self.settings = self._replace_settings(model=model)
+        if self.service is not None and hasattr(self.service, "transcriber"):
+            transcriber = self.service.transcriber
+            if hasattr(transcriber, "model"):
+                transcriber.model = model
 
     def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
         initial_text = note.text if note is not None else ""
@@ -2140,6 +2156,20 @@ def discover_local_audio_devices() -> list[tuple[str, str]]:
     return devices
 
 
+def discover_local_whisper_models() -> list[tuple[str, str]]:
+    if not DEFAULT_MODEL_DIR.exists():
+        return []
+
+    models: list[tuple[str, str]] = []
+    for model_file in sorted(DEFAULT_MODEL_DIR.glob("ggml-*.bin")):
+        if not model_file.is_file():
+            continue
+
+        model_name = _whisper_model_name(model_file)
+        models.append((f"{model_name} ({_format_file_size(model_file.stat().st_size)})", model_name))
+    return models
+
+
 def discover_local_ollama_models() -> list[tuple[str, str]]:
     try:
         completed = subprocess.run(
@@ -2191,6 +2221,26 @@ def _parse_ffmpeg_audio_devices(output: str) -> list[tuple[str, str]]:
         devices.append((f"{name} [{index}]", name))
 
     return devices
+
+
+def _whisper_model_name(model_file: Path) -> str:
+    stem = model_file.stem
+    if stem.startswith("ggml-"):
+        return stem.removeprefix("ggml-")
+    return stem
+
+
+def _format_file_size(num_bytes: int) -> str:
+    size = float(max(0, num_bytes))
+    units = ["B", "KB", "MB", "GB", "TB"]
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)} B"
+            if size.is_integer():
+                return f"{int(size)} {unit}"
+            return f"{size:.1f} {unit}"
+        size /= 1024
 
 
 def _parse_ollama_list_line(line: str) -> tuple[str, str] | None:
