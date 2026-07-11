@@ -124,14 +124,24 @@ When a task changes behavior, check whether these docs need to change:
 
 ## Report Tracking
 
-Every documentation update should leave a report in the affected module or root
-docs area. Reports should include:
+Every documentation update should leave a report entry in the affected module
+or root docs area. Use one hourly report file per folder:
+
+```text
+docs/reports/report-YYYY_MM_DD-HH.md
+```
+
+If another documentation update happens in the same hour, append the new entry
+to the existing file instead of creating a new one.
+
+Reports should include:
 
 - summary
 - files changed
 - checks or review steps
 - remaining risks
 - `commit_name` for git tracking
+- a full timestamp marker for the report entry
 
 ## Agent Guidance
 

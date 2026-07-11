@@ -98,11 +98,14 @@ Done when:
 - [x] Define the report fields that every update report should include
 - [x] Add `commit_name` to the report convention
 - [x] Update any report templates or examples that still omit commit tracking
+- [x] Switch report files to one hourly file per folder with appended entries
+  inside the same hour
 
 Done when:
 
 - a report can be reviewed and tied back to a git commit name without extra
   guessing
+- report files stay grouped by hour instead of one file per change
 
 ### Step 4: Refresh module documentation
 

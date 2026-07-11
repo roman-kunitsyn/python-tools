@@ -273,6 +273,12 @@ Every project following this architecture should keep these documents current:
 - `docs/IMPLEMENTATION_PLAN.md`: staged roadmap
 
 After each implementation task, add a report under `docs/reports/`.
+Use one hourly report file per folder and append new entries within the same
+hour:
+
+```text
+docs/reports/report-YYYY_MM_DD-HH.md
+```
 
 ## Agent Workflow
 
@@ -285,4 +291,4 @@ When an agent builds or extends a project like this, it should:
 5. Keep UI code separate from service and wrapper code.
 6. Run relevant checks.
 7. Update docs.
-8. Write a short report in `docs/reports/`.
+8. Write a short report entry in the current hourly `docs/reports/` file.

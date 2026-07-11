@@ -64,6 +64,11 @@ Report requirements
 - List the checks or review steps performed.
 - Call out remaining documentation risks or follow-up work.
 - Include `commit_name: <name>` so the git commit can be tracked later.
+- Write the report as an hourly entry file under `docs/reports/` using the
+  current-hour file name.
+- If another report already exists for the same hour, append a new entry to
+  that file instead of creating a new file.
+- Include a full timestamp marker in the report entry body.
 
 Working rule
 

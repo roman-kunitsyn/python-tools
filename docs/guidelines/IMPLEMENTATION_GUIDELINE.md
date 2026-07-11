@@ -98,16 +98,21 @@ editing module-specific status unless the module actually changed.
 
 ## Report Format
 
-Every completed implementation part should create a report:
+Every completed implementation part should create a report entry in the
+current hourly report file:
 
 ```text
-docs/reports/report_{timestamp}.md
+docs/reports/report-YYYY_MM_DD-HH.md
 ```
 
-Use a sortable timestamp:
+Use the current hour for the file name. If another report is created in the
+same hour, append a new entry to the existing file instead of creating a new
+file.
+
+Each report entry should include a full timestamp marker:
 
 ```text
-report_2026-06-08_14-30-00.md
+timestamp: 2026-06-08 14:30:00
 ```
 
 Each report should include:
