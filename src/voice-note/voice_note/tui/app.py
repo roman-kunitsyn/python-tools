@@ -112,6 +112,8 @@ class RefreshingSelect(Select[str]):
 
 
 class VoiceNoteApp(App):
+    TITLE = "Voice Note"
+
     CSS = """
     Screen {
         layout: vertical;

@@ -974,6 +974,9 @@ class AssistantServiceTest(unittest.TestCase):
 
 
 class VoiceNoteAppNavigationTest(unittest.TestCase):
+    def test_app_title_uses_voice_note_label(self) -> None:
+        self.assertEqual(VoiceNoteApp.TITLE, "Voice Note")
+
     def test_note_navigation_uses_vim_and_arrow_bindings(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = VoiceNoteApp(
