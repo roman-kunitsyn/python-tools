@@ -37,6 +37,7 @@ from voice_note.tui.components import render_assistant_message_card, render_note
 from voice_note.tui import clipboard as clipboard_module
 from voice_note.tui.screens import NoteEditResult
 from voice_note.tui.app import (
+    _parse_ffmpeg_audio_devices,
     _parse_ollama_list_line,
     _format_countdown,
     _editor_command,
@@ -48,6 +49,7 @@ from voice_note.tui.app import (
     _transcript_link,
     _transcript_url,
     _vscode_url,
+    discover_local_audio_devices,
     discover_local_ollama_models,
 )
 from voice_note.transcription.whisper_transcriber import WhisperTranscriber
@@ -324,6 +326,53 @@ class SettingsTest(unittest.TestCase):
     def test_ollama_model_discovery_handles_missing_command(self) -> None:
         with patch("voice_note.tui.app.subprocess.run", side_effect=FileNotFoundError):
             self.assertEqual(discover_local_ollama_models(), [])
+
+    def test_parses_ffmpeg_audio_device_listing(self) -> None:
+        sample_output = """
+[AVFoundation input device @ 0x7fa] AVFoundation audio devices:
+[AVFoundation input device @ 0x7fa] [0] MacBook Pro Microphone
+[AVFoundation input device @ 0x7fa] [1] BlackHole 2ch
+[AVFoundation input device @ 0x7fa] AVFoundation video devices:
+"""
+
+        self.assertEqual(
+            _parse_ffmpeg_audio_devices(sample_output),
+            [
+                ("MacBook Pro Microphone [0]", "MacBook Pro Microphone"),
+                ("BlackHole 2ch [1]", "BlackHole 2ch"),
+            ],
+        )
+
+    def test_audio_device_discovery_uses_ffmpeg_and_keeps_current_value(
+        self,
+    ) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(audio_device="virtual mic"),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+
+        ffmpeg_output = """
+[AVFoundation input device @ 0x7fa] AVFoundation audio devices:
+[AVFoundation input device @ 0x7fa] [0] MacBook Pro Microphone
+[AVFoundation input device @ 0x7fa] [1] BlackHole 2ch
+"""
+        completed = type("Completed", (), {"stderr": ffmpeg_output, "stdout": ""})()
+
+        with patch("voice_note.tui.app.subprocess.run", return_value=completed):
+            options = app._audio_device_options("virtual mic")
+
+        self.assertEqual(
+            options,
+            [
+                ("virtual mic", "virtual mic"),
+                ("MacBook Pro Microphone [0]", "MacBook Pro Microphone"),
+                ("BlackHole 2ch [1]", "BlackHole 2ch"),
+            ],
+        )
+
+    def test_audio_device_discovery_handles_missing_ffmpeg(self) -> None:
+        with patch("voice_note.tui.app.subprocess.run", side_effect=FileNotFoundError):
+            self.assertEqual(discover_local_audio_devices(), [])
 
     def test_rejects_recording_limit_over_five_minutes(self) -> None:
         with self.assertRaises(ValueError):

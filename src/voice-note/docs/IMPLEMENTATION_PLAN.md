@@ -36,6 +36,8 @@ Implemented:
   files.
 - The Ollama model select is populated from the local `ollama list` output and
   displays model name plus size for installed entries.
+- The audio device select is populated from local `ffmpeg` device discovery and
+  displays available input devices.
 - TUI status is displayed in the footer with state-specific background colors.
 - TUI transcript link and `o` binding open the transcript in the configured
   editor.

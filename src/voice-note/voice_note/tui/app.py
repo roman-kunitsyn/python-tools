@@ -393,8 +393,12 @@ class VoiceNoteApp(App):
                             ),
                             self._settings_row(
                                 "Audio device",
-                                Input(
-                                    value=self.settings.audio_device or "",
+                                Select(
+                                    self._audio_device_options(
+                                        self.settings.audio_device or "default"
+                                    ),
+                                    prompt="Choose device",
+                                    value=self.settings.audio_device or "default",
                                     id="setting-audio-device",
                                 ),
                             ),
@@ -1216,7 +1220,11 @@ class VoiceNoteApp(App):
     def _sync_settings_form(self) -> None:
         self._set_select_value("setting-mode", self.settings.mode)
         self._set_select_value("setting-verbose", self.settings.verbose)
-        self._set_input_value("setting-audio-device", self.settings.audio_device)
+        self._set_select_value(
+            "setting-audio-device",
+            self.settings.audio_device or "default",
+            options=self._audio_device_options(self.settings.audio_device or "default"),
+        )
         self._set_input_value("setting-language", self.settings.language)
         self._set_select_value(
             "setting-model",
@@ -1256,6 +1264,16 @@ class VoiceNoteApp(App):
         values = [current_value] + [preset for preset in presets if preset != current_value]
         return [(value, value) for value in values]
 
+    def _audio_device_options(self, current_value: str) -> list[tuple[str, str]]:
+        devices = discover_local_audio_devices()
+        if not devices:
+            return [(current_value, current_value)]
+
+        options = [(label, value) for label, value in devices]
+        if current_value not in {value for _, value in options}:
+            options.insert(0, (current_value, current_value))
+        return options
+
     def _assistant_model_options(self, current_value: str) -> list[tuple[str, str]]:
         models = discover_local_ollama_models()
         if not models:
@@ -1271,14 +1289,6 @@ class VoiceNoteApp(App):
         values = [current_value] + [preset for preset in presets if preset != current_value]
         return [(f"{value}", value) for value in values]
 
-    def _set_input_value(self, widget_id: str, value: object | None) -> None:
-        try:
-            widget = self.query_one(f"#{widget_id}", Input)
-        except Exception:
-            return
-
-        widget.value = "" if value is None else str(value)
-
     def _set_select_value(
         self,
         widget_id: str,
@@ -1293,6 +1303,14 @@ class VoiceNoteApp(App):
         if options is not None:
             widget.set_options(options)
         widget.value = value
+
+    def _set_input_value(self, widget_id: str, value: object | None) -> None:
+        try:
+            widget = self.query_one(f"#{widget_id}", Input)
+        except Exception:
+            return
+
+        widget.value = "" if value is None else str(value)
 
     def _replace_settings(self, **updates: object) -> VoiceNoteSettings:
         return self.settings.__class__(**{**self.settings.__dict__, **updates})
@@ -1358,6 +1376,8 @@ class VoiceNoteApp(App):
             return
 
         tab_id = getattr(event.tab, "id", "") or "notes"
+        if tab_id.startswith("--content-tab-"):
+            tab_id = tab_id.removeprefix("--content-tab-")
         self.active_tab = tab_id
         self._refresh_settings_widgets()
         if tab_id == "notes":
@@ -1397,9 +1417,7 @@ class VoiceNoteApp(App):
 
     def on_input_changed(self, event: Input.Changed) -> None:
         widget_id = event.input.id or ""
-        if widget_id == "setting-audio-device":
-            self.settings = self._replace_settings(audio_device=event.value or None)
-        elif widget_id == "setting-language":
+        if widget_id == "setting-language":
             self.settings = self._replace_settings(language=event.value or "auto")
         elif widget_id == "setting-audio-output-folder":
             self.settings = self._replace_settings(
@@ -1428,6 +1446,8 @@ class VoiceNoteApp(App):
             self.settings = self._replace_settings(mode=str(event.value))
         elif widget_id == "setting-verbose":
             self.settings = self._replace_settings(verbose=bool(event.value))
+        elif widget_id == "setting-audio-device":
+            self.settings = self._replace_settings(audio_device=str(event.value))
         elif widget_id == "setting-model":
             self.settings = self._replace_settings(model=str(event.value))
         elif widget_id == "setting-assistant-model":
@@ -1986,6 +2006,22 @@ def _editor_command(target: Path, editor: str) -> list[str]:
     return [normalized_editor, str(target)]
 
 
+def discover_local_audio_devices() -> list[tuple[str, str]]:
+    try:
+        completed = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return []
+
+    output = completed.stderr or completed.stdout
+    devices = _parse_ffmpeg_audio_devices(output)
+    return devices
+
+
 def discover_local_ollama_models() -> list[tuple[str, str]]:
     try:
         completed = subprocess.run(
@@ -2003,6 +2039,40 @@ def discover_local_ollama_models() -> list[tuple[str, str]]:
         if parsed is not None:
             models.append(parsed)
     return models
+
+
+def _parse_ffmpeg_audio_devices(output: str) -> list[tuple[str, str]]:
+    devices: list[tuple[str, str]] = []
+    in_audio_section = False
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        lowered = line.lower()
+        if "audio devices" in lowered:
+            in_audio_section = True
+            continue
+
+        if in_audio_section and "video devices" in lowered:
+            in_audio_section = False
+            continue
+
+        if not in_audio_section:
+            continue
+
+        match = re.search(r"\[(?P<index>\d+)\]\s+(?P<name>.+)", line)
+        if match is None:
+            continue
+
+        index = match.group("index").strip()
+        name = match.group("name").strip()
+        if not name:
+            continue
+
+        devices.append((f"{name} [{index}]", name))
+
+    return devices
 
 
 def _parse_ollama_list_line(line: str) -> tuple[str, str] | None:

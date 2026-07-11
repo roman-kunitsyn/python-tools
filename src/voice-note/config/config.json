@@ -1,0 +1,17 @@
+{
+  "mode": "tui",
+  "audio_output_folder": null,
+  "keep_audio": false,
+  "text_output_file": null,
+  "json_output_file": null,
+  "append_timestamp": false,
+  "language": "auto",
+  "model": "small",
+  "assistant_model": "qwen2.5:3b",
+  "verbose": false,
+  "session_title": "voice_note",
+  "log_file": null,
+  "audio_device": "JBL TUNE720BT",
+  "editor": "code",
+  "max_recording_seconds": 90
+}
