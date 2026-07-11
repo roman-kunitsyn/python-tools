@@ -65,6 +65,8 @@ The CLI also uses colorized timestamped status lines while recording and when
 transcription starts, so the terminal output stays readable in longer sessions.
 The transcript text itself is written plainly on its own line, so it stays
 flush left without the extra hanging indentation.
+The session header is a clickable link to the full session folder name, so you
+can open the exact folder directly from the terminal output.
 
 ## Development Docs
 

@@ -254,6 +254,24 @@ class CliPromptTest(unittest.TestCase):
         self.assertEqual(title, "voice_note")
         self.assertIn("default: voice_note", buffer.getvalue())
 
+    def test_session_line_uses_full_folder_name_and_link(self) -> None:
+        session_dir = Path("/tmp/voice_note_2026_07_11-23_31_13")
+        buffer = io.StringIO()
+        console = Console(file=buffer, force_terminal=True, color_system="standard")
+
+        app = VoiceNoteCliApp(
+            service=type("FakeService", (), {"writes_to_file": False})(),
+            console=console,
+            session_title="voice_note",
+            session_dir=session_dir,
+        )
+
+        line = app._session_line()
+
+        self.assertIn("voice_note_2026_07_11-23_31_13", line)
+        self.assertIn(session_dir.resolve().as_uri(), line)
+        self.assertIn("Session:", line)
+
 
 class CliStatusRenderingTest(unittest.TestCase):
     def test_render_countdown_emits_clear_line_and_timestamp(self) -> None:
@@ -273,6 +291,7 @@ class CliStatusRenderingTest(unittest.TestCase):
             service=FakeService(),
             console=console,
             session_title="voice_note",
+            session_dir=Path("/tmp/voice_note_2026_07_11-23_31_13"),
         )
         app.recording = True
         app.recording_started_at = 100.0
@@ -310,13 +329,14 @@ class CliStopRecordingTest(unittest.TestCase):
             service=FakeService(),
             console=console,
             session_title="voice_note",
+            session_dir=Path("/tmp/voice_note_2026_07_11-23_31_13"),
         )
 
         app._stop_recording()
 
         output = buffer.getvalue()
         self.assertIn("Transcribing...", output)
-        self.assertIn("voice_note", output)
+        self.assertIn("Note:", output)
         self.assertIn("Hello, my name is Roman and I write long notes.", output)
         self.assertNotIn("    Hello, my name", output)
 

@@ -5,6 +5,7 @@ import termios
 import time
 import tty
 from datetime import datetime
+from pathlib import Path
 
 from rich.console import Console
 
@@ -23,11 +24,13 @@ class VoiceNoteCliApp:
         max_recording_seconds: int = 300,
         console: Console | None = None,
         session_title: str = "voice_note",
+        session_dir: Path | None = None,
     ) -> None:
         self.service = service
         self.max_recording_seconds = max_recording_seconds
         self.console = console or Console()
         self.session_title = session_title
+        self.session_dir = session_dir
         self.recording = False
         self.recording_started_at: float | None = None
         self.last_remaining_seconds: int | None = None
@@ -74,9 +77,7 @@ class VoiceNoteCliApp:
         self.console.print("[bold cyan]ESC[/bold cyan]    = exit")
         self.console.print("[bold cyan]CTRL+C[/bold cyan] = exit")
         self.console.print("Press SPACE to start recording, SPACE again to stop.")
-        self.console.print(
-            f"[dim]{_timestamp()}[/dim] Session: [bold]{self.session_title}[/bold]"
-        )
+        self.console.print(self._session_line())
 
     def _start_recording(self) -> None:
         self.service.start_recording()
@@ -98,11 +99,9 @@ class VoiceNoteCliApp:
         note = self.service.stop_recording_and_transcribe()
         if self.service.writes_to_file:
             self.console.print(
-                f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] [bold]{self.session_title}[/bold]"
+                f"[dim]{note.created_at:%Y-%m-%d %H:%M:%S}[/dim] Note:"
             )
-            self.console.file.write(f"{note.text}\n")
-            if hasattr(self.console.file, "flush"):
-                self.console.file.flush()
+            self.console.print(note.text)
 
     def _recording_overflowed(self) -> bool:
         if self.recording_started_at is None:
@@ -134,6 +133,17 @@ class VoiceNoteCliApp:
         self.console.file.write("\r\033[2K")
         if hasattr(self.console.file, "flush"):
             self.console.file.flush()
+
+    def _session_line(self) -> str:
+        if self.session_dir is None:
+            return f"[dim]{_timestamp()}[/dim] Session: [bold]{self.session_title}[/bold]"
+
+        session_path = self.session_dir
+        session_name = session_path.name or self.session_title
+        return (
+            f"[dim]{_timestamp()}[/dim] Session: "
+            f"[link={session_path.resolve().as_uri()}][bold]{session_name}[/bold][/link]"
+        )
 
 
 def read_key(timeout: float) -> str | None:

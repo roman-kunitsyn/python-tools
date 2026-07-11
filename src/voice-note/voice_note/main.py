@@ -36,6 +36,7 @@ def main() -> int:
             service=service,
             max_recording_seconds=settings.max_recording_seconds,
             session_title=settings.session_title,
+            session_dir=session.session_dir,
         ).run()
     except ValueError as error:
         print(f"Validation error: {error}", file=sys.stderr)
