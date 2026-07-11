@@ -1354,6 +1354,33 @@ class TuiComponentRefactorTest(unittest.TestCase):
 
         self.assertEqual(calls, ["config"])
 
+    def test_settings_path_fields_use_placeholders_not_values(self) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+
+        self.assertEqual(app._audio_output_folder_value(), "")
+        self.assertEqual(app._text_output_file_value(), "")
+        self.assertEqual(app._json_output_file_value(), "")
+        self.assertEqual(app._log_file_value(), "")
+        self.assertEqual(
+            app._audio_output_folder_placeholder(),
+            "logs/voice_notes/<session>/audio",
+        )
+        self.assertEqual(
+            app._text_output_file_placeholder(),
+            "logs/voice_notes/<session>/transcribe.txt",
+        )
+        self.assertEqual(
+            app._json_output_file_placeholder(),
+            "logs/voice_notes/<session>/notes.json",
+        )
+        self.assertEqual(
+            app._log_file_placeholder(),
+            "logs/voice_notes/<session>/log.txt",
+        )
+
     def test_assistant_new_note_opens_prompt_editor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = VoiceNoteApp(

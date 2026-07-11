@@ -1310,34 +1310,38 @@ class VoiceNoteApp(App):
                     id="setting-editor",
                 ),
             ),
-            self._settings_row(
-                "Audio output folder",
-                Input(
-                    value=str(self.settings.audio_output_folder or ""),
-                    id="setting-audio-output-folder",
-                ),
-            ),
-            self._settings_row(
-                "Text output file",
-                Input(
-                    value=str(self.settings.text_output_file or ""),
-                    id="setting-text-output-file",
-                ),
-            ),
-            self._settings_row(
-                "JSON output file",
-                Input(
-                    value=str(self.settings.json_output_file or ""),
-                    id="setting-json-output-file",
-                ),
-            ),
-            self._settings_row(
-                "Log file",
-                Input(
-                    value=str(self.settings.log_file or ""),
-                    id="setting-log-file",
-                ),
-            ),
+                            self._settings_row(
+                                "Audio output folder",
+                                Input(
+                                    value=self._audio_output_folder_value(),
+                                    placeholder=self._audio_output_folder_placeholder(),
+                                    id="setting-audio-output-folder",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Text output file",
+                                Input(
+                                    value=self._text_output_file_value(),
+                                    placeholder=self._text_output_file_placeholder(),
+                                    id="setting-text-output-file",
+                                ),
+                            ),
+                            self._settings_row(
+                                "JSON output file",
+                                Input(
+                                    value=self._json_output_file_value(),
+                                    placeholder=self._json_output_file_placeholder(),
+                                    id="setting-json-output-file",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Log file",
+                                Input(
+                                    value=self._log_file_value(),
+                                    placeholder=self._log_file_placeholder(),
+                                    id="setting-log-file",
+                                ),
+                            ),
             id="settings-output-form",
         )
 
@@ -1411,6 +1415,9 @@ class VoiceNoteApp(App):
             return str(self.settings.audio_output_folder)
         if self.session is not None:
             return str(self.session.audio_dir)
+        return ""
+
+    def _audio_output_folder_placeholder(self) -> str:
         return "logs/voice_notes/<session>/audio"
 
     def _text_output_file_value(self) -> str:
@@ -1418,6 +1425,9 @@ class VoiceNoteApp(App):
             return str(self.settings.text_output_file)
         if self.session is not None:
             return str(self.session.transcript_file)
+        return ""
+
+    def _text_output_file_placeholder(self) -> str:
         return "logs/voice_notes/<session>/transcribe.txt"
 
     def _json_output_file_value(self) -> str:
@@ -1425,6 +1435,9 @@ class VoiceNoteApp(App):
             return str(self.settings.json_output_file)
         if self.session is not None:
             return str(self.session.notes_file)
+        return ""
+
+    def _json_output_file_placeholder(self) -> str:
         return "logs/voice_notes/<session>/notes.json"
 
     def _log_file_value(self) -> str:
@@ -1432,6 +1445,9 @@ class VoiceNoteApp(App):
             return str(self.settings.log_file)
         if self.session is not None:
             return str(self.session.log_file)
+        return ""
+
+    def _log_file_placeholder(self) -> str:
         return "logs/voice_notes/<session>/log.txt"
 
     def _assistant_model_options(self, current_value: str) -> list[tuple[str, str]]:
