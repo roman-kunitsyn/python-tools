@@ -1,9 +1,9 @@
 {
   "mode": "tui",
-  "audio_output_folder": null,
+  "audio_output_folder": "logs/voice_notes/voice_note_2026_07_12-02_30_20/audio",
   "keep_audio": false,
-  "text_output_file": null,
-  "json_output_file": null,
+  "text_output_file": "logs/voice_notes/voice_note_2026_07_12-02_30_20/transcribe.txt",
+  "json_output_file": "logs/voice_notes/voice_note_2026_07_12-02_30_20/notes.json",
   "append_timestamp": false,
   "language": "auto",
   "model": "small",
@@ -11,8 +11,8 @@
   "verbose": false,
   "session_title": "voice_note",
   "timestamp_format": "%Y_%m_%d-%H_%M_%S",
-  "log_file": null,
-  "audio_device": "JBL TUNE720BT",
+  "log_file": "logs/voice_notes/voice_note_2026_07_12-02_30_20/log.txt",
+  "audio_device": "USB-C to 3.5mm Headphone Jack Adapter",
   "editor": "code",
   "max_recording_seconds": 90
 }
