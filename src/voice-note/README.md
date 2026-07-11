@@ -80,9 +80,9 @@ If that default config file exists, `voice-note` loads it before the TUI starts
 recording so the form opens with the saved values already filled in.
 The Session sub-tab now includes the timestamp format string used for new
 session folders, with the current default prefilled.
-The session path fields in Settings now use placeholder hints like
-`logs/voice_notes/<session>/audio` until a real session is selected, so the
-literal `<session>` text is never saved as a directory name.
+The session path fields in Settings now use concrete session-folder previews
+based on the current session title and timestamp format, so the hint matches a
+real folder name.
 The Whisper model select pulls from `~/whisper/models` on the local machine and
 shows the model name plus size for each installed entry.
 The Ollama model select pulls from `ollama list` on the local machine and shows

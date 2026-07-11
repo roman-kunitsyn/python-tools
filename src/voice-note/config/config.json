@@ -1,17 +1,18 @@
 {
   "mode": "tui",
-  "audio_output_folder": "logs/voice_notes/<session>/audio",
+  "audio_output_folder": null,
   "keep_audio": false,
-  "text_output_file": "logs/voice_notes/<session>/transcribe.txt",
-  "json_output_file": "logs/voice_notes/<session>/notes.json",
+  "text_output_file": null,
+  "json_output_file": null,
   "append_timestamp": false,
   "language": "auto",
   "model": "small",
   "assistant_model": "qwen2.5:3b",
   "verbose": false,
   "session_title": "voice_note",
-  "log_file": "logs/voice_notes/<session>/log.txt",
-  "audio_device": "MacBook Pro Microphone",
+  "timestamp_format": "%Y_%m_%d-%H_%M_%S",
+  "log_file": null,
+  "audio_device": "JBL TUNE720BT",
   "editor": "code",
   "max_recording_seconds": 90
 }

@@ -27,6 +27,7 @@ from voice_note.config import DEFAULT_CONFIG_FILE, VoiceNoteConfigStore
 from voice_note.audio.player import AudioPlaybackController
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.session import VoiceNoteSession
+from voice_note.models.session import build_session_folder_name
 from voice_note.models.session_note import SessionNote
 from voice_note.models.settings import (
     DEFAULT_ASSISTANT_MODEL,
@@ -34,6 +35,7 @@ from voice_note.models.settings import (
     DEFAULT_EDITOR,
     DEFAULT_MAX_RECORDING_SECONDS,
     DEFAULT_SESSION_TITLE,
+    build_timestamp,
     VoiceNoteSettings,
 )
 from voice_note.output.assistant_store import AssistantMessageStore
@@ -1418,7 +1420,7 @@ class VoiceNoteApp(App):
         return ""
 
     def _audio_output_folder_placeholder(self) -> str:
-        return "logs/voice_notes/<session>/audio"
+        return self._session_path_hint("audio")
 
     def _text_output_file_value(self) -> str:
         if self.settings.text_output_file is not None:
@@ -1428,7 +1430,7 @@ class VoiceNoteApp(App):
         return ""
 
     def _text_output_file_placeholder(self) -> str:
-        return "logs/voice_notes/<session>/transcribe.txt"
+        return self._session_path_hint("transcribe.txt")
 
     def _json_output_file_value(self) -> str:
         if self.settings.json_output_file is not None:
@@ -1438,7 +1440,7 @@ class VoiceNoteApp(App):
         return ""
 
     def _json_output_file_placeholder(self) -> str:
-        return "logs/voice_notes/<session>/notes.json"
+        return self._session_path_hint("notes.json")
 
     def _log_file_value(self) -> str:
         if self.settings.log_file is not None:
@@ -1448,7 +1450,21 @@ class VoiceNoteApp(App):
         return ""
 
     def _log_file_placeholder(self) -> str:
-        return "logs/voice_notes/<session>/log.txt"
+        return self._session_path_hint("log.txt")
+
+    def _session_path_hint(self, suffix: str) -> str:
+        folder_name = self._session_folder_name_hint()
+        return f"logs/voice_notes/{folder_name}/{suffix}"
+
+    def _session_folder_name_hint(self) -> str:
+        if self.session is not None:
+            return self.session.session_dir.name
+        if self.settings.session_dir is not None:
+            return self.settings.session_dir.name
+        return build_session_folder_name(
+            self._session_title_value(),
+            build_timestamp(self.settings.timestamp_format),
+        )
 
     def _assistant_model_options(self, current_value: str) -> list[tuple[str, str]]:
         models = discover_local_ollama_models()

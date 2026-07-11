@@ -26,7 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--audio-output-folder",
         type=Path,
-        help="Folder for saved audio. Default: logs/voice_notes/<session>/audio.",
+        help="Folder for saved audio. Default: logs/voice_notes/<session folder name>/audio.",
     )
     parser.add_argument(
         "--audio-device",
@@ -41,12 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--text-output-file",
         type=Path,
-        help="File where transcriptions are appended. Default: logs/voice_notes/<session>/transcribe.txt.",
+        help="File where transcriptions are appended. Default: logs/voice_notes/<session folder name>/transcribe.txt.",
     )
     parser.add_argument(
         "--json-output-file",
         type=Path,
-        help="JSON file where recording/transcription pairs are stored. Default: logs/voice_notes/<session>/transcribe.json.",
+        help="JSON file where recording/transcription pairs are stored. Default: logs/voice_notes/<session folder name>/transcribe.json.",
     )
     parser.add_argument(
         "--editor",

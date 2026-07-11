@@ -1356,7 +1356,9 @@ class TuiComponentRefactorTest(unittest.TestCase):
 
     def test_settings_path_fields_use_placeholders_not_values(self) -> None:
         app = VoiceNoteApp(
-            settings=VoiceNoteSettings(),
+            settings=VoiceNoteSettings(
+                session_dir=Path("/tmp/voice_note_2026_07_12-12_00_00")
+            ),
             session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
         )
 
@@ -1366,20 +1368,31 @@ class TuiComponentRefactorTest(unittest.TestCase):
         self.assertEqual(app._log_file_value(), "")
         self.assertEqual(
             app._audio_output_folder_placeholder(),
-            "logs/voice_notes/<session>/audio",
+            "logs/voice_notes/voice_note_2026_07_12-12_00_00/audio",
         )
         self.assertEqual(
             app._text_output_file_placeholder(),
-            "logs/voice_notes/<session>/transcribe.txt",
+            "logs/voice_notes/voice_note_2026_07_12-12_00_00/transcribe.txt",
         )
         self.assertEqual(
             app._json_output_file_placeholder(),
-            "logs/voice_notes/<session>/notes.json",
+            "logs/voice_notes/voice_note_2026_07_12-12_00_00/notes.json",
         )
         self.assertEqual(
             app._log_file_placeholder(),
-            "logs/voice_notes/<session>/log.txt",
+            "logs/voice_notes/voice_note_2026_07_12-12_00_00/log.txt",
         )
+
+    def test_settings_path_hint_without_session_is_concrete(self) -> None:
+        app = VoiceNoteApp(
+            settings=VoiceNoteSettings(session_title="project review"),
+            session_service=SessionService(base_dir=Path("/tmp/voice_notes")),
+        )
+
+        hint = app._audio_output_folder_placeholder()
+
+        self.assertIn("logs/voice_notes/project_review_", hint)
+        self.assertTrue(hint.endswith("/audio"))
 
     def test_assistant_new_note_opens_prompt_editor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

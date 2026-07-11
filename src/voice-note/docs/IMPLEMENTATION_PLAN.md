@@ -41,8 +41,9 @@ Implemented:
   in.
 - The Session sub-tab includes a timestamp format string field, and the value
   is used when creating new session folders.
-- The session output path fields use placeholder hints until a session is
-  selected, so `<session>` is never stored as a literal directory segment.
+- The session output path fields use concrete session-folder previews derived
+  from the current session title and timestamp format, so the UI always shows
+  a real folder name.
 - The Whisper model select is populated from local `~/whisper/models` files and
   displays model name plus size for installed entries.
 - The Ollama model select is populated from the local `ollama list` output and
