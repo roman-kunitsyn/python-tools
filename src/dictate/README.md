@@ -70,6 +70,8 @@ Current MVP:
 - optional file output
 - configurable model
 - configurable language
+- configurable input device
+- optional recording duration
 
 Future:
 
@@ -116,6 +118,12 @@ Verbose mode:
 dictate --verbose
 ```
 
+Record for a fixed duration:
+
+```bash
+dictate --duration 5
+```
+
 Version:
 
 ```bash
@@ -137,13 +145,13 @@ No plugin is required.
 Insert transcript at the cursor:
 
 ```vim
-:r !dictate
+:r !dictate --duration 5
 ```
 
 or
 
 ```vim
-:read !dictate
+:read !dictate --duration 5
 ```
 
 Replace selected text (future workflow):
@@ -162,6 +170,8 @@ The tool follows the same interface conventions as the other utilities in the to
 
 ```
 --output
+--device
+--duration
 --verbose
 --help
 --version
@@ -172,7 +182,6 @@ Future common arguments:
 ```
 --model
 --language
---device
 --format
 ```
 
