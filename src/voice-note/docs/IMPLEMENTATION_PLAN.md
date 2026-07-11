@@ -250,6 +250,40 @@ Tests and docs are part of the same slice so the behavior stays documented.
   and playback behavior.
 - Leave a report in `docs/reports/` describing the assistant chat workspace.
 
+### Task 10: Interactive Settings form
+
+- Replace the static Settings tab text with an editable form-style layout.
+- Use select controls where the value set is bounded and reusable:
+  - `audio_device`
+  - Whisper `model`
+  - Ollama `assistant_model`
+  - output and log path templates where a small set of patterns is available
+- Keep free-text input only for settings that cannot be expressed as a bounded
+  choice.
+- Add tests for form rendering, current-value display, and change propagation.
+- Leave a report in `docs/reports/` describing the settings form slice.
+
+### Task 11: Config file save and restore
+
+- Add config file save/load support so TUI settings changes can be persisted for
+  future runs.
+- Save settings to `config.json` in the module config folder by default.
+- Restore settings from a config file when `--config` is provided.
+- Keep the config payload human-readable and aligned with the shared settings
+  model.
+- Add tests for save, load, round-trip, and missing-file behavior.
+- Leave a report in `docs/reports/` describing the config persistence slice.
+
+### Task 12: Default config location and CLI alignment
+
+- Define `src/voice-note/config` as the default module config folder.
+- Make the CLI and TUI agree on the same config lookup and save locations.
+- Ensure direct CLI flags still override values loaded from config.
+- Document the precedence order for config values, saved values, and explicit
+  per-run flags.
+- Add tests for default-path resolution and config/flag precedence.
+- Leave a report in `docs/reports/` describing the config path alignment.
+
 ## Runtime Dependencies
 
 - `ffmpeg` for recording through `audio-record`.
