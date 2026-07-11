@@ -34,6 +34,8 @@ Implemented:
 - Assistant prompt edits regenerate the paired response.
 - The Settings tab is an editable form that can save and reload JSON config
   files.
+- The Settings tab is split into Core, Output, and Session sub-tabs to keep
+  the form shorter and easier to scan.
 - When the default config file exists, `voice-note` loads it before TUI
   recording starts so the Settings form opens with saved values already filled
   in.
@@ -47,6 +49,7 @@ Implemented:
   so newly connected devices can appear without restarting.
 - Changing the audio device in Settings updates the live recorder for the next
   recording without reloading the session.
+- `Ctrl+S` saves the config file while Settings is active.
 - TUI status is displayed in the footer with state-specific background colors.
 - TUI transcript link and `o` binding open the transcript in the configured
   editor.

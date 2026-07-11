@@ -71,9 +71,11 @@ TUI mode is the main interactive workflow and provides:
 - macOS `say` fallback for text-only playback
 - session folder access from inside the app
 
-The Settings tab is now an editable form. It can save and reload JSON config
-files, and the default save location is `src/voice-note/config/config.json`.
-You can pass that file back in with `--config` on future runs.
+The Settings tab is now split into Core, Output, and Session sub-tabs. It can
+save and reload JSON config files, and the default save location is
+`src/voice-note/config/config.json`.
+You can press `Ctrl+S` while Settings is active to save the config file, or
+use the Save Config button.
 If that default config file exists, `voice-note` loads it before the TUI starts
 recording so the form opens with the saved values already filled in.
 The Whisper model select pulls from `~/whisper/models` on the local machine and

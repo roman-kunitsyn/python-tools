@@ -238,6 +238,23 @@ class VoiceNoteApp(App):
         padding-right: 1;
     }
 
+    #settings-tabs {
+        height: 1fr;
+        margin-top: 1;
+    }
+
+    #settings-core-form,
+    #settings-output-form,
+    #settings-session-form {
+        height: 1fr;
+        padding-right: 1;
+    }
+
+    #settings-actions {
+        height: auto;
+        margin-top: 1;
+    }
+
     .settings-section-title {
         margin-top: 1;
         margin-bottom: 1;
@@ -419,171 +436,31 @@ class VoiceNoteApp(App):
                         id="help-view",
                     )
                 with TabPane("Settings", id="settings"):
-                    yield Vertical(
-                        Static("Settings", id="settings-title"),
-                        Static(
+                    with Vertical(id="settings-view"):
+                        yield Static("Settings", id="settings-title")
+                        yield Static(
                             f"Saved config file: {self.config_store.config_file}",
                             id="settings-config-path",
-                        ),
-                        VerticalScroll(
-                            Static("Core", classes="settings-section-title"),
-                            self._settings_row(
-                                "Mode",
-                                Select(
-                                    [("CLI", "cli"), ("TUI", "tui")],
-                                    prompt="Choose mode",
-                                    value=self.settings.mode,
-                                    id="setting-mode",
-                                ),
+                        )
+                        with TabbedContent(initial="settings-core", id="settings-tabs"):
+                            with TabPane("Core", id="settings-core"):
+                                yield self._settings_core_tab()
+                            with TabPane("Output", id="settings-output"):
+                                yield self._settings_output_tab()
+                            with TabPane("Session", id="settings-session"):
+                                yield self._settings_session_tab()
+                        yield Horizontal(
+                            Button(
+                                "Save Config",
+                                variant="primary",
+                                id="save-config",
                             ),
-                            self._settings_row(
-                                "Verbose",
-                                Select(
-                                    [("Off", False), ("On", True)],
-                                    prompt="Verbose logging",
-                                    value=self.settings.verbose,
-                                    id="setting-verbose",
-                                ),
+                            Button(
+                                "Load Config",
+                                id="load-config",
                             ),
-                            self._settings_row(
-                                "Audio device",
-                                RefreshingSelect(
-                                    self._audio_device_options(
-                                        self.settings.audio_device or "default"
-                                    ),
-                                    options_provider=lambda: self._audio_device_options(
-                                        self.settings.audio_device or "default"
-                                    ),
-                                    prompt="Choose device",
-                                    value=self.settings.audio_device or "default",
-                                    id="setting-audio-device",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Whisper language",
-                                Input(
-                                    value=self.settings.language,
-                                    id="setting-language",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Whisper model",
-                                RefreshingSelect(
-                                    self._model_options(self.settings.model),
-                                    options_provider=lambda: self._model_options(
-                                        self._model_value()
-                                    ),
-                                    prompt="Choose model",
-                                    value=self._model_value(),
-                                    id="setting-model",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Ollama model",
-                                Select(
-                                    self._assistant_model_options(
-                                        self.settings.assistant_model
-                                    ),
-                                    prompt="Choose model",
-                                    value=self.settings.assistant_model,
-                                    id="setting-assistant-model",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Max recording seconds",
-                                Select(
-                                    self._recording_limit_options(
-                                        self.settings.max_recording_seconds
-                                    ),
-                                    prompt="Choose limit",
-                                    value=self.settings.max_recording_seconds,
-                                    id="setting-max-recording-seconds",
-                                ),
-                            ),
-                            Static("Output", classes="settings-section-title"),
-                            self._settings_row(
-                                "Keep audio",
-                                Select(
-                                    [("No", False), ("Yes", True)],
-                                    prompt="Keep audio",
-                                    value=self.settings.keep_audio,
-                                    id="setting-keep-audio",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Append timestamp",
-                                Select(
-                                    [("No", False), ("Yes", True)],
-                                    prompt="Append timestamp",
-                                    value=self.settings.append_timestamp,
-                                    id="setting-append-timestamp",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Editor",
-                                Select(
-                                    [("code", "code"), ("nvim", "nvim")],
-                                    prompt="Choose editor",
-                                    value=self.settings.editor,
-                                    id="setting-editor",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Audio output folder",
-                                Input(
-                                    value=str(self.settings.audio_output_folder or ""),
-                                    id="setting-audio-output-folder",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Text output file",
-                                Input(
-                                    value=str(self.settings.text_output_file or ""),
-                                    id="setting-text-output-file",
-                                ),
-                            ),
-                            self._settings_row(
-                                "JSON output file",
-                                Input(
-                                    value=str(self.settings.json_output_file or ""),
-                                    id="setting-json-output-file",
-                                ),
-                            ),
-                            self._settings_row(
-                                "Log file",
-                                Input(
-                                    value=str(self.settings.log_file or ""),
-                                    id="setting-log-file",
-                                ),
-                            ),
-                            Static("Session", classes="settings-section-title"),
-                            self._settings_row(
-                                "Session title",
-                                Input(
-                                    value=self.settings.session_title,
-                                    id="setting-session-title",
-                                ),
-                            ),
-                            Static(
-                                "Session folders still come from the session picker or --session; config saves runtime defaults only.",
-                                classes="settings-note",
-                            ),
-                            Horizontal(
-                                Button(
-                                    "Save Config",
-                                    variant="primary",
-                                    id="save-config",
-                                ),
-                                Button(
-                                    "Load Config",
-                                    id="load-config",
-                                ),
-                                id="settings-actions",
-                            ),
-                            id="settings-form",
-                        ),
-                        id="settings-view",
-                    )
+                            id="settings-actions",
+                        )
         yield Container(
             Static("Status: Starting...", id="status", classes="status-idle"),
             Footer(),
@@ -670,6 +547,10 @@ class VoiceNoteApp(App):
         self._set_recording_theme(True)
 
     def action_save_notes(self) -> None:
+        if self._workspace_tab() == "settings":
+            self.action_save_config()
+            return
+
         self._set_status("Status: Saved")
 
     def action_open_session(self) -> None:
@@ -1323,6 +1204,157 @@ class VoiceNoteApp(App):
             Static(label, classes="settings-label"),
             widget,
             classes="settings-row",
+        )
+
+    def _settings_core_tab(self) -> VerticalScroll:
+        return VerticalScroll(
+            Static("Core", classes="settings-section-title"),
+            self._settings_row(
+                "Mode",
+                Select(
+                    [("CLI", "cli"), ("TUI", "tui")],
+                    prompt="Choose mode",
+                    value=self.settings.mode,
+                    id="setting-mode",
+                ),
+            ),
+            self._settings_row(
+                "Verbose",
+                Select(
+                    [("Off", False), ("On", True)],
+                    prompt="Verbose logging",
+                    value=self.settings.verbose,
+                    id="setting-verbose",
+                ),
+            ),
+            self._settings_row(
+                "Audio device",
+                RefreshingSelect(
+                    self._audio_device_options(self.settings.audio_device or "default"),
+                    options_provider=lambda: self._audio_device_options(
+                        self.settings.audio_device or "default"
+                    ),
+                    prompt="Choose device",
+                    value=self.settings.audio_device or "default",
+                    id="setting-audio-device",
+                ),
+            ),
+            self._settings_row(
+                "Whisper language",
+                Input(
+                    value=self.settings.language,
+                    id="setting-language",
+                ),
+            ),
+            self._settings_row(
+                "Whisper model",
+                RefreshingSelect(
+                    self._model_options(self.settings.model),
+                    options_provider=lambda: self._model_options(
+                        self._model_value()
+                    ),
+                    prompt="Choose model",
+                    value=self._model_value(),
+                    id="setting-model",
+                ),
+            ),
+            self._settings_row(
+                "Ollama model",
+                Select(
+                    self._assistant_model_options(self.settings.assistant_model),
+                    prompt="Choose model",
+                    value=self.settings.assistant_model,
+                    id="setting-assistant-model",
+                ),
+            ),
+            self._settings_row(
+                "Max recording seconds",
+                Select(
+                    self._recording_limit_options(self.settings.max_recording_seconds),
+                    prompt="Choose limit",
+                    value=self.settings.max_recording_seconds,
+                    id="setting-max-recording-seconds",
+                ),
+            ),
+            id="settings-core-form",
+        )
+
+    def _settings_output_tab(self) -> VerticalScroll:
+        return VerticalScroll(
+            Static("Output", classes="settings-section-title"),
+            self._settings_row(
+                "Keep audio",
+                Select(
+                    [("No", False), ("Yes", True)],
+                    prompt="Keep audio",
+                    value=self.settings.keep_audio,
+                    id="setting-keep-audio",
+                ),
+            ),
+            self._settings_row(
+                "Append timestamp",
+                Select(
+                    [("No", False), ("Yes", True)],
+                    prompt="Append timestamp",
+                    value=self.settings.append_timestamp,
+                    id="setting-append-timestamp",
+                ),
+            ),
+            self._settings_row(
+                "Editor",
+                Select(
+                    [("code", "code"), ("nvim", "nvim")],
+                    prompt="Choose editor",
+                    value=self.settings.editor,
+                    id="setting-editor",
+                ),
+            ),
+            self._settings_row(
+                "Audio output folder",
+                Input(
+                    value=str(self.settings.audio_output_folder or ""),
+                    id="setting-audio-output-folder",
+                ),
+            ),
+            self._settings_row(
+                "Text output file",
+                Input(
+                    value=str(self.settings.text_output_file or ""),
+                    id="setting-text-output-file",
+                ),
+            ),
+            self._settings_row(
+                "JSON output file",
+                Input(
+                    value=str(self.settings.json_output_file or ""),
+                    id="setting-json-output-file",
+                ),
+            ),
+            self._settings_row(
+                "Log file",
+                Input(
+                    value=str(self.settings.log_file or ""),
+                    id="setting-log-file",
+                ),
+            ),
+            id="settings-output-form",
+        )
+
+    def _settings_session_tab(self) -> VerticalScroll:
+        return VerticalScroll(
+            Static("Session", classes="settings-section-title"),
+            self._settings_row(
+                "Session title",
+                Input(
+                    value=self.settings.session_title,
+                    id="setting-session-title",
+                ),
+            ),
+            Static(
+                "Session folders still come from the session picker or --session; config saves runtime defaults only.",
+                classes="settings-note",
+            ),
+            id="settings-session-form",
         )
 
     def _model_options(self, current_value: str) -> list[tuple[str, str]]:

@@ -1332,6 +1332,22 @@ class TuiComponentRefactorTest(unittest.TestCase):
         self.assertEqual(assistant_tab.id, "assistant-view")
         self.assertEqual(len(list(assistant_tab.compose())), 5)
 
+    def test_save_shortcut_saves_config_on_settings_tab(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "config.json"
+            app = VoiceNoteApp(
+                settings=VoiceNoteSettings(),
+                session_service=SessionService(base_dir=Path(temp_dir)),
+                config_file=config_file,
+            )
+            calls: list[str] = []
+            app._workspace_tab = lambda: "settings"  # type: ignore[method-assign]
+            app.action_save_config = lambda: calls.append("config")  # type: ignore[method-assign]
+
+            app.action_save_notes()
+
+        self.assertEqual(calls, ["config"])
+
     def test_assistant_new_note_opens_prompt_editor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = VoiceNoteApp(
