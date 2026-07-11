@@ -59,6 +59,33 @@ class VoiceNoteSettings:
             ),
         )
 
+    def to_config_payload(self) -> dict[str, object]:
+        return {
+            "mode": self.mode,
+            "audio_output_folder": _path_or_none(self.audio_output_folder),
+            "keep_audio": self.keep_audio,
+            "text_output_file": _path_or_none(self.text_output_file),
+            "json_output_file": _path_or_none(self.json_output_file),
+            "append_timestamp": self.append_timestamp,
+            "language": self.language,
+            "model": self.model,
+            "assistant_model": self.assistant_model,
+            "verbose": self.verbose,
+            "session_title": self.session_title,
+            "log_file": _path_or_none(self.log_file),
+            "audio_device": self.audio_device,
+            "editor": self.editor,
+            "max_recording_seconds": self.max_recording_seconds,
+        }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_config_payload(), indent=2) + "\n"
+
+    def save_to_file(self, config_file: Path) -> Path:
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(self.to_json())
+        return config_file
+
     def with_default_storage(
         self,
         timestamp: str | None = None,
@@ -115,3 +142,9 @@ def _optional_path(value: str | None) -> Path | None:
     if value is None or value == "":
         return None
     return Path(value)
+
+
+def _path_or_none(value: Path | None) -> str | None:
+    if value is None:
+        return None
+    return str(value)

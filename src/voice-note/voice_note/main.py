@@ -21,6 +21,7 @@ def main() -> int:
             VoiceNoteApp(
                 settings=settings,
                 session_service=SessionService(),
+                config_file=args.config,
             ).run()
             return 0
 

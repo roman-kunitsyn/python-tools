@@ -21,6 +21,7 @@ from voice_note.output.session_store import SessionNoteStore
 from voice_note.output.assistant_store import AssistantMessageStore
 from voice_note.output.writer import FileWriter, TranscriptJsonWriter
 from voice_note.audio.player import AudioPlaybackController, speak_text
+from voice_note.config import DEFAULT_CONFIG_FILE, VoiceNoteConfigStore
 from voice_note.services.assistant_context import (
     AssistantChatMessage,
     AssistantContextBuilder,
@@ -245,6 +246,44 @@ class SettingsTest(unittest.TestCase):
 
         self.assertEqual(settings.session_dir, Path(temp_dir) / "from-cli")
         self.assertEqual(settings.session_title, "from config")
+
+    def test_saves_and_loads_config_round_trip_without_runtime_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "config.json"
+            settings = VoiceNoteSettings(
+                mode="tui",
+                audio_output_folder=Path("/tmp/audio"),
+                keep_audio=True,
+                text_output_file=Path("/tmp/transcribe.txt"),
+                json_output_file=Path("/tmp/notes.json"),
+                append_timestamp=True,
+                language="en",
+                model="small",
+                assistant_model="qwen2.5:3b",
+                verbose=True,
+                session_dir=Path("/tmp/session"),
+                session_title="project review",
+                audio_file=Path("/tmp/audio.wav"),
+                log_file=Path("/tmp/log.txt"),
+                audio_device="microphone-1",
+                editor="nvim",
+                max_recording_seconds=60,
+            )
+
+            saved_path = settings.save_to_file(config_file)
+            loaded = VoiceNoteSettings.from_file(saved_path)
+            payload = json.loads(config_file.read_text())
+
+            self.assertEqual(saved_path, config_file)
+            self.assertEqual(loaded.mode, "tui")
+            self.assertEqual(loaded.audio_output_folder, Path("/tmp/audio"))
+            self.assertEqual(loaded.session_title, "project review")
+            self.assertIsNone(payload.get("session_dir"))
+            self.assertIsNone(payload.get("audio_file"))
+            self.assertEqual(DEFAULT_CONFIG_FILE.name, "config.json")
+            self.assertEqual(
+                VoiceNoteConfigStore(config_file).load().session_title, "project review"
+            )
 
     def test_rejects_recording_limit_over_five_minutes(self) -> None:
         with self.assertRaises(ValueError):

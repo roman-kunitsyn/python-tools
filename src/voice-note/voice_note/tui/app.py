@@ -7,18 +7,21 @@ from urllib.parse import quote
 
 from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.timer import Timer
 from textual.widgets import (
     Button,
     Footer,
     Header,
+    Input,
     Link,
+    Select,
     Static,
     TabbedContent,
     TabPane,
 )
 
+from voice_note.config import DEFAULT_CONFIG_FILE, VoiceNoteConfigStore
 from voice_note.audio.player import AudioPlaybackController
 from voice_note.models.assistant_message import AssistantMessage
 from voice_note.models.session import VoiceNoteSession
@@ -174,6 +177,39 @@ class VoiceNoteApp(App):
         padding: 1;
     }
 
+    #settings-form {
+        height: 1fr;
+        margin-top: 1;
+        padding-right: 1;
+    }
+
+    .settings-section-title {
+        margin-top: 1;
+        margin-bottom: 1;
+        text-style: bold;
+    }
+
+    .settings-row {
+        height: auto;
+        margin-bottom: 1;
+    }
+
+    .settings-label {
+        width: 28;
+        padding-right: 1;
+        color: $text-muted;
+    }
+
+    .settings-input,
+    .settings-select {
+        width: 1fr;
+    }
+
+    .settings-note {
+        color: $text-muted;
+        margin-top: 1;
+    }
+
     #app-footer {
         height: auto;
         dock: bottom;
@@ -249,6 +285,7 @@ class VoiceNoteApp(App):
         self,
         settings: VoiceNoteSettings,
         session_service: SessionService,
+        config_file: Path | None = None,
     ) -> None:
         super().__init__()
         self.settings = settings
@@ -269,6 +306,7 @@ class VoiceNoteApp(App):
         self.assistant_selection_anchor_index: int | None = None
         self.assistant_selection_end_index: int | None = None
         self.audio_player = AudioPlaybackController()
+        self.config_store = VoiceNoteConfigStore(config_file or DEFAULT_CONFIG_FILE)
         self.recording_started_at: float | None = None
         self.countdown_timer: Timer | None = None
         self.status_blink_timer: Timer | None = None
@@ -328,9 +366,157 @@ class VoiceNoteApp(App):
                 with TabPane("Settings", id="settings"):
                     yield Vertical(
                         Static("Settings", id="settings-title"),
-                        Static("", id="settings-inputs"),
-                        Static("", id="settings-outputs"),
-                        Static("", id="settings-runtime"),
+                        Static(
+                            f"Saved config file: {self.config_store.config_file}",
+                            id="settings-config-path",
+                        ),
+                        VerticalScroll(
+                            Static("Core", classes="settings-section-title"),
+                            self._settings_row(
+                                "Mode",
+                                Select(
+                                    [("CLI", "cli"), ("TUI", "tui")],
+                                    prompt="Choose mode",
+                                    value=self.settings.mode,
+                                    id="setting-mode",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Verbose",
+                                Select(
+                                    [("Off", False), ("On", True)],
+                                    prompt="Verbose logging",
+                                    value=self.settings.verbose,
+                                    id="setting-verbose",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Audio device",
+                                Input(
+                                    value=self.settings.audio_device or "",
+                                    id="setting-audio-device",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Whisper language",
+                                Input(
+                                    value=self.settings.language,
+                                    id="setting-language",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Whisper model",
+                                Select(
+                                    self._model_options(self.settings.model),
+                                    prompt="Choose model",
+                                    value=self.settings.model,
+                                    id="setting-model",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Ollama model",
+                                Select(
+                                    self._assistant_model_options(
+                                        self.settings.assistant_model
+                                    ),
+                                    prompt="Choose model",
+                                    value=self.settings.assistant_model,
+                                    id="setting-assistant-model",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Max recording seconds",
+                                Select(
+                                    self._recording_limit_options(
+                                        self.settings.max_recording_seconds
+                                    ),
+                                    prompt="Choose limit",
+                                    value=self.settings.max_recording_seconds,
+                                    id="setting-max-recording-seconds",
+                                ),
+                            ),
+                            Static("Output", classes="settings-section-title"),
+                            self._settings_row(
+                                "Keep audio",
+                                Select(
+                                    [("No", False), ("Yes", True)],
+                                    prompt="Keep audio",
+                                    value=self.settings.keep_audio,
+                                    id="setting-keep-audio",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Append timestamp",
+                                Select(
+                                    [("No", False), ("Yes", True)],
+                                    prompt="Append timestamp",
+                                    value=self.settings.append_timestamp,
+                                    id="setting-append-timestamp",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Editor",
+                                Select(
+                                    [("code", "code"), ("nvim", "nvim")],
+                                    prompt="Choose editor",
+                                    value=self.settings.editor,
+                                    id="setting-editor",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Audio output folder",
+                                Input(
+                                    value=str(self.settings.audio_output_folder or ""),
+                                    id="setting-audio-output-folder",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Text output file",
+                                Input(
+                                    value=str(self.settings.text_output_file or ""),
+                                    id="setting-text-output-file",
+                                ),
+                            ),
+                            self._settings_row(
+                                "JSON output file",
+                                Input(
+                                    value=str(self.settings.json_output_file or ""),
+                                    id="setting-json-output-file",
+                                ),
+                            ),
+                            self._settings_row(
+                                "Log file",
+                                Input(
+                                    value=str(self.settings.log_file or ""),
+                                    id="setting-log-file",
+                                ),
+                            ),
+                            Static("Session", classes="settings-section-title"),
+                            self._settings_row(
+                                "Session title",
+                                Input(
+                                    value=self.settings.session_title,
+                                    id="setting-session-title",
+                                ),
+                            ),
+                            Static(
+                                "Session folders still come from the session picker or --session; config saves runtime defaults only.",
+                                classes="settings-note",
+                            ),
+                            Horizontal(
+                                Button(
+                                    "Save Config",
+                                    variant="primary",
+                                    id="save-config",
+                                ),
+                                Button(
+                                    "Load Config",
+                                    id="load-config",
+                                ),
+                                id="settings-actions",
+                            ),
+                            id="settings-form",
+                        ),
                         id="settings-view",
                     )
         yield Container(
@@ -1024,10 +1210,110 @@ class VoiceNoteApp(App):
         self.query_one("#notes-content", NoteTranscriptView).focus()
 
     def _refresh_settings_widgets(self) -> None:
-        sections = _format_settings_sections(self.settings, self.active_tab)
-        self.query_one("#settings-inputs", Static).update(sections["inputs"])
-        self.query_one("#settings-outputs", Static).update(sections["outputs"])
-        self.query_one("#settings-runtime", Static).update(sections["runtime"])
+        self._sync_settings_form()
+
+    def _sync_settings_form(self) -> None:
+        self._set_select_value("setting-mode", self.settings.mode)
+        self._set_select_value("setting-verbose", self.settings.verbose)
+        self._set_input_value("setting-audio-device", self.settings.audio_device)
+        self._set_input_value("setting-language", self.settings.language)
+        self._set_select_value(
+            "setting-model",
+            self.settings.model,
+            options=self._model_options(self.settings.model),
+        )
+        self._set_select_value(
+            "setting-assistant-model",
+            self.settings.assistant_model,
+            options=self._assistant_model_options(self.settings.assistant_model),
+        )
+        self._set_select_value(
+            "setting-max-recording-seconds",
+            self.settings.max_recording_seconds,
+        )
+        self._set_select_value("setting-keep-audio", self.settings.keep_audio)
+        self._set_select_value(
+            "setting-append-timestamp",
+            self.settings.append_timestamp,
+        )
+        self._set_select_value("setting-editor", self.settings.editor)
+        self._set_input_value("setting-audio-output-folder", self.settings.audio_output_folder)
+        self._set_input_value("setting-text-output-file", self.settings.text_output_file)
+        self._set_input_value("setting-json-output-file", self.settings.json_output_file)
+        self._set_input_value("setting-log-file", self.settings.log_file)
+        self._set_input_value("setting-session-title", self.settings.session_title)
+
+    def _settings_row(self, label: str, widget) -> Horizontal:
+        return Horizontal(
+            Static(label, classes="settings-label"),
+            widget,
+            classes="settings-row",
+        )
+
+    def _model_options(self, current_value: str) -> list[tuple[str, str]]:
+        presets = ["small", "base", "medium", "large-v3"]
+        values = [current_value] + [preset for preset in presets if preset != current_value]
+        return [(value, value) for value in values]
+
+    def _assistant_model_options(self, current_value: str) -> list[tuple[str, str]]:
+        presets = ["qwen2.5:3b", "llama3.2:3b", "mistral:7b"]
+        values = [current_value] + [preset for preset in presets if preset != current_value]
+        return [(value, value) for value in values]
+
+    def _recording_limit_options(self, current_value: int) -> list[tuple[str, int]]:
+        presets = [30, 60, 90, 120, 180, 300]
+        values = [current_value] + [preset for preset in presets if preset != current_value]
+        return [(f"{value}", value) for value in values]
+
+    def _set_input_value(self, widget_id: str, value: object | None) -> None:
+        try:
+            widget = self.query_one(f"#{widget_id}", Input)
+        except Exception:
+            return
+
+        widget.value = "" if value is None else str(value)
+
+    def _set_select_value(
+        self,
+        widget_id: str,
+        value: object,
+        options: list[tuple[str, object]] | None = None,
+    ) -> None:
+        try:
+            widget = self.query_one(f"#{widget_id}", Select)
+        except Exception:
+            return
+
+        if options is not None:
+            widget.set_options(options)
+        widget.value = value
+
+    def _replace_settings(self, **updates: object) -> VoiceNoteSettings:
+        return self.settings.__class__(**{**self.settings.__dict__, **updates})
+
+    def action_save_config(self) -> None:
+        try:
+            saved_file = self.config_store.save(self.settings)
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        self._set_status(f"Status: Saved config to {saved_file}")
+
+    def action_load_config(self) -> None:
+        try:
+            loaded = self.config_store.load()
+        except Exception as error:
+            self._set_status(f"Status: Error: {error}")
+            return
+
+        if loaded is None:
+            self._set_status(f"Status: Error: missing config file at {self.config_store.config_file}")
+            return
+
+        self.settings = loaded
+        self._sync_settings_form()
+        self._set_status(f"Status: Loaded config from {self.config_store.config_file}")
 
     def _show_tab(self, tab: str) -> None:
         self.active_tab = tab
@@ -1044,6 +1330,11 @@ class VoiceNoteApp(App):
         elif tab == "notes":
             try:
                 self.query_one("#notes-content", NoteTranscriptView).focus()
+            except Exception:
+                pass
+        elif tab == "settings":
+            try:
+                self.query_one("#setting-mode", Select).focus()
             except Exception:
                 pass
 
@@ -1070,6 +1361,11 @@ class VoiceNoteApp(App):
                 self.query_one("#assistant-messages", AssistantMessageView).focus()
             except Exception:
                 pass
+        elif tab_id == "settings":
+            try:
+                self.query_one("#setting-mode", Select).focus()
+            except Exception:
+                pass
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "play-selected":
@@ -1088,6 +1384,60 @@ class VoiceNoteApp(App):
             self.action_zoom_in()
         elif event.button.id == "zoom-out":
             self.action_zoom_out()
+        elif event.button.id == "save-config":
+            self.action_save_config()
+        elif event.button.id == "load-config":
+            self.action_load_config()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        widget_id = event.input.id or ""
+        if widget_id == "setting-audio-device":
+            self.settings = self._replace_settings(audio_device=event.value or None)
+        elif widget_id == "setting-language":
+            self.settings = self._replace_settings(language=event.value or "auto")
+        elif widget_id == "setting-audio-output-folder":
+            self.settings = self._replace_settings(
+                audio_output_folder=Path(event.value) if event.value else None
+            )
+        elif widget_id == "setting-text-output-file":
+            self.settings = self._replace_settings(
+                text_output_file=Path(event.value) if event.value else None
+            )
+        elif widget_id == "setting-json-output-file":
+            self.settings = self._replace_settings(
+                json_output_file=Path(event.value) if event.value else None
+            )
+        elif widget_id == "setting-log-file":
+            self.settings = self._replace_settings(
+                log_file=Path(event.value) if event.value else None
+            )
+        elif widget_id == "setting-session-title":
+            self.settings = self._replace_settings(
+                session_title=event.value or self.settings.session_title
+            )
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        widget_id = event.select.id or ""
+        if widget_id == "setting-mode":
+            self.settings = self._replace_settings(mode=str(event.value))
+        elif widget_id == "setting-verbose":
+            self.settings = self._replace_settings(verbose=bool(event.value))
+        elif widget_id == "setting-model":
+            self.settings = self._replace_settings(model=str(event.value))
+        elif widget_id == "setting-assistant-model":
+            self.settings = self._replace_settings(assistant_model=str(event.value))
+        elif widget_id == "setting-max-recording-seconds":
+            self.settings = self._replace_settings(
+                max_recording_seconds=int(event.value)
+            )
+        elif widget_id == "setting-keep-audio":
+            self.settings = self._replace_settings(keep_audio=bool(event.value))
+        elif widget_id == "setting-append-timestamp":
+            self.settings = self._replace_settings(
+                append_timestamp=bool(event.value)
+            )
+        elif widget_id == "setting-editor":
+            self.settings = self._replace_settings(editor=str(event.value))
 
     def _open_note_editor(self, title: str, note: SessionNote | None = None) -> None:
         initial_text = note.text if note is not None else ""
