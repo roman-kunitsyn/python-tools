@@ -75,3 +75,7 @@ Full machine-readable role profile:
   - `--config` when configuration files are supported
   - `--format` when output formats vary
   - `--json` when machine-readable output is useful
+- New tools should treat config files as defaults, not as the final word:
+  - `--[flag]` values override `--config` values
+  - `--config` values override built-in defaults
+  - if the same setting appears in both places, the CLI flag wins

@@ -129,6 +129,13 @@ Standard I/O priority:
 - `--logs` or `--log-file` adds persistent logs but does not replace `stderr`
 - explicit flags always win over implicit defaults
 
+Configuration priority:
+
+- `--flag` values win over `--config` file values
+- `--config` file values win over built-in defaults
+- if a value can come from both config and a flag, the flag is the override
+  layer
+
 The CLI layer should not:
 
 - call subprocesses
